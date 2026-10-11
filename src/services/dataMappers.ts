@@ -1,5 +1,6 @@
 import type { Aur_quoteses } from '../generated/models/Aur_quotesesModel'
 import { inquiryTypeLabel } from './inquiryTypeOptions'
+import { INQUIRY_STATUS_OPTIONS } from './inquiryStatusOptions'
 import type { Aur_quotes } from '../generated/models/Aur_quotesModel'
 import type { Aur_productses } from '../generated/models/Aur_productsesModel'
 import type { Aur_quotes_detailses } from '../generated/models/Aur_quotes_detailsesModel'
@@ -81,6 +82,7 @@ export function mapInquiryDetail(
   const inquiryRecord = record as Aur_quoteses & {
     aur_base_premium?: number | null
     aur_vehicle_value?: string | null
+    aur_customer_data?: string | null
     aur_underwriter_action_status?: number | null
     aur_underwriter_sub_action?: number | null
     aur_action_applied?: boolean | null
@@ -130,6 +132,7 @@ export function mapInquiryDetail(
     declaredValue: record.aur_declared_value ?? 0,
     basePremium: inquiryRecord.aur_base_premium ?? 0,
     vehicleValue: inquiryRecord.aur_vehicle_value ?? '',
+    customerData: inquiryRecord.aur_customer_data ?? '',
     underwriterActionStatus: inquiryRecord.aur_underwriter_action_status,
     underwriterSubAction: inquiryRecord.aur_underwriter_sub_action,
     totalCharge: record.aur_total_amount_charge ?? 0,
@@ -316,44 +319,8 @@ export function countByType(records: Aur_quoteses[]): Array<{ label: string; val
 
 function inquiryLifecycleStatusLabel(formatted?: string, raw?: number | string) {
   const numericValue = Number(raw)
-  switch (numericValue) {
-    case 1:
-      return 'Draft'
-    case 2:
-      return 'Inactive'
-    case 751820001:
-      return 'AI Processing'
-    case 751820002:
-      return 'Ready to Generate Quote'
-    case 751820003:
-      return 'Quote Generated Successfully'
-    case 751820004:
-      return 'Generating Quote'
-    case 751820005:
-      return 'Further Clarification Required'
-    case 751820006:
-      return 'Inquiry Created'
-    case 751820007:
-      return 'Product Match'
-    case 751820008:
-      return 'Determined Inquiry'
-    case 751820009:
-      return 'Awaiting Review'
-    case 751820010:
-      return 'Refer to Underwriter'
-    case 751820011:
-      return 'Decline'
-    case 751820012:
-      return 'Quote Provided'
-    case 751820013:
-      return 'Escalate to Head of Aviation'
-    case 751820014:
-      return 'Property or Reinsurance Team'
-    case 751820015:
-      return 'More Information Required'
-    default:
-      break
-  }
+  const mappedStatus = INQUIRY_STATUS_OPTIONS.find((option) => option.value === numericValue)
+  if (mappedStatus) return mappedStatus.label
 
   return formatted
     ? formatted

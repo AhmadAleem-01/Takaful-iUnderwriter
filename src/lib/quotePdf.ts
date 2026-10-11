@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { formatAmount } from './formatters'
 import type { QuoteDetail } from '../domain/app'
 import type { QuotePlanLinkedSection } from '../services/quotesService'
 
@@ -131,7 +132,7 @@ export async function generateQuotePdf({
     body: [[
       formatCurrencyForPdf(form.grossPremium),
       formatCurrencyForPdf(form.loadingPremium),
-      formatCurrencyForPdf(form.vat),
+      `${formatAmount(form.vat)}%`,
       formatCurrencyForPdf(form.totalPremium),
     ]],
     styles: {

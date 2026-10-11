@@ -22,7 +22,8 @@ import { Card } from '../../components/ui/Card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/Tabs'
 import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
-import { formatCurrency } from '../../lib/formatters'
+import { formatAmount, formatCurrency } from '../../lib/formatters'
+import { AmountInput } from '../../components/ui/AmountInput'
 import { generateQuotePdf } from '../../lib/quotePdf'
 import takafulHeaderSrc from '../../assets/al-buhaira-logo.png?inline'
 import type { QuotePlanComparison } from '../../domain/app'
@@ -280,7 +281,7 @@ export function QuoteWorkbenchPage() {
             <div className="grid gap-3 md:grid-cols-3">
             <Metric label="Total Premium" value={formatCurrency(currentDetail.totalPremium)} />
             <Metric label="Gross Premium" value={formatCurrency(currentDetail.grossPremium)} />
-            <Metric label="VAT" value={formatCurrency(currentDetail.vat)} />
+            <Metric label="VAT" value={`${formatAmount(currentDetail.vat)}%`} />
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="secondary" className="bg-white hover:bg-surface" disabled={isExporting} onClick={() => void handleExportPdf()}>
@@ -313,16 +314,16 @@ export function QuoteWorkbenchPage() {
                     <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
                   </Field>
                   <Field label="Total Premium">
-                    <Input value={form.totalPremium} onChange={(event) => setForm({ ...form, totalPremium: event.target.value })} />
+                    <AmountInput value={form.totalPremium} onValueChange={(value) => setForm({ ...form, totalPremium: value })} />
                   </Field>
                   <Field label="Gross Premium">
-                    <Input value={form.grossPremium} onChange={(event) => setForm({ ...form, grossPremium: event.target.value })} />
+                    <AmountInput value={form.grossPremium} onValueChange={(value) => setForm({ ...form, grossPremium: value })} />
                   </Field>
                   <Field label="VAT">
-                    <Input value={form.vat} onChange={(event) => setForm({ ...form, vat: event.target.value })} />
+                    <AmountInput value={form.vat} suffix="%" onValueChange={(value) => setForm({ ...form, vat: value })} />
                   </Field>
                   <Field label="Loading Premium">
-                    <Input value={form.loadingPremium} onChange={(event) => setForm({ ...form, loadingPremium: event.target.value })} />
+                    <AmountInput value={form.loadingPremium} onValueChange={(value) => setForm({ ...form, loadingPremium: value })} />
                   </Field>
                 </div>
                 <Field label="Outcome Reason">

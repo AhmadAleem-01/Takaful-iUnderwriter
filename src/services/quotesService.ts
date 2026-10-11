@@ -1,4 +1,5 @@
 import { Aur_benefitsesService } from '../generated/services/Aur_benefitsesService'
+import { quoteWholeNumber } from '../lib/quoteNumbers'
 import { Aur_coveragesesService } from '../generated/services/Aur_coveragesesService'
 import { Aur_customdocumenttemplatesesService } from '../generated/services/Aur_customdocumenttemplatesesService'
 import { Aur_deductiblesesService } from '../generated/services/Aur_deductiblesesService'
@@ -207,10 +208,10 @@ export async function saveQuoteDetail(
   const previousQuote = payload.quoteStatus === 'QuoteWon' ? (await Aur_quotesService.get(id)).data : undefined
   await Aur_quotesService.update(id, {
     aur_name: payload.name,
-    aur_total_premium: payload.totalPremium,
-    aur_gross_premium: payload.grossPremium,
-    aur_vat: payload.vat,
-    aur_loading_premium: payload.loadingPremium,
+    aur_total_premium: quoteWholeNumber(payload.totalPremium, 'Total Premium'),
+    aur_gross_premium: quoteWholeNumber(payload.grossPremium, 'Gross Premium'),
+    aur_vat: quoteWholeNumber(payload.vat, 'VAT'),
+    aur_loading_premium: quoteWholeNumber(payload.loadingPremium, 'Loading Premium'),
     aur_reason: payload.reason,
     aur_ai_generated_summary: payload.aiSummary,
     ...(payload.productId ? { 'aur_product@odata.bind': `/aur_productses(${payload.productId})` } : {}),

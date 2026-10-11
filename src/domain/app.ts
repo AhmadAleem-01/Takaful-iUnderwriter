@@ -150,6 +150,7 @@ export interface InquiryDetail extends InquirySummary {
   declaredValue: number
   basePremium: number
   vehicleValue?: string
+  customerData?: string
   underwriterActionStatus?: number | null
   underwriterSubAction?: number | null
   totalCharge: number

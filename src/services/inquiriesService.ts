@@ -34,6 +34,8 @@ import {
   mapRelatedParty,
 } from './dataMappers'
 import { INQUIRY_TYPE_OPTIONS } from './inquiryTypeOptions'
+import { INQUIRY_STATUS_OPTIONS } from './inquiryStatusOptions'
+import { quoteWholeNumber } from '../lib/quoteNumbers'
 
 type InquiryReferenceData = {
   products: Awaited<ReturnType<typeof Aur_productsesService.getAll>>['data']
@@ -576,25 +578,7 @@ async function getInquiryEditorOptionsUncached() {
     })),
     brokers: brokerAccounts.map((record) => ({ id: record.accountid, name: record.name ?? 'Unnamed broker' })),
     inquiryTypes: INQUIRY_TYPE_OPTIONS,
-    inquiryStatuses: [
-      { value: 1, label: 'Draft' },
-      { value: 751820001, label: 'AI Processing' },
-      { value: 2, label: 'Inactive' },
-      { value: 751820002, label: 'Ready to Generate Quote' },
-      { value: 751820004, label: 'Generating Quote' },
-      { value: 751820003, label: 'Quote Generated Successfully' },
-      { value: 751820005, label: 'Further Clarification Required' },
-      { value: 751820006, label: 'Inquiry Created' },
-      { value: 751820007, label: 'Product Match' },
-      { value: 751820008, label: 'Determined Inquiry' },
-      { value: 751820009, label: 'Awaiting Review' },
-      { value: 751820010, label: 'Refer to Underwriter' },
-      { value: 751820011, label: 'Decline' },
-      { value: 751820012, label: 'Quote Provided' },
-      { value: 751820013, label: 'Escalate to Head of Aviation' },
-      { value: 751820014, label: 'Property or Reinsurance Team' },
-      { value: 751820015, label: 'More Information Required' },
-    ],
+    inquiryStatuses: INQUIRY_STATUS_OPTIONS,
     coverTypes: [
       { value: 1, label: 'PAR All Risks' },
       { value: 2, label: 'Named Perils' },
@@ -842,10 +826,10 @@ export async function createQuoteFromInquiry(
     ...(productId ? { 'aur_product@odata.bind': `/aur_productses(${productId})` } : {}),
     ...(planId ? { 'aur_plan@odata.bind': `/aur_plans(${planId})` } : {}),
     'aur_quotes@odata.bind': `/aur_quoteses(${recordId})`,
-    aur_total_premium: totalPremium,
-    aur_gross_premium: grossPremium,
-    aur_loading_premium: loadingPremium,
-    aur_vat: vat,
+    aur_total_premium: quoteWholeNumber(totalPremium, 'Total Premium'),
+    aur_gross_premium: quoteWholeNumber(grossPremium, 'Gross Premium'),
+    aur_loading_premium: quoteWholeNumber(loadingPremium, 'Loading Premium'),
+    aur_vat: quoteWholeNumber(vat, 'VAT'),
     aur_ai_generated_summary:
       inquiry.aur_risksummary?.trim() || inquiry.aur_summary?.trim() || undefined,
     aur_reason: 'Created from inquiry detail workspace',

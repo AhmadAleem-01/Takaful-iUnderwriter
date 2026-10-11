@@ -32,6 +32,7 @@ import { Select } from '../../components/ui/Select'
 import { getUnderwriterSubActions, underwriterActions, vehicleValueAverage } from '../../lib/inquiryUnderwriting'
 import { formatAmount, formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
 import { AmountInput } from '../../components/ui/AmountInput'
+import { parseMotorCustomerData, motorDriverFields, motorVehicleFields, motorAnswer } from '../../lib/motorInquiry'
 
 interface InquiryFormState {
   name: string
@@ -1408,14 +1409,20 @@ export function InquiryWorkspacePage() {
                     </div>
                   </Card>
 
+                  {findOptionName(options.products, form.productId, inquiry.productName).trim().toLowerCase() === 'motor insurance' ? (
+                    <>
+                      <MotorInformationSection title="Driver Information" data={inquiry.customerData} driver />
+                      <MotorInformationSection title="Vehicle Information" data={inquiry.customerData} />
+                    </>
+                  ) : null}
                   <Card className="space-y-5">
                     <SectionHeader title="Premium" description="Commercial premium and deduction controls for the inquiry." />
                     <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Base Premium">
+                      <Field label="Base Premium Percentage">
                         {isEditing ? (
-                          <AmountInput value={form.basePremium} onValueChange={(value) => setForm({ ...form, basePremium: value })} />
+                          <AmountInput value={form.basePremium} suffix="%" maximumFractionDigits={0} onValueChange={(value) => setForm({ ...form, basePremium: value })} />
                         ) : (
-                          <ReadOnlyValue value={formatAmount(form.basePremium)} />
+                          <ReadOnlyValue value={`${formatAmount(form.basePremium, 0)}%`} />
                         )}
                       </Field>
                       <div className="relative space-y-2.5">
@@ -3281,6 +3288,21 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
       {children}
     </div>
+  )
+}
+
+function MotorInformationSection({ title, data, driver = false }: { title: string; data?: string; driver?: boolean }) {
+  const parsed = parseMotorCustomerData(data)
+  return (
+    <Card className="space-y-5">
+      <SectionHeader title={title} description={driver ? 'Driver details from the submitted insurance information.' : 'Vehicle details from the submitted insurance information.'} />
+      {!parsed ? <p className="text-sm text-muted-foreground">Submitted information is not available for this inquiry.</p> : null}
+      <div className="grid gap-4 md:grid-cols-2">
+        {(driver ? motorDriverFields : motorVehicleFields).map(([label, property]) => (
+          <Field key={property} label={label}><ReadOnlyValue value={motorAnswer(parsed, property, driver)} /></Field>
+        ))}
+      </div>
+    </Card>
   )
 }
 

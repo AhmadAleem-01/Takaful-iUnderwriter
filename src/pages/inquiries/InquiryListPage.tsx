@@ -961,6 +961,12 @@ function MiniMetric({ label, value, helper }: { label: string; value: string; he
 
 function badgeForStatus(status: string) {
   const normalized = status.toLowerCase()
+  if (normalized === 'inactive' || normalized === 'draft') return 'neutral'
+  if (normalized === 'quote generated successfully' || normalized === 'quote provided') return 'approved'
+  if (normalized === 'ai processing' || normalized === 'generating quote') return 'pending'
+  if (normalized === 'further clarification required' || normalized === 'more information required') return 'pending'
+  if (normalized === 'refer to underwriter' || normalized === 'escalate to head of aviation' || normalized === 'property or reinsurance team') return 'review'
+  if (normalized === 'ready to generate quote' || normalized === 'product match' || normalized === 'determined inquiry') return 'info'
   if (normalized.includes('approve') || normalized.includes('won')) return 'approved'
   if (normalized.includes('review')) return 'review'
   if (normalized.includes('declin') || normalized.includes('reject') || normalized.includes('lost')) return 'rejected'

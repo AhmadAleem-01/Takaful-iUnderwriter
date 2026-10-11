@@ -1,8 +1,8 @@
-export function formatAmount(value: string | number | null | undefined) {
+export function formatAmount(value: string | number | null | undefined, maximumFractionDigits = 20) {
   if (value == null || String(value).trim() === '') return ''
   const number = Number(String(value).replace(/,/g, ''))
   return Number.isFinite(number)
-    ? new Intl.NumberFormat('en-AE', { maximumFractionDigits: 20 }).format(number)
+    ? new Intl.NumberFormat('en-AE', { maximumFractionDigits }).format(number)
     : String(value)
 }
 
