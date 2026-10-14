@@ -36,6 +36,7 @@ import {
 import { INQUIRY_TYPE_OPTIONS } from './inquiryTypeOptions'
 import { INQUIRY_STATUS_OPTIONS } from './inquiryStatusOptions'
 import { quoteWholeNumber } from '../lib/quoteNumbers'
+import { preferReceivedInquiryEmails } from '../lib/inquiryEmailDuplicates'
 
 type InquiryReferenceData = {
   products: Awaited<ReturnType<typeof Aur_productsesService.getAll>>['data']
@@ -1273,7 +1274,7 @@ function buildInquiryEmails(
     return map
   }, new Map<string, InquiryEmailSummary['attachments']>())
 
-  return (emails ?? [])
+  const timeline: InquiryEmailSummary[] = (emails ?? [])
     .filter((email) => normalizeDataverseId(email._regardingobjectid_value) === inquiryId)
     .map((email) => {
       const parsed = extractEmailMetadata(email.description ?? '')
@@ -1292,6 +1293,7 @@ function buildInquiryEmails(
       }
     })
     .sort((left, right) => new Date(right.createdOn ?? 0).getTime() - new Date(left.createdOn ?? 0).getTime())
+  return preferReceivedInquiryEmails(timeline)
 }
 
 async function listQuoteDetailsForInquiry(inquiryId: string) {

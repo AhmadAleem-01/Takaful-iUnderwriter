@@ -52,6 +52,7 @@ export * as OnDemand_RecalculationofRI_CapacityChecksModel from './models/OnDema
 export * as RetrieveEnvironmentVariableValueModel from './models/RetrieveEnvironmentVariableValueModel';
 export * as SystemusersModel from './models/SystemusersModel';
 export * as TransactioncurrenciesModel from './models/TransactioncurrenciesModel';
+export * as WhenQuoteGenerated_SendEmailtoCustomerModel from './models/WhenQuoteGenerated_SendEmailtoCustomerModel';
 
 // Services
 export * from './services/AccountsService';
@@ -101,3 +102,4 @@ export * from './services/OnDemand_RecalculationofRI_CapacityChecksService';
 export * from './services/RetrieveEnvironmentVariableValueService';
 export * from './services/SystemusersService';
 export * from './services/TransactioncurrenciesService';
+export * from './services/WhenQuoteGenerated_SendEmailtoCustomerService';

@@ -215,7 +215,11 @@ export async function generateQuotePdf({
     currentY = ((doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? currentY) + 4
   })
 
-  doc.save(`${buildPdfFileName(form.name || detail.name)}.pdf`)
+  const fileName = `${buildPdfFileName(form.name || detail.name)}.pdf`
+  const dataUri = doc.output('datauristring')
+  const contentBytes = dataUri.slice(dataUri.indexOf(',') + 1)
+  await doc.save(fileName, { returnPromise: true })
+  return { fileName, contentBytes }
 }
 
 async function loadImageData(src: string) {

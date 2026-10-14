@@ -46,6 +46,18 @@
         "workflowDisplayName": "On Demand - Recalculation of RI-Capacity Checks",
         "workflowName": "26c37063-8d9a-0590-7384-fccead2ac947"
       }
+    },
+    "703ddd68-8a56-4eaa-ab8d-94db0d7ed20f": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+      "displayName": "Logic flows",
+      "dataSources": [
+        "whenquotegenerated_sendemailtocustomer"
+      ],
+      "workflowDetails": {
+        "workflowEntityId": "264b259d-44c5-f111-aaad-6045bd40375a",
+        "workflowDisplayName": "When Quote Generated - Send Email to Customer",
+        "workflowName": "a5e6bde4-839e-804c-42dd-4985a1532328"
+      }
     }
   },
   "databaseReferences": {

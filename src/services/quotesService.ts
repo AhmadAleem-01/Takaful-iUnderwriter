@@ -1,5 +1,19 @@
 import { Aur_benefitsesService } from '../generated/services/Aur_benefitsesService'
 import { quoteWholeNumber } from '../lib/quoteNumbers'
+import { WhenQuoteGenerated_SendEmailtoCustomerService } from '../generated/services/WhenQuoteGenerated_SendEmailtoCustomerService'
+
+export async function sendGeneratedQuoteToCustomer(inquiryId: string, pdf: { fileName: string; contentBytes: string }) {
+  const recordId = inquiryId.replace(/[{}]/g, '').trim().toLowerCase()
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(recordId)) {
+    throw new Error('The quote must be linked to an inquiry before it can be emailed.')
+  }
+  if (!pdf.contentBytes) throw new Error('The generated PDF is empty. Please generate the quote again.')
+  const result = await WhenQuoteGenerated_SendEmailtoCustomerService.Run({
+    text: recordId,
+    file: { name: pdf.fileName, contentBytes: pdf.contentBytes },
+  })
+  if (!result.success) throw result.error ?? new Error('The customer email flow could not be started.')
+}
 import { Aur_coveragesesService } from '../generated/services/Aur_coveragesesService'
 import { Aur_customdocumenttemplatesesService } from '../generated/services/Aur_customdocumenttemplatesesService'
 import { Aur_deductiblesesService } from '../generated/services/Aur_deductiblesesService'

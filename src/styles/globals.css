@@ -108,6 +108,19 @@
 
 @layer components {
   .form-field-surface {
-    background-color: hsl(var(--field-surface) / 0.79);
+    background-color: #e5eefa73;
   }
+
+  .inquiry-panel-body:not([hidden]) {
+    animation: inquiry-panel-reveal 160ms ease-out;
+  }
+}
+
+@keyframes inquiry-panel-reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inquiry-panel-body:not([hidden]) { animation: none; }
 }

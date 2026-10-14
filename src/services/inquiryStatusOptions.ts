@@ -16,4 +16,5 @@ export const INQUIRY_STATUS_OPTIONS = [
   { value: 751820013, label: 'Escalate to Head of Aviation' },
   { value: 751820014, label: 'Property or Reinsurance Team' },
   { value: 751820015, label: 'More Information Required' },
+  { value: 751820016, label: 'Quote Sent to Customer' },
 ]

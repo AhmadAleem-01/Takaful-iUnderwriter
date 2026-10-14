@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { Archive, ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CopyPlus, FileImage, FileSpreadsheet, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Paperclip, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
+import { ClipboardList, Car, UserRound } from 'lucide-react'
+import { InquirySection, InquiryAiPanel, InquiryDecisionRail, InquiryEmailReader, InquiryHeaderMetric } from '../../components/inquiries/InquiryWorkspacePanels'
+import { ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
 import type { InquiryDetail, RiCapacityCheckSummary } from '../../domain/app'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import { useRole } from '../../hooks/useRole'
@@ -29,7 +31,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
-import { getUnderwriterSubActions, underwriterActions, vehicleValueAverage } from '../../lib/inquiryUnderwriting'
+import { vehicleValueAverage } from '../../lib/inquiryUnderwriting'
 import { formatAmount, formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
 import { AmountInput } from '../../components/ui/AmountInput'
 import { parseMotorCustomerData, motorDriverFields, motorVehicleFields, motorAnswer } from '../../lib/motorInquiry'
@@ -97,11 +99,8 @@ export function InquiryWorkspacePage() {
   const [composerEditorVersion, setComposerEditorVersion] = useState(0)
   const [composeBusy, setComposeBusy] = useState(false)
   const [composeError, setComposeError] = useState<string | null>(null)
-  const [expandedEmailIds, setExpandedEmailIds] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState('details')
   const [aiView, setAiView] = useState<'card' | 'table'>('card')
-  const [emailPanelMode, setEmailPanelMode] = useState<'expanded' | 'collapsed'>('expanded')
-  const [isNarrowViewport, setIsNarrowViewport] = useState(false)
   const [aiCategory, setAiCategory] = useState('All')
   const [quoteView, setQuoteView] = useState<'card' | 'table'>('table')
   const [isCopyQuotesOpen, setIsCopyQuotesOpen] = useState(false)
@@ -155,19 +154,6 @@ export function InquiryWorkspacePage() {
     [inquiryState?.consequenceResults],
   )
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const syncViewport = () => {
-      const narrow = window.innerWidth < 1440
-      setIsNarrowViewport(narrow)
-      setEmailPanelMode((current) => (narrow ? 'collapsed' : current))
-    }
-
-    syncViewport()
-    window.addEventListener('resize', syncViewport)
-    return () => window.removeEventListener('resize', syncViewport)
-  }, [])
 
   useEffect(() => {
     if (!coreLoad.data) return
@@ -183,7 +169,6 @@ export function InquiryWorkspacePage() {
     setComposerEditorVersion((value) => value + 1)
     setEmailSearch('')
     setAiCategory('All')
-    setExpandedEmailIds([])
     setIsCopyQuotesOpen(false)
     setSelectedWonQuoteIds([])
     setCopyQuotesError(null)
@@ -192,14 +177,13 @@ export function InquiryWorkspacePage() {
     setIsAiReevaluateOpen(false)
     setIsNotificationMenuOpen(false)
     setExpandedActionGroups({})
-    setEmailPanelMode(isNarrowViewport ? 'collapsed' : 'expanded')
     setComposer({
       sender: user.email ?? 'underwriting@insureai.com',
       toRecipients: inquiry.contact?.email ?? inquiry.account?.email ?? '',
       subject: `Regarding ${inquiry.inquiryNumber}`,
       description: '',
     })
-  }, [coreLoad.data, isNarrowViewport, user.email])
+  }, [coreLoad.data, user.email])
 
   useEffect(() => {
     if (!supplementaryLoad.data) return
@@ -259,7 +243,7 @@ export function InquiryWorkspacePage() {
   }, [composer.description, isComposerOpen])
 
   useEffect(() => {
-    if (!isComposerOpen || emailPanelMode !== 'expanded') return
+    if (!isComposerOpen || activeTab !== 'email') return
 
     const timeoutId = window.setTimeout(() => {
       composerSectionRef.current?.scrollIntoView({
@@ -271,7 +255,7 @@ export function InquiryWorkspacePage() {
     }, 220)
 
     return () => window.clearTimeout(timeoutId)
-  }, [isComposerOpen, emailPanelMode, composerEditorVersion])
+  }, [isComposerOpen, activeTab, composerEditorVersion])
 
   useEffect(() => {
     if (!isNotificationMenuOpen) return
@@ -891,11 +875,6 @@ export function InquiryWorkspacePage() {
     }
   }
 
-  function toggleEmail(emailId: string) {
-    setExpandedEmailIds((current) =>
-      current.includes(emailId) ? current.filter((id) => id !== emailId) : [...current, emailId],
-    )
-  }
 
   function applyComposerFormat(command: 'bold' | 'italic' | 'underline' | 'insertUnorderedList') {
     if (!composerEditorRef.current) return
@@ -958,8 +937,7 @@ export function InquiryWorkspacePage() {
     })
     setComposeError(null)
     setComposerEditorVersion((value) => value + 1)
-    setActiveTab('details')
-    setEmailPanelMode('expanded')
+    setActiveTab('email')
     setIsComposerOpen(true)
   }
 
@@ -1064,9 +1042,11 @@ export function InquiryWorkspacePage() {
     }
   }
 
-  function toggleEmailPanel() {
-    setEmailPanelMode((current) => (current === 'expanded' ? 'collapsed' : 'expanded'))
-  }
+
+  const submittedCustomer = parseMotorCustomerData(inquiry.customerData)
+  const submittedVehicle = submittedCustomer ? ['Model year', 'Vehicle make', 'Vehicle model'].map((key) => motorAnswer(submittedCustomer, key)).filter((value) => value !== 'Not provided').join(' ') : ''
+  const submittedEmail = submittedCustomer ? motorAnswer(submittedCustomer, 'Email address', true) : inquiry.contact?.email || inquiry.account?.email
+  const submittedPhone = submittedCustomer ? motorAnswer(submittedCustomer, 'Mobile number', true) : ''
 
   return (
     <div className="space-y-6">
@@ -1077,39 +1057,15 @@ export function InquiryWorkspacePage() {
         </Link>
       </Button>
 
-      <section className="space-y-5 rounded-[28px] border border-border-soft bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(245,248,252,0.9)_100%)] px-6 py-6 shadow-soft dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.9)_0%,rgba(15,23,42,0.78)_100%)]">
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="new">{inquiry.inquiryNumber}</Badge>
-              <Badge variant="review">{inquiry.inquiryType}</Badge>
-              <Badge variant="pending">{inquiry.status}</Badge>
-            </div>
-            <div>
-              <h1 className="text-[22px] font-bold tracking-[-0.02em]">{inquiry.name}</h1>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                {inquiry.productName} - {inquiry.planName} - {formatDate(inquiry.createdOn)}
-              </p>
-            </div>
+      <section className="rounded-2xl border border-border-soft bg-surface px-5 py-5 sm:px-6">
+        <div className="flex flex-col justify-between gap-5 lg:flex-row">
+          <div className="min-w-0 space-y-3">
+            <div className="flex flex-wrap gap-2"><Badge variant="new">{inquiry.inquiryNumber}</Badge><Badge variant="neutral">{inquiry.inquiryType}</Badge><Badge variant="pending">{inquiry.status}</Badge></div>
+            <div><h1 className="break-words text-[23px] font-semibold tracking-tight">{inquiry.name}</h1><p className="mt-1 text-sm text-muted-foreground">{inquiry.productName} · {inquiry.planName}</p></div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>Received {formatDate(inquiry.createdOn)}</span>{submittedEmail && submittedEmail !== 'Not provided' ? <span>{submittedEmail}</span> : null}{submittedPhone && submittedPhone !== 'Not provided' ? <span>{submittedPhone}</span> : null}</div>
           </div>
-          <div className="space-y-3">
-            <div className="rounded-[20px] border border-primary/12 bg-white/70 px-4 py-3 shadow-soft dark:bg-slate-950/35">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                    Overall Completeness
-                  </p>
-                  <p className="mt-1 text-[34px] font-bold leading-none">{formatPercent(inquiry.readiness[0]?.value ?? 0)}</p>
-                </div>
-                <div className="h-12 w-12 rounded-full border-[3px] border-primary/12 p-1">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-br from-primary to-info"
-                    style={{ clipPath: `inset(${100 - (inquiry.readiness[0]?.value ?? 0)}% 0 0 0)` }}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          <div className="lg:max-w-[56%]">
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end [&_button]:rounded-lg">
               {isEditing ? (
                 <>
                   <Button type="button" variant="secondary" size="sm" disabled={saveBusy} onClick={resetForm}>
@@ -1229,16 +1185,25 @@ export function InquiryWorkspacePage() {
                 </div>
               ) : null}
             </div>
-            {actionError ? <p className="text-sm text-danger lg:text-right">{actionError}</p> : null}
-            {saveError ? <p className="text-sm text-danger lg:text-right">{saveError}</p> : null}
-            {actionSuccess ? <p className="text-sm text-success lg:text-right">{actionSuccess}</p> : null}
+
+            {actionError ? <p role="alert" className="mt-2 text-sm text-danger">{actionError}</p> : null}
+            {saveError ? <p role="alert" className="mt-2 text-sm text-danger">{saveError}</p> : null}
+            {actionSuccess ? <p role="status" className="mt-2 text-sm text-success">{actionSuccess}</p> : null}
           </div>
+        </div>
+        <div className="mt-5 grid divide-y divide-border-soft overflow-hidden rounded-xl border border-border-soft bg-surface-soft/50 sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
+          <InquiryHeaderMetric label={submittedVehicle ? 'Vehicle' : 'Selected Plan'} value={submittedVehicle || inquiry.planName} detail={inquiry.coverType} />
+          <InquiryHeaderMetric label="Sum Insured" value={formatCurrency(inquiry.totalInsured)} detail={vehicleValueAverage(inquiry.vehicleValue) ? 'Vehicle Value: ' + formatAmount(vehicleValueAverage(inquiry.vehicleValue)) : undefined} />
+          <InquiryHeaderMetric label="Premium to be Charged" value={formatCurrency(inquiry.totalCharge)} detail={inquiry.paymentTerm + ' · ' + formatAmount(inquiry.basePremium, 0) + '% Base Rate'} />
+          <InquiryHeaderMetric label="Risk Score" value={String(inquiry.riskScore) + ' / 100'} detail="Current inquiry assessment" />
+          <InquiryHeaderMetric label="Completeness" value={formatPercent(inquiry.readiness[0]?.value ?? 0)} detail="Submission readiness" />
         </div>
       </section>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="details" icon={LayoutGrid}>Details</TabsTrigger>
+          <TabsTrigger value="email" icon={Mail}>Email</TabsTrigger>
           <TabsTrigger value="actions" icon={ShieldAlert}>Actions</TabsTrigger>
           <TabsTrigger value="quotes" icon={FileText}>Quotes</TabsTrigger>
           <TabsTrigger value="ri-capacity" icon={Calculator}>RI Capacity Checks</TabsTrigger>
@@ -1247,11 +1212,9 @@ export function InquiryWorkspacePage() {
         </TabsList>
         <TabsContent value="details" className="mt-4">
           {!form ? null : (
-            <div className="space-y-6">
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                <div className="space-y-6">
-                  <Card className="space-y-5">
-                    <SectionHeader title="Details" description="Core inquiry identity, product, and relationship fields." />
+            <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(260px,3fr)]">
+              <div key={inquiry.id} className="min-w-0 space-y-3 [&_.form-field-surface]:text-[13px] [&_.form-field-surface_p]:text-[13px] [&_input]:text-[13px] [&_textarea]:text-[13px] [&_[role=combobox]]:text-[13px]">
+                  <InquirySection title="Inquiry Details" icon={ClipboardList} defaultOpen>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Name">
                         {isEditing ? (
@@ -1313,30 +1276,8 @@ export function InquiryWorkspacePage() {
                         </Field>
                       </div>
                     </div>
-                  </Card>
-
-                  <Card className="space-y-5">
-                    <SectionHeader title="Underwriting Action" description="Record the underwriting decision and its associated reason." />
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Underwriter Action Status">
-                        {isEditing ? (
-                          <SelectField value={form.underwriterActionStatus} options={underwriterActions} onChange={(value) => setForm({ ...form, underwriterActionStatus: value, underwriterSubAction: '' })} />
-                        ) : (
-                          <ReadOnlyValue value={findOptionLabel(underwriterActions, form.underwriterActionStatus, 'Not selected')} />
-                        )}
-                      </Field>
-                      <Field label="Underwriter Sub Action">
-                        {isEditing ? (
-                          <SelectField value={form.underwriterSubAction} options={getUnderwriterSubActions(form.underwriterActionStatus)} disabled={!form.underwriterActionStatus} onChange={(value) => setForm({ ...form, underwriterSubAction: value })} />
-                        ) : (
-                          <ReadOnlyValue value={findOptionLabel(getUnderwriterSubActions(form.underwriterActionStatus), form.underwriterSubAction, 'Not selected')} />
-                        )}
-                      </Field>
-                    </div>
-                  </Card>
-
-                  <Card className="space-y-5">
-                    <SectionHeader title="Risk" description="Exposure, scope, and risk intelligence inputs for underwriting." />
+                  </InquirySection>
+                  <InquirySection title="Risk & Capacity" icon={ShieldAlert}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Cover Type">
                         {isEditing ? (
@@ -1407,16 +1348,8 @@ export function InquiryWorkspacePage() {
                         </Field>
                       </div>
                     </div>
-                  </Card>
-
-                  {findOptionName(options.products, form.productId, inquiry.productName).trim().toLowerCase() === 'motor insurance' ? (
-                    <>
-                      <MotorInformationSection title="Driver Information" data={inquiry.customerData} driver />
-                      <MotorInformationSection title="Vehicle Information" data={inquiry.customerData} />
-                    </>
-                  ) : null}
-                  <Card className="space-y-5">
-                    <SectionHeader title="Premium" description="Commercial premium and deduction controls for the inquiry." />
+                  </InquirySection>
+                  <InquirySection title="Premium Details" icon={Calculator}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Base Premium Percentage">
                         {isEditing ? (
@@ -1427,7 +1360,7 @@ export function InquiryWorkspacePage() {
                       </Field>
                       <div className="relative space-y-2.5">
                         <div className="pr-8">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Premium to be Charged</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Premium to be Charged</p>
                           <div className="absolute right-0 top-[-3px]">
                           <PlanPricingOrderPopover
                             items={inquiryRatingOrderItems}
@@ -1484,331 +1417,49 @@ export function InquiryWorkspacePage() {
                         <ReadOnlyValue value={formatAmount(vehicleValueAverage(inquiry.vehicleValue)) || 'Not available'} />
                       </Field>
                     </div>
-                  </Card>
-
-                  <Card className="mt-5 space-y-5 rounded-[28px] border border-[#E9D5FF] bg-gradient-to-b from-[#FDF7FF] via-white to-white p-4 dark:border-white/10 dark:from-[#2A123D] dark:via-[#231735] dark:to-[#1E293B] sm:p-5">
-                    <div className="flex flex-col gap-4 border-b border-[#E9D5FF] pb-5 md:flex-row md:items-start md:justify-between dark:border-white/10">
-                      <div className="flex items-center gap-3">
-                        <Sparkles className="h-6 w-6 text-[#A855F7]" />
-                        <div>
-                          <h3 className="text-xl font-semibold">AI Extracted Response</h3>
-                          <p className="text-sm text-muted-foreground">Editable underwriting responses captured against this inquiry.</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                        <Button
-                          type="button"
-                          variant="ai"
-                          className="whitespace-nowrap bg-[#A855F7] text-white shadow-[0_14px_30px_rgba(168,85,247,0.24)] hover:bg-[#9333EA]"
-                          onClick={() => setIsAiReevaluateOpen(true)}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                          Re-evaluate AI Extraction
-                        </Button>
-                        {missingQuoteDetails.length ? (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="whitespace-nowrap border-[#E9D5FF] bg-white text-[#7E22CE] hover:bg-[#FDF4FF] dark:border-white/10 dark:bg-[#1E293B] dark:text-[#E9D5FF]"
-                            onClick={handleMakeDraft}
-                          >
-                            <MailPlus className="h-4 w-4" />
-                            Request a Draft
-                          </Button>
-                        ) : null}
-                        <div className="inline-flex items-center gap-1 rounded-full border border-[#E9D5FF] bg-white/90 p-1 shadow-[0_8px_22px_rgba(168,85,247,0.08)] dark:border-white/10 dark:bg-[#241533]/90">
-                          <Button
-                            type="button"
-                            variant={aiView === 'card' ? 'ai' : 'ghost'}
-                            size="sm"
-                            className={aiView === 'card' ? 'h-9 w-9 rounded-full px-0' : 'h-9 w-9 rounded-full px-0 text-[#A855F7] hover:bg-[#F5E8FF] hover:text-[#7E22CE] dark:text-[#E9D5FF] dark:hover:bg-white/10'}
-                            onClick={() => setAiView('card')}
-                            aria-label="Card view"
-                            title="Card view"
-                          >
-                            <LayoutGrid className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={aiView === 'table' ? 'ai' : 'ghost'}
-                            size="sm"
-                            className={aiView === 'table' ? 'h-9 w-9 rounded-full px-0' : 'h-9 w-9 rounded-full px-0 text-[#A855F7] hover:bg-[#F5E8FF] hover:text-[#7E22CE] dark:text-[#E9D5FF] dark:hover:bg-white/10'}
-                            onClick={() => setAiView('table')}
-                            aria-label="Table view"
-                            title="Table view"
-                          >
-                            <Rows3 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[22px] border border-[#E9D5FF] bg-[linear-gradient(180deg,rgba(255,255,255,0.95)_0%,rgba(253,247,255,0.98)_100%)] px-5 py-4 shadow-[0_10px_26px_rgba(168,85,247,0.08)] dark:border-[#6D28D9]/30 dark:bg-[linear-gradient(180deg,rgba(42,18,61,0.96)_0%,rgba(30,41,59,0.94)_100%)]">
-                      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">AI Generated Summary</p>
-                      <p className="mt-3 text-sm leading-7 text-foreground/90">
-                        {inquiry.summary || 'No AI generated summary is available for this inquiry yet.'}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {aiCategoryFilters.map((filter) => (
-                        <Button
-                          key={filter.label}
-                          type="button"
-                          variant={aiCategory === filter.label ? 'ai' : 'secondary'}
-                          size="sm"
-                          className={
-                            aiCategory === filter.label
-                              ? 'rounded-full'
-                              : 'rounded-full border-[#E9D5FF] bg-white/90 text-[#7E22CE] hover:bg-[#FDF4FF] dark:border-white/10 dark:bg-[#241533]/85 dark:text-[#E9D5FF] dark:hover:bg-white/10'
-                          }
-                          onClick={() => setAiCategory(filter.label)}
-                        >
-                          {filter.label}
-                          <span
-                            className={`rounded-full px-1.5 py-0.5 text-[11px] ${
-                              aiCategory === filter.label
-                                ? 'bg-white/20 text-white'
-                                : 'bg-[#F5E8FF] text-[#7E22CE] dark:bg-white/10 dark:text-[#E9D5FF]'
-                            }`}
-                          >
-                            {filter.count}
-                          </span>
-                        </Button>
-                      ))}
-                    </div>
-
-                    {isHydratingSupplementary ? (
-                      <InlineSectionLoading
-                        title="Loading AI responses"
-                        description="We are syncing extracted responses and business-rule context for this inquiry."
-                      />
-                    ) : quoteDetails.length === 0 ? (
-                      <Card className="border-dashed border-border bg-surface-soft/70 text-center">
-                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
-                          <FileStack className="h-6 w-6" />
-                        </div>
-                        <h4 className="mt-4 text-lg font-semibold">No AI extracted responses found</h4>
-                        <p className="mt-2 text-sm text-muted-foreground">No extracted AI response records are available for this inquiry yet.</p>
-                      </Card>
-                    ) : visibleQuoteDetailGroups.length === 0 ? (
-                      <Card className="border-dashed border-border bg-surface-soft/70 text-center">
-                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
-                          <FileStack className="h-6 w-6" />
-                        </div>
-                        <h4 className="mt-4 text-lg font-semibold">No responses in this category</h4>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          No AI extracted responses match the selected category filter right now.
-                        </p>
-                      </Card>
-                    ) : aiView === 'card' ? (
-                      <div
-                        className={`grid items-stretch gap-3 ${
-                          emailPanelMode === 'expanded'
-                            ? 'md:grid-cols-1 xl:grid-cols-2'
-                            : 'md:grid-cols-2 2xl:grid-cols-3'
-                        }`}
-                      >
-                        {visibleQuoteDetails.map((detail) => {
-                          const draftValue = quoteDetailDrafts[detail.id] ?? detail.response ?? ''
-                          const dirty = draftValue !== (detail.response ?? '')
-                          const saveState = quoteDetailSaveState[detail.id]
-                          const highlighted = draftValue.trim().toLowerCase() === 'no information provided'
-
-                          return (
-                            <div key={detail.id} className="relative z-0 h-full hover:z-30 focus-within:z-30">
-                              <Card
-                                variant="interactive"
-                                className={`overflow-visible flex h-full flex-col gap-3 rounded-[20px] border px-3.5 py-3.5 shadow-[0_10px_24px_rgba(168,85,247,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(168,85,247,0.12)] dark:shadow-[0_10px_24px_rgba(2,6,23,0.22)] dark:hover:shadow-[0_14px_30px_rgba(76,29,149,0.26)] ${
-                                  highlighted
-                                    ? 'border-[#F3C4CF] bg-[#FFF1F4] dark:border-rose-400/25 dark:bg-rose-950/30'
-                                    : 'border-[#E9D5FF] bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(250,245,255,0.96)_100%)] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(44,26,63,0.92)_0%,rgba(30,41,59,0.96)_100%)]'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="min-w-0">
-                                      <div className="flex items-start gap-2">
-                                        <p className={`line-clamp-2 text-sm font-semibold leading-5 ${highlighted ? 'text-rose-700 dark:text-rose-300' : 'text-foreground'}`}>
-                                          {detail.name}
-                                        </p>
-                                        {detail.evidence ? <EvidenceTooltip evidence={detail.evidence} compact /> : null}
-                                      </div>
-                                      <div className="mt-1 flex flex-wrap gap-2">
-                                        <span className="inline-flex items-center rounded-full border border-[#E9D5FF] bg-[#F9F1FF] px-2 py-0.5 text-[10px] font-semibold text-[#7E22CE] dark:border-white/10 dark:bg-white/10 dark:text-[#E9D5FF]">
-                                          {detail.businessRuleCategory}
-                                        </span>
-                                        {dirty ? <span className="inline-flex items-center rounded-full border border-[#D8B4FE] bg-[#F5E8FF] px-2 py-0.5 text-[10px] font-semibold text-[#7E22CE] dark:border-white/10 dark:bg-white/10 dark:text-[#E9D5FF]">Unsaved</span> : null}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex shrink-0 flex-col items-center gap-1">
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A855F7] dark:text-[#E9D5FF]">
-                                      Confidence
-                                    </span>
-                                    {detail.confidenceScore !== undefined ? (
-                                      <ConfidenceScoreIndicator score={detail.confidenceScore} />
-                                    ) : null}
-                                  </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <textarea
-                                    className={`min-h-[54px] w-full resize-y rounded-[14px] border px-3 py-2 text-sm leading-5 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${
-                                      highlighted
-                                        ? 'border-[#F3C4CF] bg-[#FFF1F4] text-rose-700 placeholder:text-rose-400 focus:border-rose-300 focus:ring-rose-100 dark:border-rose-400/25 dark:bg-rose-950/25 dark:text-rose-200'
-                                        : 'border-[#E9D5FF] bg-[#FCF7FF] text-[#4C1D95] placeholder:text-[#A78BFA] focus:border-[#C084FC] focus:ring-[#E9D5FF] dark:border-white/10 dark:bg-[#261738] dark:text-[#F3E8FF] dark:placeholder:text-[#C4B5FD]'
-                                    }`}
-                                    value={draftValue}
-                                    onChange={(event) => handleQuoteDetailDraftChange(detail.id, event.target.value)}
-                                  />
-                                  <div className="min-h-[12px] text-xs leading-4">
-                                    {saveState?.error ? <span className="text-danger">{saveState.error}</span> : null}
-                                    {!saveState?.error && saveState?.success ? <span className="text-success">{saveState.success}</span> : null}
-                                  </div>
-                                </div>
-
-                                <div className="mt-auto flex items-center justify-end pt-0">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    className="rounded-full"
-                                    disabled={!dirty || saveState?.saving}
-                                    onClick={() => void handleSaveQuoteDetailResponse(detail.id)}
-                                  >
-                                    <Save className="h-4 w-4" />
-                                    {saveState?.saving ? 'Saving...' : 'Save'}
-                                  </Button>
-                                </div>
-                              </Card>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-[24px] border border-[#E9D5FF] bg-white/96 shadow-[0_10px_26px_rgba(168,85,247,0.08)] dark:border-white/10 dark:bg-[#20152E]/88">
-                        <div className="overflow-x-auto">
-                          <table className="min-w-[1180px] w-full border-collapse">
-                            <thead className="bg-[#FCF7FF] dark:bg-[#261738]">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Quote Detail</th>
-                                <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Category</th>
-                                <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Confidence</th>
-                                <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Response</th>
-                                <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Source</th>
-                                <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {visibleQuoteDetails.map((detail) => {
-                                const draftValue = quoteDetailDrafts[detail.id] ?? detail.response ?? ''
-                                const dirty = draftValue !== (detail.response ?? '')
-                                const saveState = quoteDetailSaveState[detail.id]
-                                const highlighted = draftValue.trim().toLowerCase() === 'no information provided'
-
-                                return (
-                                  <tr key={detail.id} className="border-b border-[#F3E8FF] bg-white/90 align-top transition duration-150 hover:bg-[#FDF4FF] dark:border-white/10 dark:bg-transparent dark:hover:bg-white/5">
-                                    <td className="px-4 py-3">
-                                      <div className="space-y-0.5">
-                                        <p className={`text-sm font-semibold ${highlighted ? 'text-rose-700 dark:text-rose-300' : 'text-foreground'}`}>{detail.name}</p>
-                                        <Badge variant="approved">{detail.status}</Badge>
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      <span className="inline-flex items-center rounded-full border border-[#E9D5FF] bg-[#F9F1FF] px-2.5 py-1 text-[12px] font-semibold text-[#7E22CE] dark:border-white/10 dark:bg-white/10 dark:text-[#E9D5FF]">
-                                        {detail.businessRuleCategory}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      {detail.confidenceScore !== undefined ? (
-                                        <ConfidenceScoreIndicator score={detail.confidenceScore} />
-                                      ) : (
-                                        <span className="text-xs text-muted-foreground">N/A</span>
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      <textarea
-                                        className={`min-h-[72px] w-full min-w-[240px] rounded-[16px] border px-3 py-2 text-sm leading-5 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 ${
-                                          highlighted
-                                            ? 'border-[#F3C4CF] bg-[#FFF1F4] text-rose-700 placeholder:text-rose-400 focus:border-rose-300 focus:ring-rose-100 dark:border-rose-400/25 dark:bg-rose-950/25 dark:text-rose-200'
-                                            : 'border-[#E9D5FF] bg-[#FCF7FF] text-[#4C1D95] placeholder:text-[#A78BFA] focus:border-[#C084FC] focus:ring-[#E9D5FF] dark:border-white/10 dark:bg-[#261738] dark:text-[#F3E8FF] dark:placeholder:text-[#C4B5FD]'
-                                        }`}
-                                        value={draftValue}
-                                        onChange={(event) => handleQuoteDetailDraftChange(detail.id, event.target.value)}
-                                      />
-                                      <div className="mt-1.5 min-h-[16px] text-xs">
-                                        {saveState?.error ? <span className="text-danger">{saveState.error}</span> : null}
-                                        {!saveState?.error && saveState?.success ? <span className="text-success">{saveState.success}</span> : null}
-                                        {!saveState?.error && !saveState?.success && dirty ? <span className="text-muted-foreground">Unsaved changes</span> : null}
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      {detail.evidence ? <EvidenceTooltip evidence={detail.evidence} compact /> : <span className="text-xs text-muted-foreground">N/A</span>}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                      <Button type="button" size="sm" className="whitespace-nowrap" disabled={!dirty || saveState?.saving} onClick={() => void handleSaveQuoteDetailResponse(detail.id)}>
-                                        <Save className="h-4 w-4" />
-                                        {saveState?.saving ? 'Saving...' : 'Save'}
-                                      </Button>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-
-                <div className={`${emailPanelMode === 'collapsed' ? 'xl:w-[86px]' : 'xl:w-[min(47vw,710px)]'} transition-[width] duration-300`}>
-                {emailPanelMode === 'collapsed' ? (
-                  <CollapsedEmailRail
-                    emailCount={emailTimeline.length}
-                    inquiryNumber={inquiry.inquiryNumber}
-                    latestEmailSubject={emailTimeline[0]?.subject}
-                    onExpand={toggleEmailPanel}
+                  </InquirySection>
+                  {findOptionName(options.products, form.productId, inquiry.productName).trim().toLowerCase() === 'motor insurance' ? (
+                    <>
+                      <MotorInformationSection title="Driver Information" data={inquiry.customerData} driver />
+                      <MotorInformationSection title="Vehicle Information" data={inquiry.customerData} />
+                    </>
+                  ) : null}
+                  <InquiryAiPanel
+                    records={visibleQuoteDetails}
+                    allRecords={inquiry.quoteDetails}
+                    summary={inquiry.aiSummary || inquiry.summary}
+                    loading={isHydratingSupplementary}
+                    category={aiCategory} categories={aiCategoryFilters} onCategory={setAiCategory}
+                    view={aiView} onView={setAiView}
+                    drafts={quoteDetailDrafts} saveStates={quoteDetailSaveState}
+                    onDraft={handleQuoteDetailDraftChange}
+                    onSave={(recordId) => void handleSaveQuoteDetailResponse(recordId)}
+                    onReevaluate={() => setIsAiReevaluateOpen(true)}
+                    onRequestDraft={handleMakeDraft} showRequestDraft={missingQuoteDetails.length > 0}
+                    renderEvidence={(evidence) => <EvidenceTooltip evidence={evidence} compact />}
                   />
-                ) : (
-                <Card variant="glass" className="space-y-5 overflow-hidden">
-                  <div className="flex flex-col gap-4 border-b border-border-soft pb-5 md:flex-row md:items-start md:justify-between">
-                    <div className="space-y-2">
-                      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Email Activity Timeline</p>
-                      <h3 className="text-2xl font-semibold tracking-[-0.02em]">Inquiry communications</h3>
-                      <p className="text-sm text-muted-foreground">
-                        All email activity linked to {inquiry.inquiryNumber} from the Dataverse email timeline.
-                      </p>
-                    </div>
-                    <div className="hidden rounded-[18px] border border-border-soft bg-surface-soft px-4 py-3 text-sm">
-                      <p className="font-semibold">{inquiry.accountName}</p>
-                      <p className="mt-1 text-muted-foreground">{inquiry.productName} · {inquiry.planName}</p>
-                      <p className="mt-1 text-muted-foreground">Broker: {inquiry.brokerName}</p>
-                    </div>
-                    <Button type="button" variant="ghost" size="icon" className="rounded-full border border-border-soft bg-white/90" onClick={toggleEmailPanel}>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex flex-col gap-3 lg:flex-row">
-                      <Input
-                        value={emailSearch}
-                        onChange={(event) => setEmailSearch(event.target.value)}
-                        placeholder="Search email activity..."
-                      />
-                      <Button type="button" variant={isComposerOpen ? 'secondary' : 'primary'} className="whitespace-nowrap" onClick={() => setIsComposerOpen((value) => !value)}>
-                        <MailPlus className="h-4 w-4" />
-                        {isComposerOpen ? 'Hide Composer' : 'Compose Email'}
-                      </Button>
-                    </div>
-
+              </div>
+              <InquiryDecisionRail inquiry={inquiry} action={form.underwriterActionStatus} subAction={form.underwriterSubAction}
+                editing={isEditing} busy={saveBusy}
+                onAction={(value) => setForm({ ...form, underwriterActionStatus: value, underwriterSubAction: '' })}
+                onSubAction={(value) => setForm({ ...form, underwriterSubAction: value })}
+                onEdit={() => setIsEditing(true)} onSave={() => void handleSaveDetails()} />
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="email" className="mt-4">
+          <section className="overflow-hidden rounded-2xl border border-border-soft bg-surface">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-soft px-5 py-4">
+              <div><h2 className="text-base font-semibold">Emails</h2><p className="mt-1 text-xs text-muted-foreground">{emailTimeline.length} messages · {emailTimeline.reduce((sum, email) => sum + email.attachments.length, 0)} attachments</p></div>
+              <div className="flex flex-wrap gap-2"><Input aria-label="Search emails" className="w-[220px] text-xs" value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} placeholder="Search emails..." /><Button type="button" size="sm" className="rounded-lg" onClick={() => setIsComposerOpen((value) => !value)}><MailPlus className="h-4 w-4" />{isComposerOpen ? 'Hide Composer' : 'Compose Email'}</Button></div>
+            </div>
+            <div className={isComposerOpen ? 'border-b border-border-soft p-5' : ''}>
                     {isComposerOpen ? (
                       <div ref={composerSectionRef}>
                       <Card className="space-y-4 border border-primary/12 bg-[linear-gradient(180deg,rgba(37,99,235,0.06)_0%,rgba(255,255,255,0.6)_100%)] dark:bg-[linear-gradient(180deg,rgba(37,99,235,0.08)_0%,rgba(15,23,42,0.4)_100%)]">
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Compose</p>
+                            <p className="text-xs font-semibold text-muted-foreground">Compose Email</p>
                             <p className="mt-1 text-sm text-muted-foreground">Create a new email activity and link it directly to this inquiry.</p>
                           </div>
                           <Badge variant="review">{inquiry.inquiryNumber}</Badge>
@@ -1875,353 +1526,10 @@ export function InquiryWorkspacePage() {
                       </div>
                     ) : null}
 
-                    {isHydratingSupplementary ? (
-                      <InlineSectionLoading
-                        title="Loading email activity"
-                        description="Linked email conversations and attachments are still syncing."
-                      />
-                    ) : filteredEmails.length === 0 ? (
-                      <Card className="border-dashed border-border bg-surface-soft/70 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <MailCheck className="h-7 w-7" />
-                        </div>
-                        <h4 className="mt-4 text-lg font-semibold">No linked email activity</h4>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          This inquiry does not have any standard Dataverse email activity yet. Use compose to create the first linked email.
-                        </p>
-                      </Card>
-                    ) : (
-                      <div className="space-y-4">
-                        {filteredEmails.map((email) => (
-                          <div key={email.id} className="grid gap-4 md:grid-cols-[88px_40px_minmax(0,1fr)]">
-                            <div className="flex flex-col items-start gap-2 pt-3 text-[12px] text-muted-foreground">
-                              <span className="font-semibold">{formatDate(email.createdOn)}</span>
-                              <span className="rounded-full border border-border-soft bg-surface-soft px-2.5 py-1 text-[11px] font-semibold text-foreground/80">
-                                {email.status || 'Unknown'}
-                              </span>
-                            </div>
-                            <div className="relative hidden justify-center pt-1 md:flex">
-                              <div
-                                className={`flex h-12 w-12 shrink-0 aspect-square items-center justify-center rounded-full border-4 border-white shadow-sm transition duration-300 ${expandedEmailIds.includes(email.id) ? 'bg-primary text-white shadow-[0_16px_30px_rgba(37,99,235,0.28)]' : 'bg-surface-soft text-primary'}`}
-                              >
-                                <Mail className="h-5 w-5" />
-                              </div>
-                              <div
-                                className={`absolute top-14 w-[2px] ${expandedEmailIds.includes(email.id) ? 'bg-gradient-to-b from-primary to-primary/10' : 'bg-gradient-to-b from-border-soft to-transparent'}`}
-                                style={{ height: 'calc(100% + 1rem)' }}
-                              />
-                            </div>
-                            <Card variant="interactive" className="rounded-[24px] border border-border-soft bg-white shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:bg-slate-950/90 dark:shadow-[0_10px_24px_rgba(2,6,23,0.18)]">
-                              <button
-                                type="button"
-                                className="flex w-full flex-col gap-4 text-left"
-                                onClick={() => toggleEmail(email.id)}
-                              >
-                                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                                  <div className="space-y-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <span className="text-[12px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                        {inquiry.inquiryNumber}
-                                      </span>
-                                      <span className="rounded-full border border-border-soft bg-surface-soft px-2.5 py-1 text-[11px] font-semibold text-foreground/80">
-                                        {email.status || 'Unknown'}
-                                      </span>
-                                    </div>
-                                    <h4 className="text-lg font-semibold">{email.subject}</h4>
-                                    <div className="space-y-1 text-sm text-muted-foreground">
-                                      <p>From: {email.sender}</p>
-                                      <p>To: {email.toRecipients}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-start gap-3">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border-soft bg-surface-soft text-muted-foreground">
-                                      {expandedEmailIds.includes(email.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                    </div>
-                                  </div>
-                                </div>
-                                {!expandedEmailIds.includes(email.id) ? (
-                                  <p className="line-clamp-2 text-sm leading-7 text-muted-foreground">
-                                    {getEmailPreview(getPrimaryEmailText(email.body))}
-                                  </p>
-                                ) : null}
-                              </button>
-                              {email.attachments.length > 0 ? (
-                                <div className="mt-4 border-t border-border-soft pt-5">
-                                  <div className="flex items-center gap-2 text-sm font-semibold">
-                                    <Paperclip className="h-4 w-4 text-primary" />
-                                    Attachments ({email.attachments.length})
-                                  </div>
-                                  <div className="mt-3 flex flex-wrap gap-2.5">
-                                    {email.attachments.map((attachment) => (
-                                      <div
-                                        key={attachment.id}
-                                        className="inline-flex max-w-full items-center gap-2 rounded-full border border-border-soft bg-surface-soft/90 px-3 py-2"
-                                      >
-                                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${attachmentAccent(attachment.mimeType).tone}`}>
-                                          {attachmentAccent(attachment.mimeType).icon}
-                                        </span>
-                                        <div className="min-w-0">
-                                          <p className="truncate text-sm font-semibold">{attachment.name}</p>
-                                          <div className="flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-                                            {attachment.sizeLabel ? <span>{attachment.sizeLabel}</span> : null}
-                                            {attachment.mimeType ? <span>{attachment.mimeType}</span> : null}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : null}
-                              {expandedEmailIds.includes(email.id) ? (
-                                <div className="mt-4 border-t border-border-soft pt-5">
-                                  <div
-                                    className="prose prose-sm max-w-none whitespace-normal text-muted-foreground dark:prose-invert prose-p:leading-7 prose-div:leading-7 prose-li:leading-7"
-                                    dangerouslySetInnerHTML={{ __html: getPrimaryEmailHtml(email.body) }}
-                                  />
-                                </div>
-                              ) : null}
-                            </Card>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-                )}
-                </div>
-              </div>
+
             </div>
-          )}
-        </TabsContent>
-        <TabsContent value="ai" className="mt-4">
-          <Card className="space-y-5">
-            <div className="flex flex-col gap-4 border-b border-border-soft pb-5 md:flex-row md:items-start md:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary/12 text-secondary">
-                  <FileStack className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold">AI Extracted Response</h3>
-                  <p className="text-sm text-muted-foreground">Captured responses, evidence, and business-rule decisions for this inquiry.</p>
-                </div>
-                <Badge variant="review">
-                  <Sparkles className="mr-1 h-3.5 w-3.5" />
-                  AI Layer
-                </Badge>
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ai"
-                  size="sm"
-                  className="whitespace-nowrap bg-[#A855F7] text-white shadow-[0_14px_30px_rgba(168,85,247,0.24)] hover:bg-[#9333EA]"
-                  onClick={() => setIsAiReevaluateOpen(true)}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Re-evaluate AI Extraction
-                </Button>
-                {missingQuoteDetails.length > 0 ? (
-                  <Button type="button" variant="primary" size="sm" className="rounded-full" onClick={handleMakeDraft}>
-                    <MailPlus className="h-4 w-4" />
-                    Request a Draft
-                  </Button>
-                ) : null}
-                <ViewToggle value={aiView} onChange={setAiView} />
-              </div>
-            </div>
-            <div className="rounded-[22px] border border-border-soft bg-surface-soft/70 px-5 py-4 dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(35,23,53,0.96)_0%,rgba(30,41,59,0.92)_100%)]">
-              <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">AI Generated Summary</p>
-              <p className="mt-3 text-sm leading-7 text-foreground/90">
-                {inquiry.summary || 'No AI generated summary is available for this inquiry yet.'}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {aiCategoryFilters.map((filter) => (
-                <Button
-                  key={filter.label}
-                  type="button"
-                  variant={aiCategory === filter.label ? 'primary' : 'secondary'}
-                  size="sm"
-                  className="rounded-full"
-                  onClick={() => setAiCategory(filter.label)}
-                >
-                  {filter.label}
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[11px] ${
-                      aiCategory === filter.label ? 'bg-white/20 text-white' : 'bg-surface text-muted-foreground'
-                    }`}
-                  >
-                    {filter.count}
-                  </span>
-                </Button>
-              ))}
-            </div>
-            {inquiry.quoteDetails.length === 0 ? (
-              <Card className="border-dashed border-border bg-surface-soft/70 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
-                  <FileStack className="h-6 w-6" />
-                </div>
-                <h4 className="mt-4 text-lg font-semibold">No AI extracted responses found</h4>
-                <p className="mt-2 text-sm text-muted-foreground">No extracted AI response records are available for this inquiry yet.</p>
-              </Card>
-            ) : visibleQuoteDetailGroups.length === 0 ? (
-              <Card className="border-dashed border-border bg-surface-soft/70 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
-                  <FileStack className="h-6 w-6" />
-                </div>
-                <h4 className="mt-4 text-lg font-semibold">No responses in this category</h4>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  No AI extracted responses match the selected category filter right now.
-                </p>
-              </Card>
-            ) : aiView === 'card' ? (
-              aiCategory === 'All' ? (
-                <div className="grid gap-4 xl:grid-cols-3">
-                  {visibleQuoteDetails.map((detail) => (
-                    <Card key={detail.id} variant="interactive" className="space-y-4 rounded-[24px] border border-border-soft bg-white shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:bg-slate-950/95 dark:shadow-[0_12px_28px_rgba(2,6,23,0.22)]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2">
-                          <h4 className="text-lg font-semibold">{detail.name}</h4>
-                          <p className="text-sm text-muted-foreground">{detail.businessRuleName}</p>
-                        </div>
-                        <Badge variant="approved">{detail.status}</Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="neutral">{detail.businessRuleCategory}</Badge>
-                        <Badge variant="info">{detail.conditionMet}</Badge>
-                      </div>
-                      <div className="space-y-3 rounded-[18px] border border-border-soft bg-surface-soft/80 p-4">
-                        <div>
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Response</p>
-                            {detail.evidence ? <EvidenceTooltip evidence={detail.evidence} /> : null}
-                          </div>
-                          <p className={`mt-2 text-sm ${getResponseTextClass(detail.response)}`}>
-                            {detail.response || 'No response captured.'}
-                          </p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {visibleQuoteDetailGroups.map((group) => (
-                    <section key={group.category} className="space-y-4">
-                      <div className="grid gap-4 xl:grid-cols-3">
-                        {group.items.map((detail) => (
-                          <Card key={detail.id} variant="interactive" className="space-y-4 rounded-[24px] border border-border-soft bg-white shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:bg-slate-950/95 dark:shadow-[0_12px_28px_rgba(2,6,23,0.22)]">
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="space-y-2">
-                                <h4 className="text-lg font-semibold">{detail.name}</h4>
-                                <p className="text-sm text-muted-foreground">{detail.businessRuleName}</p>
-                              </div>
-                              <Badge variant="approved">{detail.status}</Badge>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="neutral">{detail.businessRuleCategory}</Badge>
-                              <Badge variant="info">{detail.conditionMet}</Badge>
-                            </div>
-                            <div className="space-y-3 rounded-[18px] border border-border-soft bg-surface-soft/80 p-4">
-                              <div>
-                                <div className="flex items-center justify-between gap-3">
-                                  <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Response</p>
-                                  {detail.evidence ? <EvidenceTooltip evidence={detail.evidence} /> : null}
-                                </div>
-                                <p className={`mt-2 text-sm ${getResponseTextClass(detail.response)}`}>
-                                  {detail.response || 'No response captured.'}
-                                </p>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              )
-            ) : (
-              aiCategory === 'All' ? (
-                <div className="overflow-hidden rounded-[24px] border border-border-soft">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse">
-                      <thead className="bg-surface-muted/80">
-                        <tr>
-                          <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Name</th>
-                          <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Category</th>
-                          <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Business Rule</th>
-                          <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Response</th>
-                          <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Evidence</th>
-                          <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Condition</th>
-                          <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {inquiry.quoteDetails.map((detail) => (
-                          <tr key={detail.id} className="border-b border-border-soft/80 bg-surface transition duration-150 hover:bg-primary/5">
-                            <td className="px-4 py-4 text-sm font-semibold">{detail.name}</td>
-                            <td className="px-4 py-4"><Badge variant="neutral">{detail.businessRuleCategory}</Badge></td>
-                            <td className="px-4 py-4 text-sm text-muted-foreground">{detail.businessRuleName}</td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-sm ${getResponseTextClass(detail.response)}`}>
-                                  {detail.response || 'No response captured.'}
-                                </span>
-                                {detail.evidence ? <EvidenceTooltip evidence={detail.evidence} compact /> : null}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 text-sm text-muted-foreground">{detail.evidence || 'No evidence provided.'}</td>
-                            <td className="px-4 py-4"><Badge variant="info">{detail.conditionMet}</Badge></td>
-                            <td className="px-4 py-4"><Badge variant="approved">{detail.status}</Badge></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {visibleQuoteDetailGroups.map((group) => (
-                    <section key={group.category} className="overflow-hidden rounded-[24px] border border-border-soft">
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full border-collapse">
-                          <thead className="bg-surface-muted/80">
-                            <tr>
-                              <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Name</th>
-                              <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Business Rule</th>
-                              <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Response</th>
-                              <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Evidence</th>
-                              <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Condition</th>
-                              <th className="px-4 py-4 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {group.items.map((detail) => (
-                              <tr key={detail.id} className="border-b border-border-soft/80 bg-surface transition duration-150 hover:bg-primary/5">
-                                <td className="px-4 py-4 text-sm font-semibold">{detail.name}</td>
-                                <td className="px-4 py-4 text-sm text-muted-foreground">{detail.businessRuleName}</td>
-                                <td className="px-4 py-4">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-sm ${getResponseTextClass(detail.response)}`}>
-                                      {detail.response || 'No response captured.'}
-                                    </span>
-                                    {detail.evidence ? <EvidenceTooltip evidence={detail.evidence} compact /> : null}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-4 text-sm text-muted-foreground">{detail.evidence || 'No evidence provided.'}</td>
-                                <td className="px-4 py-4"><Badge variant="info">{detail.conditionMet}</Badge></td>
-                                <td className="px-4 py-4"><Badge variant="approved">{detail.status}</Badge></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              )
-            )}
-          </Card>
+            <InquiryEmailReader emails={filteredEmails} loading={isHydratingSupplementary} bodyHtml={getPrimaryEmailHtml} previewText={getPrimaryEmailText} />
+          </section>
         </TabsContent>
         <TabsContent value="actions" className="mt-4">
           <Card className="space-y-5">
@@ -3273,19 +2581,11 @@ function PlanPricingOrderPopover({
   )
 }
 
-function SectionHeader({ title, description }: { title: string; description: string }) {
-  return (
-    <div>
-      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{title}</p>
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-    </div>
-  )
-}
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-2.5">
-      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
       {children}
     </div>
   )
@@ -3294,15 +2594,14 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function MotorInformationSection({ title, data, driver = false }: { title: string; data?: string; driver?: boolean }) {
   const parsed = parseMotorCustomerData(data)
   return (
-    <Card className="space-y-5">
-      <SectionHeader title={title} description={driver ? 'Driver details from the submitted insurance information.' : 'Vehicle details from the submitted insurance information.'} />
+    <InquirySection title={title} icon={driver ? UserRound : Car}>
       {!parsed ? <p className="text-sm text-muted-foreground">Submitted information is not available for this inquiry.</p> : null}
       <div className="grid gap-4 md:grid-cols-2">
         {(driver ? motorDriverFields : motorVehicleFields).map(([label, property]) => (
           <Field key={property} label={label}><ReadOnlyValue value={motorAnswer(parsed, property, driver)} /></Field>
         ))}
       </div>
-    </Card>
+    </InquirySection>
   )
 }
 
@@ -3334,7 +2633,7 @@ function PlanDetailsPreview({ value }: { value: string }) {
       <div className="space-y-5">
         {sections.map((section) => (
           <div key={section.title} className="space-y-2">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-primary">
+            <p className="text-xs font-semibold text-primary">
               {section.title}
             </p>
             <div className="space-y-2">
@@ -3438,51 +2737,6 @@ function isConsequenceTemplateResult(type: string, action: string) {
   )
 }
 
-function CollapsedEmailRail({
-  emailCount,
-  inquiryNumber,
-  latestEmailSubject,
-  onExpand,
-}: {
-  emailCount: number
-  inquiryNumber: string
-  latestEmailSubject?: string
-  onExpand: () => void
-}) {
-  return (
-    <div className="sticky top-24">
-      <button
-        type="button"
-        onClick={onExpand}
-        className="group flex min-h-[92px] w-full items-center justify-between gap-4 rounded-[28px] border border-border-soft bg-[linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(245,248,252,0.92)_100%)] px-4 py-4 shadow-soft transition hover:border-primary/20 hover:bg-primary/5 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.94)_0%,rgba(15,23,42,0.88)_100%)] xl:h-[520px] xl:flex-col xl:px-3 xl:py-5"
-      >
-        <div className="flex items-center gap-3 xl:flex-col">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-[0_18px_35px_rgba(37,99,235,0.26)]">
-            <Mail className="h-6 w-6" />
-          </span>
-          <span className="rounded-full border border-primary/12 bg-primary/8 px-2.5 py-1 text-[11px] font-semibold text-primary">
-            {emailCount}
-          </span>
-          <span className="hidden text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground xl:block [writing-mode:vertical-rl]">
-            {inquiryNumber}
-          </span>
-        </div>
-        <div className="relative hidden h-full items-center xl:flex">
-          <div className="h-full w-[3px] rounded-full bg-gradient-to-b from-primary/70 via-primary/20 to-transparent" />
-          <span className="absolute left-1/2 top-10 h-3.5 w-3.5 -translate-x-1/2 rounded-full border-2 border-white bg-primary shadow-[0_0_0_6px_rgba(37,99,235,0.12)]" />
-        </div>
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-3 xl:flex-none xl:flex-col">
-          <span className="line-clamp-2 text-left text-[11px] leading-5 text-muted-foreground xl:line-clamp-3 xl:text-center">
-            {latestEmailSubject || 'Expand to review linked inquiry emails.'}
-          </span>
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border-soft bg-white text-primary transition group-hover:border-primary/25 dark:bg-slate-900/70">
-            <ChevronLeft className="h-4 w-4" />
-          </span>
-        </div>
-      </button>
-    </div>
-  )
-}
 
 function canApplyConsequence(type: string, action?: string) {
   if (type === 'Risk') return true
@@ -3546,37 +2800,6 @@ function findOptionName(
   return options.find((option) => option.id === value)?.name ?? fallback
 }
 
-function attachmentAccent(mimeType?: string) {
-  const normalized = mimeType?.toLowerCase() ?? ''
-  if (normalized.includes('pdf')) {
-    return {
-      tone: 'bg-danger/10 text-danger',
-      icon: <FileText className="h-4 w-4" />,
-    }
-  }
-  if (normalized.includes('image') || normalized.includes('png') || normalized.includes('jpg') || normalized.includes('jpeg')) {
-    return {
-      tone: 'bg-info/12 text-info',
-      icon: <FileImage className="h-4 w-4" />,
-    }
-  }
-  if (normalized.includes('sheet') || normalized.includes('excel') || normalized.includes('csv')) {
-    return {
-      tone: 'bg-success/12 text-success',
-      icon: <FileSpreadsheet className="h-4 w-4" />,
-    }
-  }
-  if (normalized.includes('zip') || normalized.includes('archive') || normalized.includes('rar')) {
-    return {
-      tone: 'bg-warning/12 text-warning',
-      icon: <Archive className="h-4 w-4" />,
-    }
-  }
-  return {
-    tone: 'bg-primary/10 text-primary',
-    icon: <Paperclip className="h-4 w-4" />,
-  }
-}
 
 function EvidenceTooltip({ evidence, compact = false }: { evidence: string; compact?: boolean }) {
   const preview = evidence
@@ -3718,86 +2941,9 @@ function EvidenceTooltip({ evidence, compact = false }: { evidence: string; comp
   )
 }
 
-function getResponseTextClass(response?: string) {
-  const normalized = (response ?? '').trim().toLowerCase()
-  if (normalized === 'no information provided') {
-    return 'inline-flex rounded-full border border-danger/20 bg-danger/10 px-3 py-1.5 font-medium text-danger'
-  }
 
-  return 'text-foreground/90'
-}
 
-function ConfidenceScoreIndicator({ score }: { score: number }) {
-  const normalizedScore = normalizeConfidenceScore(score)
-  const circumference = 2 * Math.PI * 16
-  const dashOffset = circumference * (1 - normalizedScore / 100)
-  const accent = getConfidenceAccent(normalizedScore)
 
-  return (
-    <div
-      className="flex h-12 w-12 items-center justify-center rounded-full border"
-      aria-label={`Confidence score ${normalizedScore}`}
-      style={{
-        borderColor: accent.border,
-        backgroundColor: accent.background,
-      }}
-      title={`Confidence score ${normalizedScore}`}
-    >
-      <div className="relative h-10 w-10">
-        <svg className="h-10 w-10 -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
-          <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(148,163,184,0.16)" strokeWidth="4" />
-          <circle
-            cx="20"
-            cy="20"
-            r="16"
-            fill="none"
-            stroke={accent.stroke}
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-          />
-        </svg>
-        <div
-          className="absolute inset-0 flex items-center justify-center text-[11px] font-bold"
-          style={{ color: accent.stroke }}
-        >
-          {normalizedScore}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function normalizeConfidenceScore(score?: number) {
-  if (score === undefined || Number.isNaN(score)) return 0
-  if (score <= 1) return Math.round(Math.max(0, score) * 100)
-  return Math.max(0, Math.min(100, Math.round(score)))
-}
-
-function getConfidenceAccent(score: number) {
-  if (score >= 85) {
-    return {
-      stroke: '#A855F7',
-      border: 'rgba(168,85,247,0.22)',
-      background: 'rgba(245,232,255,0.95)',
-    }
-  }
-
-  if (score >= 65) {
-    return {
-      stroke: '#C084FC',
-      border: 'rgba(192,132,252,0.22)',
-      background: 'rgba(250,245,255,0.96)',
-    }
-  }
-
-  return {
-    stroke: '#F472B6',
-    border: 'rgba(244,114,182,0.2)',
-    background: 'rgba(253,242,248,0.96)',
-  }
-}
 
 function ViewToggle({
   value,
@@ -3941,10 +3087,6 @@ function buildInquirySavePayload(
   }
 }
 
-function getEmailPreview(value: string) {
-  const text = htmlToPlainText(value)
-  return text || 'No email body captured.'
-}
 
 function getPrimaryEmailText(value: string) {
   const html = getPrimaryEmailHtml(value)

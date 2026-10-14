@@ -9,6 +9,7 @@ import {
   getQuotePlanLinkedSections,
   listQuotePlanComparisons,
   saveQuoteDetail,
+  sendGeneratedQuoteToCustomer,
   analyzeQuotePlanComparison,
   updateQuotePlanLinkedDescription,
   updateQuotePlanLinkedRecordDetails,
@@ -60,6 +61,9 @@ export function QuoteWorkbenchPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [statusBusy, setStatusBusy] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportPhase, setExportPhase] = useState<'generating' | 'sending'>('generating')
+  const [exportMessage, setExportMessage] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
   const [expandedPlanSections, setExpandedPlanSections] = useState<Record<string, boolean>>({
     benefits: false,
     inclusions: false,
@@ -224,17 +228,27 @@ export function QuoteWorkbenchPage() {
   }
 
   async function handleExportPdf() {
+    if (isExporting) return
+    let downloaded = false
     try {
       setIsExporting(true)
-      setSaveError(null)
-      await generateQuotePdf({
+      setExportPhase('generating')
+      setExportMessage(null)
+      setExportError(null)
+      if (!currentDetail.inquiryId) throw new Error('Link this quote to an inquiry before generating and emailing it.')
+      const pdf = await generateQuotePdf({
         detail: currentDetail,
         form: currentForm,
         planSections: visiblePlanSections,
         headerImageSrc: takafulHeaderSrc,
       })
+      downloaded = true
+      setExportPhase('sending')
+      await sendGeneratedQuoteToCustomer(currentDetail.inquiryId, pdf)
+      setExportMessage('Quote downloaded and customer email flow started successfully.')
     } catch (cause) {
-      setSaveError(cause instanceof Error ? cause.message : 'Failed to generate PDF')
+      const message = cause instanceof Error ? cause.message : 'Unable to generate and email the quote.'
+      setExportError(downloaded ? `The PDF was downloaded, but the customer email flow failed: ${message}` : message)
     } finally {
       setIsExporting(false)
     }
@@ -286,12 +300,14 @@ export function QuoteWorkbenchPage() {
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="secondary" className="bg-white hover:bg-surface" disabled={isExporting} onClick={() => void handleExportPdf()}>
                 <Download className="h-4 w-4" />
-                {isExporting ? 'Generating...' : 'Generate Quote'}
+                {isExporting ? exportPhase === 'sending' ? 'Sending to customer...' : 'Generating...' : 'Generate Quote'}
               </Button>
             </div>
           </div>
         </div>
       </Card>
+      {exportMessage ? <p role="status" className="rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">{exportMessage}</p> : null}
+      {exportError ? <p role="alert" className="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">{exportError}</p> : null}
       <form onSubmit={handleSave} className="space-y-6">
         <Tabs defaultValue="quote-details">
           <TabsList>
@@ -320,7 +336,7 @@ export function QuoteWorkbenchPage() {
                     <AmountInput value={form.grossPremium} onValueChange={(value) => setForm({ ...form, grossPremium: value })} />
                   </Field>
                   <Field label="VAT">
-                    <AmountInput value={form.vat} suffix="%" onValueChange={(value) => setForm({ ...form, vat: value })} />
+                    <AmountInput value={form.vat} suffix="%" suffixPlacement="after-value" onValueChange={(value) => setForm({ ...form, vat: value })} />
                   </Field>
                   <Field label="Loading Premium">
                     <AmountInput value={form.loadingPremium} onValueChange={(value) => setForm({ ...form, loadingPremium: value })} />
