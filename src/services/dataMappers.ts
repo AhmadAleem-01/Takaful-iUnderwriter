@@ -83,6 +83,7 @@ export function mapInquiryDetail(
     aur_base_premium?: number | null
     aur_vehicle_value?: string | null
     aur_customer_data?: string | null
+    aur_ai_evaluation_json_response?: string | null
     aur_underwriter_action_status?: number | null
     aur_underwriter_sub_action?: number | null
     aur_action_applied?: boolean | null
@@ -133,6 +134,7 @@ export function mapInquiryDetail(
     basePremium: inquiryRecord.aur_base_premium ?? 0,
     vehicleValue: inquiryRecord.aur_vehicle_value ?? '',
     customerData: inquiryRecord.aur_customer_data ?? '',
+    aiEvaluationJsonResponse: inquiryRecord.aur_ai_evaluation_json_response ?? '',
     underwriterActionStatus: inquiryRecord.aur_underwriter_action_status,
     underwriterSubAction: inquiryRecord.aur_underwriter_sub_action,
     totalCharge: record.aur_total_amount_charge ?? 0,

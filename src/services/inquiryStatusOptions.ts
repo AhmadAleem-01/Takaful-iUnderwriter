@@ -17,4 +17,8 @@ export const INQUIRY_STATUS_OPTIONS = [
   { value: 751820014, label: 'Property or Reinsurance Team' },
   { value: 751820015, label: 'More Information Required' },
   { value: 751820016, label: 'Quote Sent to Customer' },
+  { value: 751820017, label: 'ICP Verification' },
+  { value: 751820018, label: 'DOH Review' },
+  { value: 751820019, label: 'KYC Info Required' },
+  { value: 751820020, label: 'Emirates Id Required' },
 ]

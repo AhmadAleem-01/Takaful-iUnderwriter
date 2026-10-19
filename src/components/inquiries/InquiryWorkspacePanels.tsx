@@ -1,8 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
-import { ChevronDown, FileText, List, Mail, Paperclip, Save, Sparkles, Table2, type LucideIcon } from 'lucide-react'
+import { ChevronDown, FileText, List, Mail, Paperclip, RefreshCw, Save, Sparkles, Table2, type LucideIcon } from 'lucide-react'
 import type { InquiryDetail, InquiryEmailSummary, QuoteResponse } from '../../domain/app'
 import { formatDate, formatPercent } from '../../lib/formatters'
-import { motorAnswer, parseMotorCustomerData } from '../../lib/motorInquiry'
 import { getUnderwriterSubActions, underwriterActions } from '../../lib/inquiryUnderwriting'
 import { Button } from '../ui/Button'
 import { Select } from '../ui/Select'
@@ -14,8 +13,8 @@ export function InquirySection({ title, icon: Icon, defaultOpen = false, tone = 
   const [open, setOpen] = useState(defaultOpen)
   const panelId = useId()
   return (
-    <section className="overflow-visible rounded-2xl border border-border-soft bg-surface">
-      <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)} className="flex w-full items-center gap-3 rounded-2xl px-5 py-4 text-left outline-none transition hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-primary/30">
+    <section className="overflow-visible rounded-2xl border border-border bg-surface">
+      <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)} className={cn('flex w-full items-center gap-3 bg-white px-5 py-4 text-left outline-none transition hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-primary/30 dark:bg-surface', open ? 'rounded-t-[23px]' : 'rounded-[23px]')}>
         <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tone === 'ai' ? 'bg-secondary/10 text-secondary' : 'bg-primary/8 text-primary')}><Icon className="h-4 w-4" /></span>
         <h2 className="flex-1 text-sm font-semibold text-foreground">{title}</h2>
         <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform motion-reduce:transition-none', open && 'rotate-180')} />
@@ -29,15 +28,23 @@ export function InquiryHeaderMetric({ label, value, detail }: { label: string; v
   return <div className="min-w-0 px-4 py-3.5"><p className="text-[11px] text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm font-semibold text-foreground">{value}</p>{detail ? <p className="mt-1 truncate text-[11px] text-muted-foreground">{detail}</p> : null}</div>
 }
 
-export function InquiryDecisionRail({ inquiry, action, subAction, editing, busy, onAction, onSubAction, onEdit, onSave }: {
-  inquiry: InquiryDetail; action: string; subAction: string; editing: boolean; busy: boolean;
+export function InquiryInformationSection({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
+  return (
+    <section className="overflow-visible rounded-2xl border border-border bg-surface">
+      <header className="flex items-center gap-3 rounded-t-[23px] border-b border-border-soft bg-white px-5 py-4 dark:bg-surface"><span className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/10 bg-surface text-primary"><Icon className="h-4 w-4" /></span><h2 className="text-sm font-semibold">{title}</h2></header>
+      <div className="px-5 py-5">{children}</div>
+    </section>
+  )
+}
+
+export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premiumContent, action, subAction, editing, busy, onAction, onSubAction, onEdit, onSave }: {
+  inquiry: InquiryDetail; hideCompleteness?: boolean; premiumContent?: ReactNode; action: string; subAction: string; editing: boolean; busy: boolean;
   onAction: (value: string) => void; onSubAction: (value: string) => void; onEdit: () => void; onSave: () => void
 }) {
-  const customer = parseMotorCustomerData(inquiry.customerData)
   const completeness = Math.min(100, Math.max(0, inquiry.readiness[0]?.value ?? 0))
   const selectedAction = underwriterActions.find((option) => String(option.value) === action)?.label
   return (
-    <aside aria-label="Underwriting overview" className="space-y-4 [&_[role=combobox]]:text-[13px]">
+    <aside aria-label="Underwriting overview" className="space-y-4 [&_.form-field-surface]:text-[13px] [&_[role=combobox]]:text-[13px]">
       <section className="rounded-2xl border border-border-soft bg-surface p-5">
         <h2 className="text-sm font-semibold">Underwriting Action</h2>
         <p className="mt-1 text-xs text-muted-foreground">{selectedAction ?? 'Not recorded yet'}</p>
@@ -47,18 +54,12 @@ export function InquiryDecisionRail({ inquiry, action, subAction, editing, busy,
           <Button type="button" className="w-full rounded-lg" disabled={busy} onClick={editing ? onSave : onEdit}>{busy ? 'Saving...' : editing ? 'Save Action' : 'Edit Action'}</Button>
         </div>
       </section>
-      <section className="rounded-2xl border border-border-soft bg-surface p-5">
-        <h2 className="text-sm font-semibold">Risk Signals</h2><p className="mt-1 text-xs text-muted-foreground">From the submitted inquiry</p>
-        <dl className="mt-4 divide-y divide-border-soft text-xs">
-          {(customer ? [['Driver Age', motorAnswer(customer, 'Age range', true)], ['Licence Experience', motorAnswer(customer, 'License age', true)], ['Vehicle Use', motorAnswer(customer, 'Vehicle use')], ['Claims History', motorAnswer(customer, 'Claims history', true)]] : [['Risk Score', `${inquiry.riskScore} / 100`], ['Cover', inquiry.coverType], ['Territorial Scope', inquiry.territorialScope]]).map(([label, value]) => <div key={label} className="flex items-start justify-between gap-3 py-3"><dt className="text-muted-foreground">{label}</dt><dd className="max-w-[60%] text-right font-medium">{value}</dd></div>)}
-        </dl>
-        {inquiry.riCapacityChecks[0] ? <p className="mt-3 border-t border-border-soft pt-3 text-xs text-muted-foreground">Latest RI Check: <span className="font-medium text-foreground">{inquiry.riCapacityChecks[0].outcome}</span></p> : null}
-      </section>
-      <section className="rounded-2xl border border-border-soft bg-surface p-5">
+      {premiumContent}
+      {!hideCompleteness ? <section className="rounded-2xl border border-border-soft bg-surface p-5">
         <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Completeness</h2><span className="text-sm font-semibold">{formatPercent(completeness)}</span></div>
         <div role="progressbar" aria-label="Inquiry completeness" aria-valuenow={completeness} aria-valuemin={0} aria-valuemax={100} className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-soft"><div className="h-full rounded-full bg-primary" style={{ width: `${completeness}%` }} /></div>
         <dl className="mt-4 space-y-3 text-xs">{inquiry.readiness.map((item) => <div key={item.label} className="flex justify-between gap-3"><dt className="text-muted-foreground">{item.label}</dt><dd className="font-medium">{formatPercent(item.value)}</dd></div>)}</dl>
-      </section>
+      </section> : null}
     </aside>
   )
 }
@@ -78,7 +79,7 @@ export function InquiryAiPanel({ records, allRecords, summary, loading, category
     <InquirySection title="AI Extracted Response" icon={Sparkles} tone="ai" defaultOpen>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">{allRecords.length} underwriting checks · Editable before underwriting</p>
-        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={onReevaluate}><Sparkles className="h-3.5 w-3.5" />Re-evaluate AI Extraction</Button>{showRequestDraft ? <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={onRequestDraft}>Request a Draft</Button> : null}</div>
+        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="rounded-lg bg-secondary text-white shadow-none hover:bg-secondary/90 focus-visible:ring-secondary/30" onClick={onReevaluate}><RefreshCw className="h-3.5 w-3.5" />Re-evaluate AI Extraction</Button>{showRequestDraft ? <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={onRequestDraft}>Request a Draft</Button> : null}</div>
       </div>
       <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_150px]">
         <div><p className="text-xs font-semibold">AI Summary</p><p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground">{summary || 'No summary is available yet.'}</p></div>

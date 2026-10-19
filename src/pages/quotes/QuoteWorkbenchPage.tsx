@@ -26,7 +26,9 @@ import { Input } from '../../components/ui/Input'
 import { formatAmount, formatCurrency } from '../../lib/formatters'
 import { AmountInput } from '../../components/ui/AmountInput'
 import { generateQuotePdf } from '../../lib/quotePdf'
-import takafulHeaderSrc from '../../assets/al-buhaira-logo.png?inline'
+import healthHeaderSrc from '../../assets/insureAIHealthLogo.png.png?inline'
+import alBuhairaHeaderSrc from '../../assets/al-buhaira-logo.png?inline'
+import { inquiryProductKind } from '../../lib/healthInquiry'
 import type { QuotePlanComparison } from '../../domain/app'
 
 interface QuoteFormState {
@@ -240,7 +242,9 @@ export function QuoteWorkbenchPage() {
         detail: currentDetail,
         form: currentForm,
         planSections: visiblePlanSections,
-        headerImageSrc: takafulHeaderSrc,
+        headerImageSrc: inquiryProductKind(
+          data?.options.products.find((product) => product.id === currentForm.productId)?.name ?? currentDetail.productName,
+        ) === 'health' ? healthHeaderSrc : alBuhairaHeaderSrc,
       })
       downloaded = true
       setExportPhase('sending')

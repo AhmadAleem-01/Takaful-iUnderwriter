@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { ClipboardList, Car, UserRound } from 'lucide-react'
-import { InquirySection, InquiryAiPanel, InquiryDecisionRail, InquiryEmailReader, InquiryHeaderMetric } from '../../components/inquiries/InquiryWorkspacePanels'
+import { ClipboardList, Car, UserRound, HeartPulse } from 'lucide-react'
+import { InquirySection, InquiryInformationSection, InquiryAiPanel, InquiryDecisionRail, InquiryEmailReader, InquiryHeaderMetric } from '../../components/inquiries/InquiryWorkspacePanels'
+import { HealthInquirySections, HealthPremiumFields } from '../../components/inquiries/HealthInquirySections'
+import { HealthAiEvaluation } from '../../components/inquiries/HealthAiEvaluation'
+import { HealthInquiryStepper } from '../../components/inquiries/HealthInquiryStepper'
+import { healthAnswer, inquiryProductKind, parseHealthCustomerData } from '../../lib/healthInquiry'
+import { evaluationNumber, evaluationObject, parseHealthAiEvaluation } from '../../lib/healthAiEvaluation'
 import { ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
 import type { InquiryDetail, RiCapacityCheckSummary } from '../../domain/app'
 import { useAsyncData } from '../../hooks/useAsyncData'
@@ -20,6 +25,7 @@ import {
   listWonQuotesForProduct,
   recalculateRiCapacityChecks,
   saveInquiryDetail,
+  syncInquiryHealthFinalPremium,
   updateInquiryQuoteDetailResponse,
 } from '../../services/inquiriesService'
 import type { ConsequenceTemplatePreview } from '../../services/inquiriesService'
@@ -32,6 +38,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { vehicleValueAverage } from '../../lib/inquiryUnderwriting'
+import { parsePlanDetails } from '../../lib/planDetails'
 import { formatAmount, formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
 import { AmountInput } from '../../components/ui/AmountInput'
 import { parseMotorCustomerData, motorDriverFields, motorVehicleFields, motorAnswer } from '../../lib/motorInquiry'
@@ -90,6 +97,7 @@ export function InquiryWorkspacePage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [inquiryState, setInquiryState] = useState<InquiryDetail | null>(null)
+  const policyPremiumSyncs = useRef(new Set<string>())
   const [form, setForm] = useState<InquiryFormState | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [saveBusy, setSaveBusy] = useState(false)
@@ -204,6 +212,27 @@ export function InquiryWorkspacePage() {
     nextForm.brokerAgentName = inquiryState.contact?.name || inquiryState.contactName || 'No broker agent linked'
     setForm(nextForm)
   }, [inquiryState, isEditing, optionsLoad.data])
+
+  useEffect(() => {
+    if (!inquiryState || isEditing || saveBusy || inquiryProductKind(inquiryState.productName) !== 'health') return
+    if (inquiryState.id.replace(/[{}]/g, '').toLowerCase() !== id.replace(/[{}]/g, '').toLowerCase()) return
+    const evaluation = parseHealthAiEvaluation(inquiryState.aiEvaluationJsonResponse)
+    const finalPremium = evaluationNumber(evaluationObject(evaluation?.policyPremiumBreakdown).finalPremium)
+    if (finalPremium === null || Math.round(inquiryState.totalCharge * 100) === Math.round(finalPremium * 100)) return
+    const recordId = inquiryState.id
+    const response = inquiryState.aiEvaluationJsonResponse
+    const key = `${recordId}:${response}:${finalPremium}`
+    if (policyPremiumSyncs.current.has(key)) return
+    policyPremiumSyncs.current.add(key)
+    void syncInquiryHealthFinalPremium(recordId, finalPremium).then(() => {
+      policyPremiumSyncs.current.delete(key)
+      setInquiryState((current) => current?.id === recordId && current.aiEvaluationJsonResponse === response
+        ? { ...current, totalCharge: finalPremium } : current)
+    }).catch((error: unknown) => {
+      policyPremiumSyncs.current.delete(key)
+      setSaveError(error instanceof Error ? `Could not sync the evaluated policy premium: ${error.message}` : 'Could not sync the evaluated policy premium.')
+    })
+  }, [id, inquiryState, isEditing, saveBusy])
 
   useEffect(() => {
     if (!inquiryState?.quoteDetails?.length) {
@@ -1043,10 +1072,86 @@ export function InquiryWorkspacePage() {
   }
 
 
-  const submittedCustomer = parseMotorCustomerData(inquiry.customerData)
+  const selectedProductName = form ? (form.productId ? findOptionName(options.products, form.productId, inquiry.productName) : '') : inquiry.productName
+  const productKind = inquiryProductKind(selectedProductName)
+  const isMotorInsurance = productKind === 'motor'
+  const isHealthInsurance = productKind === 'health'
+  const DetailsSection = isHealthInsurance ? InquiryInformationSection : InquirySection
+  const healthCustomer = isHealthInsurance ? parseHealthCustomerData(inquiry.customerData) : null
+  const submittedCustomer = isMotorInsurance ? parseMotorCustomerData(inquiry.customerData) : null
   const submittedVehicle = submittedCustomer ? ['Model year', 'Vehicle make', 'Vehicle model'].map((key) => motorAnswer(submittedCustomer, key)).filter((value) => value !== 'Not provided').join(' ') : ''
-  const submittedEmail = submittedCustomer ? motorAnswer(submittedCustomer, 'Email address', true) : inquiry.contact?.email || inquiry.account?.email
-  const submittedPhone = submittedCustomer ? motorAnswer(submittedCustomer, 'Mobile number', true) : ''
+  const submittedEmail = submittedCustomer ? motorAnswer(submittedCustomer, 'Email address', true) : healthCustomer ? healthAnswer(healthCustomer.applicant.email) : inquiry.contact?.email || inquiry.account?.email
+  const submittedPhone = submittedCustomer ? motorAnswer(submittedCustomer, 'Mobile number', true) : healthCustomer ? healthAnswer(healthCustomer.applicant.mobile) : ''
+
+  const premiumFields = form ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {!isHealthInsurance ? <Field label="Base Premium Percentage">
+                        {isEditing ? (
+                          <AmountInput value={form.basePremium} suffix="%" maximumFractionDigits={0} onValueChange={(value) => setForm({ ...form, basePremium: value })} />
+                        ) : (
+                          <ReadOnlyValue value={`${formatAmount(form.basePremium, 0)}%`} />
+                        )}
+                      </Field> : null}
+                      <div className="relative space-y-2.5">
+                        <div className="pr-8">
+                          <p className="text-[11px] font-medium text-muted-foreground">Premium to be Charged</p>
+                          <div className="absolute right-0 top-[-3px]">
+                          <PlanPricingOrderPopover
+                            items={inquiryRatingOrderItems}
+                            loading={isHydratingSupplementary}
+                            planName={inquiry.planName}
+                            canApply={!inquiry.actionApplied && inquiryRatingOrderItems.length > 0}
+                            applying={pendingAction === 'rating-order'}
+                            onApply={() => void handleApplyRatingOrder()}
+                          />
+                          </div>
+                        </div>
+                        {isEditing ? (
+                          <AmountInput value={form.premiumToBeCharged} onValueChange={(value) => setForm({ ...form, premiumToBeCharged: value })} />
+                        ) : (
+                          <ReadOnlyValue value={formatAmount(form.premiumToBeCharged)} />
+                        )}
+                      </div>
+                      <Field label="Brokerage">
+                        {isEditing ? (
+                          <Input type="number" value={form.brokerage} onChange={(event) => setForm({ ...form, brokerage: event.target.value })} />
+                        ) : (
+                          <ReadOnlyValue value={form.brokerage} />
+                        )}
+                      </Field>
+                      <Field label="Gross Premium">
+                        {isEditing ? (
+                          <AmountInput value={form.grossPremium} onValueChange={(value) => setForm({ ...form, grossPremium: value })} />
+                        ) : (
+                          <ReadOnlyValue value={formatAmount(form.grossPremium)} />
+                        )}
+                      </Field>
+                      <Field label="Payment Term">
+                        {isEditing ? (
+                          <SelectField value={form.paymentTerm} onChange={(value) => setForm({ ...form, paymentTerm: value })} options={options.paymentTerms} />
+                        ) : (
+                          <ReadOnlyValue value={findOptionLabel(options.paymentTerms, form.paymentTerm, inquiry.paymentTerm)} />
+                        )}
+                      </Field>
+                      <Field label="Fee">
+                        {isEditing ? (
+                          <AmountInput value={form.fee} onValueChange={(value) => setForm({ ...form, fee: value })} />
+                        ) : (
+                          <ReadOnlyValue value={formatAmount(form.fee)} />
+                        )}
+                      </Field>
+                      <Field label="Total Deduction">
+                        {isEditing ? (
+                          <Input type="number" value={form.totalDeduction} onChange={(event) => setForm({ ...form, totalDeduction: event.target.value })} />
+                        ) : (
+                          <ReadOnlyValue value={form.totalDeduction} />
+                        )}
+                      </Field>
+                      {isMotorInsurance ? <Field label="Vehicle Value">
+                        <ReadOnlyValue value={formatAmount(vehicleValueAverage(inquiry.vehicleValue)) || 'Not available'} />
+                      </Field> : null}
+                    </div>
+  ) : null
 
   return (
     <div className="space-y-6">
@@ -1191,18 +1296,19 @@ export function InquiryWorkspacePage() {
             {actionSuccess ? <p role="status" className="mt-2 text-sm text-success">{actionSuccess}</p> : null}
           </div>
         </div>
-        <div className="mt-5 grid divide-y divide-border-soft overflow-hidden rounded-xl border border-border-soft bg-surface-soft/50 sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
-          <InquiryHeaderMetric label={submittedVehicle ? 'Vehicle' : 'Selected Plan'} value={submittedVehicle || inquiry.planName} detail={inquiry.coverType} />
-          <InquiryHeaderMetric label="Sum Insured" value={formatCurrency(inquiry.totalInsured)} detail={vehicleValueAverage(inquiry.vehicleValue) ? 'Vehicle Value: ' + formatAmount(vehicleValueAverage(inquiry.vehicleValue)) : undefined} />
-          <InquiryHeaderMetric label="Premium to be Charged" value={formatCurrency(inquiry.totalCharge)} detail={inquiry.paymentTerm + ' · ' + formatAmount(inquiry.basePremium, 0) + '% Base Rate'} />
+        {isHealthInsurance ? <HealthInquiryStepper key={inquiry.id} status={inquiry.inquiryStatusValue} statusLabel={inquiry.status} /> : <div className="mt-5 grid divide-y divide-border-soft overflow-hidden rounded-xl border border-border-soft bg-surface-soft/50 sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
+          <InquiryHeaderMetric label={isMotorInsurance && submittedVehicle ? 'Vehicle' : 'Selected Plan'} value={isMotorInsurance && submittedVehicle ? submittedVehicle : inquiry.planName} detail={inquiry.coverType} />
+          <InquiryHeaderMetric label="Sum Insured" value={formatCurrency(inquiry.totalInsured)} detail={isMotorInsurance && vehicleValueAverage(inquiry.vehicleValue) ? 'Vehicle Value: ' + formatAmount(vehicleValueAverage(inquiry.vehicleValue)) : undefined} />
+          <InquiryHeaderMetric label="Premium to be Charged" value={formatCurrency(inquiry.totalCharge)} detail={isHealthInsurance ? inquiry.paymentTerm : inquiry.paymentTerm + ' · ' + formatAmount(inquiry.basePremium, 0) + '% Base Rate'} />
           <InquiryHeaderMetric label="Risk Score" value={String(inquiry.riskScore) + ' / 100'} detail="Current inquiry assessment" />
           <InquiryHeaderMetric label="Completeness" value={formatPercent(inquiry.readiness[0]?.value ?? 0)} detail="Submission readiness" />
-        </div>
+        </div>}
       </section>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+      <Tabs value={activeTab === 'product-info' && !isMotorInsurance && !isHealthInsurance ? 'details' : activeTab} onValueChange={setActiveTab}>
+        <TabsList className="overflow-x-auto md:flex-wrap xl:flex-nowrap">
           <TabsTrigger value="details" icon={LayoutGrid}>Details</TabsTrigger>
+          {isMotorInsurance || isHealthInsurance ? <TabsTrigger value="product-info" icon={isMotorInsurance ? Car : HeartPulse}>{isMotorInsurance ? 'Driver & Vehicle' : 'Health Information'}</TabsTrigger> : null}
           <TabsTrigger value="email" icon={Mail}>Email</TabsTrigger>
           <TabsTrigger value="actions" icon={ShieldAlert}>Actions</TabsTrigger>
           <TabsTrigger value="quotes" icon={FileText}>Quotes</TabsTrigger>
@@ -1214,7 +1320,7 @@ export function InquiryWorkspacePage() {
           {!form ? null : (
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(260px,3fr)]">
               <div key={inquiry.id} className="min-w-0 space-y-3 [&_.form-field-surface]:text-[13px] [&_.form-field-surface_p]:text-[13px] [&_input]:text-[13px] [&_textarea]:text-[13px] [&_[role=combobox]]:text-[13px]">
-                  <InquirySection title="Inquiry Details" icon={ClipboardList} defaultOpen>
+                  <DetailsSection title="Inquiry Details" icon={ClipboardList} defaultOpen>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Name">
                         {isEditing ? (
@@ -1251,16 +1357,24 @@ export function InquiryWorkspacePage() {
                           <ReadOnlyValue value={inquiry.planName} />
                         )}
                       </Field>
-                      <Field label="Broker">
-                        {isEditing ? (
-                          <SelectField value={form.brokerId} onChange={(value) => setForm({ ...form, brokerId: value })} options={options.brokers} />
-                        ) : (
-                          <ReadOnlyValue value={inquiry.brokerName} />
-                        )}
-                      </Field>
-                      <Field label="Broker Agent">
-                        <ReadOnlyValue value={form.brokerAgentName} />
-                      </Field>
+                      {isMotorInsurance ? (
+                        <>
+                          <Field label="Broker">
+                            {isEditing ? (
+                              <SelectField value={form.brokerId} onChange={(value) => setForm({ ...form, brokerId: value })} options={options.brokers} />
+                            ) : (
+                              <ReadOnlyValue value={inquiry.brokerName} />
+                            )}
+                          </Field>
+                          <Field label="Broker Agent">
+                            <ReadOnlyValue value={form.brokerAgentName} />
+                          </Field>
+                        </>
+                      ) : (
+                        <Field label="Insured Member">
+                          <ReadOnlyValue value={form.brokerAgentName === 'No broker agent linked' || form.brokerAgentName === 'No contact linked' ? 'No insured member linked' : form.brokerAgentName} />
+                        </Field>
+                      )}
                       <div className="md:col-span-2">
                         <Field label="Plan Details">
                           {isEditing ? (
@@ -1276,7 +1390,8 @@ export function InquiryWorkspacePage() {
                         </Field>
                       </div>
                     </div>
-                  </InquirySection>
+                  </DetailsSection>
+                  {!isHealthInsurance ? (
                   <InquirySection title="Risk & Capacity" icon={ShieldAlert}>
                     <div className="grid gap-4 md:grid-cols-2">
                       <Field label="Cover Type">
@@ -1349,82 +1464,19 @@ export function InquiryWorkspacePage() {
                       </div>
                     </div>
                   </InquirySection>
-                  <InquirySection title="Premium Details" icon={Calculator}>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Base Premium Percentage">
-                        {isEditing ? (
-                          <AmountInput value={form.basePremium} suffix="%" maximumFractionDigits={0} onValueChange={(value) => setForm({ ...form, basePremium: value })} />
-                        ) : (
-                          <ReadOnlyValue value={`${formatAmount(form.basePremium, 0)}%`} />
-                        )}
-                      </Field>
-                      <div className="relative space-y-2.5">
-                        <div className="pr-8">
-                          <p className="text-[11px] font-medium text-muted-foreground">Premium to be Charged</p>
-                          <div className="absolute right-0 top-[-3px]">
-                          <PlanPricingOrderPopover
-                            items={inquiryRatingOrderItems}
-                            loading={isHydratingSupplementary}
-                            planName={inquiry.planName}
-                            canApply={!inquiry.actionApplied && inquiryRatingOrderItems.length > 0}
-                            applying={pendingAction === 'rating-order'}
-                            onApply={() => void handleApplyRatingOrder()}
-                          />
-                          </div>
-                        </div>
-                        {isEditing ? (
-                          <AmountInput value={form.premiumToBeCharged} onValueChange={(value) => setForm({ ...form, premiumToBeCharged: value })} />
-                        ) : (
-                          <ReadOnlyValue value={formatAmount(form.premiumToBeCharged)} />
-                        )}
-                      </div>
-                      <Field label="Brokerage">
-                        {isEditing ? (
-                          <Input type="number" value={form.brokerage} onChange={(event) => setForm({ ...form, brokerage: event.target.value })} />
-                        ) : (
-                          <ReadOnlyValue value={form.brokerage} />
-                        )}
-                      </Field>
-                      <Field label="Gross Premium">
-                        {isEditing ? (
-                          <AmountInput value={form.grossPremium} onValueChange={(value) => setForm({ ...form, grossPremium: value })} />
-                        ) : (
-                          <ReadOnlyValue value={formatAmount(form.grossPremium)} />
-                        )}
-                      </Field>
-                      <Field label="Payment Term">
-                        {isEditing ? (
-                          <SelectField value={form.paymentTerm} onChange={(value) => setForm({ ...form, paymentTerm: value })} options={options.paymentTerms} />
-                        ) : (
-                          <ReadOnlyValue value={findOptionLabel(options.paymentTerms, form.paymentTerm, inquiry.paymentTerm)} />
-                        )}
-                      </Field>
-                      <Field label="Fee">
-                        {isEditing ? (
-                          <AmountInput value={form.fee} onValueChange={(value) => setForm({ ...form, fee: value })} />
-                        ) : (
-                          <ReadOnlyValue value={formatAmount(form.fee)} />
-                        )}
-                      </Field>
-                      <Field label="Total Deduction">
-                        {isEditing ? (
-                          <Input type="number" value={form.totalDeduction} onChange={(event) => setForm({ ...form, totalDeduction: event.target.value })} />
-                        ) : (
-                          <ReadOnlyValue value={form.totalDeduction} />
-                        )}
-                      </Field>
-                      <Field label="Vehicle Value">
-                        <ReadOnlyValue value={formatAmount(vehicleValueAverage(inquiry.vehicleValue)) || 'Not available'} />
-                      </Field>
-                    </div>
-                  </InquirySection>
-                  {findOptionName(options.products, form.productId, inquiry.productName).trim().toLowerCase() === 'motor insurance' ? (
-                    <>
-                      <MotorInformationSection title="Driver Information" data={inquiry.customerData} driver />
-                      <MotorInformationSection title="Vehicle Information" data={inquiry.customerData} />
-                    </>
                   ) : null}
-                  <InquiryAiPanel
+                  {!isMotorInsurance && !isHealthInsurance ? (
+                  <InquirySection title="Premium Details" icon={Calculator}>
+                    {premiumFields}
+                  </InquirySection>
+                  ) : null}
+                  {isHealthInsurance ? <HealthAiEvaluation
+                    key={inquiry.id}
+                    value={inquiry.aiEvaluationJsonResponse}
+                    loading={isHydratingSupplementary}
+                    onReevaluate={() => setIsAiReevaluateOpen(true)}
+                    renderEvidence={(evidence) => <EvidenceTooltip evidence={evidence} compact />}
+                  /> : <InquiryAiPanel
                     records={visibleQuoteDetails}
                     allRecords={inquiry.quoteDetails}
                     summary={inquiry.aiSummary || inquiry.summary}
@@ -1437,9 +1489,16 @@ export function InquiryWorkspacePage() {
                     onReevaluate={() => setIsAiReevaluateOpen(true)}
                     onRequestDraft={handleMakeDraft} showRequestDraft={missingQuoteDetails.length > 0}
                     renderEvidence={(evidence) => <EvidenceTooltip evidence={evidence} compact />}
-                  />
+                  />}
               </div>
-              <InquiryDecisionRail inquiry={inquiry} action={form.underwriterActionStatus} subAction={form.underwriterSubAction}
+              <InquiryDecisionRail inquiry={inquiry} hideCompleteness={isHealthInsurance || isMotorInsurance}
+                premiumContent={isMotorInsurance || isHealthInsurance ? (
+                  <InquiryInformationSection title={isHealthInsurance ? "Premium Breakdown" : "Premium Details"} icon={Calculator}>
+                    {premiumFields}
+                    {isHealthInsurance ? <div className="mt-5 border-t border-border-soft pt-5"><HealthPremiumFields customerData={inquiry.customerData} excludeInquiryAmounts /></div> : null}
+                  </InquiryInformationSection>
+                ) : undefined}
+                action={form.underwriterActionStatus} subAction={form.underwriterSubAction}
                 editing={isEditing} busy={saveBusy}
                 onAction={(value) => setForm({ ...form, underwriterActionStatus: value, underwriterSubAction: '' })}
                 onSubAction={(value) => setForm({ ...form, underwriterSubAction: value })}
@@ -1447,6 +1506,14 @@ export function InquiryWorkspacePage() {
             </div>
           )}
         </TabsContent>
+        {isMotorInsurance || isHealthInsurance ? <TabsContent value="product-info" className="mt-4">
+          <div className="space-y-5">
+            {isMotorInsurance ? <>
+              <MotorInformationSection title="Driver Information" data={inquiry.customerData} driver expanded />
+              <MotorInformationSection title="Vehicle Information" data={inquiry.customerData} expanded />
+            </> : <HealthInquirySections customerData={inquiry.customerData} expanded includePremium={false} />}
+          </div>
+        </TabsContent> : null}
         <TabsContent value="email" className="mt-4">
           <section className="overflow-hidden rounded-2xl border border-border-soft bg-surface">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-soft px-5 py-4">
@@ -2591,17 +2658,18 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function MotorInformationSection({ title, data, driver = false }: { title: string; data?: string; driver?: boolean }) {
+function MotorInformationSection({ title, data, driver = false, expanded = false }: { title: string; data?: string; driver?: boolean; expanded?: boolean }) {
   const parsed = parseMotorCustomerData(data)
+  const Section = expanded ? InquiryInformationSection : InquirySection
   return (
-    <InquirySection title={title} icon={driver ? UserRound : Car}>
+    <Section title={title} icon={driver ? UserRound : Car}>
       {!parsed ? <p className="text-sm text-muted-foreground">Submitted information is not available for this inquiry.</p> : null}
       <div className="grid gap-4 md:grid-cols-2">
         {(driver ? motorDriverFields : motorVehicleFields).map(([label, property]) => (
           <Field key={property} label={label}><ReadOnlyValue value={motorAnswer(parsed, property, driver)} /></Field>
         ))}
       </div>
-    </InquirySection>
+    </Section>
   )
 }
 
@@ -2648,29 +2716,6 @@ function PlanDetailsPreview({ value }: { value: string }) {
       </div>
     </div>
   )
-}
-
-function parsePlanDetails(value: string) {
-  const lines = value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-
-  const sections: Array<{ title: string; items: string[] }> = []
-
-  for (const line of lines) {
-    if (line.endsWith(':')) {
-      sections.push({ title: line.replace(/:$/, ''), items: [] })
-      continue
-    }
-
-    if (!sections.length) {
-      sections.push({ title: 'Plan Details', items: [] })
-    }
-    sections[sections.length - 1].items.push(line)
-  }
-
-  return sections.filter((section) => section.items.length)
 }
 
 function SelectField({

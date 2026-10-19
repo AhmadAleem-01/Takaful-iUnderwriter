@@ -102,7 +102,7 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
   const [inquiryResult, inquiryChoiceFieldsResult, referenceData] = await Promise.all([
     Aur_quotesesService.get(id),
     Aur_quotesesService.get(id, {
-      select: ['aur_inquiry_type', 'aur_inquiry_typename', 'aur_inquiry_status', 'aur_inquiry_statusname'],
+      select: ['aur_inquiry_type', 'aur_inquiry_typename', 'aur_inquiry_status', 'aur_inquiry_statusname', 'aur_ai_evaluation_json_response'],
     }).catch(() => ({ data: undefined })),
     getInquiryReferenceData(),
   ])
@@ -122,6 +122,9 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
     inquiryResult.data
       ? {
           ...inquiryResult.data,
+          aur_ai_evaluation_json_response:
+            (inquiryChoiceFieldsResult.data as { aur_ai_evaluation_json_response?: string | null } | undefined)?.aur_ai_evaluation_json_response ??
+            (inquiryResult.data as { aur_ai_evaluation_json_response?: string | null }).aur_ai_evaluation_json_response,
           aur_inquiry_type:
             inquiryChoiceFieldsResult.data?.aur_inquiry_type ??
             inquiryResult.data.aur_inquiry_type,
@@ -793,6 +796,11 @@ export async function applyInquiryRatingOrder(input: {
     premiumToBeCharged: input.premiumToBeCharged,
     actionApplied: true,
   }
+}
+
+export async function syncInquiryHealthFinalPremium(inquiryId: string, finalPremium: number) {
+  if (!Number.isFinite(finalPremium) || finalPremium < 0) throw new Error('The evaluated policy premium is invalid.')
+  await Aur_quotesesService.update(inquiryId, { aur_total_amount_charge: finalPremium } as never)
 }
 
 export async function createQuoteFromInquiry(
