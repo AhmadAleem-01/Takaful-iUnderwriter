@@ -6,7 +6,7 @@ import { InquirySection, InquiryInformationSection, InquiryAiPanel, InquiryDecis
 import { HealthInquirySections, HealthPremiumFields } from '../../components/inquiries/HealthInquirySections'
 import { HealthAiEvaluation } from '../../components/inquiries/HealthAiEvaluation'
 import { HealthInquiryStepper } from '../../components/inquiries/HealthInquiryStepper'
-import { healthAnswer, inquiryProductKind, parseHealthCustomerData } from '../../lib/healthInquiry'
+import { healthAnswer, inquiryProductKind, parseHealthCustomerData, tpaNetworkPremiumAdjustment } from '../../lib/healthInquiry'
 import { evaluationNumber, evaluationObject, parseHealthAiEvaluation } from '../../lib/healthAiEvaluation'
 import { ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
 import type { InquiryDetail, RiCapacityCheckSummary } from '../../domain/app'
@@ -218,16 +218,15 @@ export function InquiryWorkspacePage() {
     if (inquiryState.id.replace(/[{}]/g, '').toLowerCase() !== id.replace(/[{}]/g, '').toLowerCase()) return
     const evaluation = parseHealthAiEvaluation(inquiryState.aiEvaluationJsonResponse)
     const finalPremium = evaluationNumber(evaluationObject(evaluation?.policyPremiumBreakdown).finalPremium)
-    if (finalPremium === null || Math.round(inquiryState.totalCharge * 100) === Math.round(finalPremium * 100)) return
+    if (finalPremium === null) return
     const recordId = inquiryState.id
     const response = inquiryState.aiEvaluationJsonResponse
     const key = `${recordId}:${response}:${finalPremium}`
     if (policyPremiumSyncs.current.has(key)) return
     policyPremiumSyncs.current.add(key)
-    void syncInquiryHealthFinalPremium(recordId, finalPremium).then(() => {
-      policyPremiumSyncs.current.delete(key)
+    void syncInquiryHealthFinalPremium(recordId, finalPremium).then((savedPremium) => {
       setInquiryState((current) => current?.id === recordId && current.aiEvaluationJsonResponse === response
-        ? { ...current, totalCharge: finalPremium } : current)
+        ? { ...current, totalCharge: savedPremium } : current)
     }).catch((error: unknown) => {
       policyPremiumSyncs.current.delete(key)
       setSaveError(error instanceof Error ? `Could not sync the evaluated policy premium: ${error.message}` : 'Could not sync the evaluated policy premium.')
@@ -1492,6 +1491,15 @@ export function InquiryWorkspacePage() {
                   />}
               </div>
               <InquiryDecisionRail inquiry={inquiry} hideCompleteness={isHealthInsurance || isMotorInsurance}
+                afterActionContent={isHealthInsurance ? (
+                  <InquiryInformationSection title="TPA" icon={HeartPulse}>
+                    <dl className="grid grid-cols-2 items-start gap-4">
+                      <div className="min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">TPA</dt><dd className="form-field-surface whitespace-pre-wrap break-words rounded-2xl border border-border-soft px-4 py-3 text-[13px] leading-6">{inquiry.tpa || 'Not provided'}</dd></div>
+                      <div className="min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">Network Premium Adjustment</dt><dd className="form-field-surface rounded-2xl border border-border-soft px-4 py-3 text-[13px] font-semibold">{tpaNetworkPremiumAdjustment(inquiry.tpaNetworkLabel)}</dd></div>
+                      <div className="col-span-2 min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">TPA Network</dt><dd className="form-field-surface break-words rounded-2xl border border-border-soft px-4 py-3 text-[13px]">{inquiry.tpaNetworkLabel || (inquiry.tpaNetworkValue != null ? 'Network label unavailable' : 'Not provided')}</dd></div>
+                    </dl>
+                  </InquiryInformationSection>
+                ) : undefined}
                 premiumContent={isMotorInsurance || isHealthInsurance ? (
                   <InquiryInformationSection title={isHealthInsurance ? "Premium Breakdown" : "Premium Details"} icon={Calculator}>
                     {premiumFields}

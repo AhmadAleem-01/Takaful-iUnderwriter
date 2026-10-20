@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Button } from '../ui/Button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/Tabs'
 import { cn } from '../../lib/cn'
-import { calculateMemberPremium, evaluationObject as object, evaluationRows as rows, evaluationText as text, memberEvaluationRows, parseHealthAiEvaluation, uniqueEvaluationRules, type EvaluationRecord } from '../../lib/healthAiEvaluation'
+import { calculateMemberPremium, declaredMedicalConditions, evaluationObject as object, evaluationRows as rows, evaluationText as text, memberEvaluationRows, parseHealthAiEvaluation, uniqueEvaluationRules, type EvaluationRecord } from '../../lib/healthAiEvaluation'
 
 function money(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value)
@@ -18,13 +18,12 @@ function Chip({ children, review = false }: { children: ReactNode; review?: bool
 
 function Rules({ items, evidence }: { items: EvaluationRecord[]; evidence: (value: string) => ReactNode }) {
   return items.length ? <div className="space-y-2">{items.map((rule, i) => {
-    const review = rule.requiresInternalReview === true || text(rule.status, '').toLowerCase() === 'missing'
     const condition = text(rule.ConditionMet, 'Not determined')
     const confidence = Number.parseFloat(text(rule.confidenceScore, ''))
     return <details key={`${text(rule.ruleName)}-${i}`} className="group rounded-xl border border-border-soft bg-surface transition-colors open:border-secondary/25 open:bg-secondary/[0.02] hover:border-secondary/25 motion-reduce:transition-none">
       <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl p-4 outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0 flex-1"><p className="text-[13px] font-medium leading-5">{text(rule.ruleName)}</p><p className="mt-1 text-[11px] text-muted-foreground">{text(rule.status)} · Condition {condition.toLowerCase()}</p></div>
-        <div className="flex shrink-0 flex-col items-end gap-2"><Chip review={review}>{review ? 'Review required' : condition}</Chip>{Number.isFinite(confidence) ? <div className="w-20 space-y-1"><p className="text-right text-[10px] tabular-nums text-muted-foreground">{Math.min(100, Math.max(0, confidence))}% confidence</p><div aria-hidden="true" className="h-1 overflow-hidden rounded-full bg-secondary/10"><div className="h-full rounded-full bg-secondary/70" style={{ width: `${Math.min(100, Math.max(0, confidence))}%` }} /></div></div> : null}</div>
+        <div className="flex shrink-0 flex-col items-end gap-2"><Chip>{condition}</Chip>{Number.isFinite(confidence) ? <div className="w-20 space-y-1"><p className="text-right text-[10px] tabular-nums text-muted-foreground">{Math.min(100, Math.max(0, confidence))}% confidence</p><div aria-hidden="true" className="h-1 overflow-hidden rounded-full bg-secondary/10"><div className="h-full rounded-full bg-secondary/70" style={{ width: `${Math.min(100, Math.max(0, confidence))}%` }} /></div></div> : null}</div>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180 motion-reduce:transition-none" />
       </summary>
       <div className="space-y-3 border-t border-border-soft p-4 text-left"><p className="text-[13px] leading-6">{text(rule.response)}</p>{text(rule.evidence, '') ? <div className="text-left text-xs leading-6 text-muted-foreground [&>div]:ml-1 [&>div]:align-middle">{text(rule.evidence)}{' '}{evidence(text(rule.evidence))}</div> : null}</div>
@@ -51,6 +50,7 @@ export function HealthAiEvaluation({ value, loading, onReevaluate, renderEvidenc
   const [view, setView] = useState('members')
   const [selected, setSelected] = useState<number | null>(null)
   const [detailTab, setDetailTab] = useState('rules')
+  const [expandedSummaries, setExpandedSummaries] = useState<Record<string, boolean>>({})
   const scope = useId()
   const evaluationRef = useRef<HTMLDivElement>(null)
   const data = parseHealthAiEvaluation(value)
@@ -82,20 +82,26 @@ export function HealthAiEvaluation({ value, loading, onReevaluate, renderEvidenc
                 <Tabs value={selected === null ? '' : String(selected)} onValueChange={(next) => { setSelected(Number(next)); setDetailTab('rules') }}>
                   <p className="mb-3 text-xs text-muted-foreground">Select a member to explore their business rules and premium.</p>
                   <TabsList aria-label="Insured members" className="mb-5 !grid auto-rows-fr grid-cols-1 items-stretch gap-3 rounded-none border-0 bg-transparent p-0 sm:grid-cols-2 lg:grid-cols-3">
-                    {members.map((item, i) => (
-                      <TabsTrigger key={text(item.memberId, String(i))} value={String(i)}
+                    {members.map((item, i) => {
+                      const memberKey = text(item.memberId, String(i))
+                      const summary = text(item.medicalSummary, 'No medical summary was supplied.')
+                      const expanded = expandedSummaries[memberKey] === true
+                      const long = summary.length > 220
+                      return <article key={memberKey} className={cn('flex h-full min-w-0 flex-col gap-3 rounded-xl border p-4 transition-colors motion-reduce:transition-none', selected === i ? 'border-secondary/40 bg-secondary/[0.06]' : 'border-border-soft bg-surface')}>
+                      <TabsTrigger value={String(i)}
                         onMouseDown={(event) => { if (selected === i && event.button === 0 && !event.ctrlKey) { event.preventDefault(); setSelected(null) } }}
                         onKeyDown={(event) => { if (selected === i && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(null) } }}
-                        className="group h-full min-w-0 self-stretch items-stretch justify-start rounded-xl border border-border-soft px-4 py-4 text-left font-normal hover:bg-surface-soft data-[state=active]:!border-secondary/40 data-[state=active]:!bg-secondary/[0.06] data-[state=active]:!text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 motion-reduce:transition-none [&>span]:flex [&>span]:h-full [&>span]:w-full [&>span]:flex-col [&>span]:items-start [&>span]:gap-3 [&>span]:whitespace-normal">
+                        className="group min-w-0 w-full flex-none justify-start rounded-lg p-0 text-left font-normal hover:bg-transparent data-[state=active]:!bg-transparent data-[state=active]:!text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 motion-reduce:transition-none [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:whitespace-normal">
                         <span className="flex w-full items-center gap-3"><span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary/10 text-[11px] font-semibold text-secondary group-data-[state=active]:bg-secondary group-data-[state=active]:text-white">{text(item.memberName, '?').split(/\s+/).map((part) => part[0]).slice(0, 2).join('')}</span>
                           <span className="min-w-0 flex-1"><span className="block break-words text-[12px] font-semibold">{text(item.memberName)}</span><span className="mt-1 block text-[10px] capitalize text-muted-foreground">{text(item.relationship)}{item.age !== undefined ? ` · Age ${text(item.age)}` : ''}</span></span>
                           {item.requiresInternalReview === true ? <AlertCircle aria-label="Review required" className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" /> : <BadgeCheck aria-label="No review flagged" className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
                         </span>
-                        <span className="block text-[11px] leading-5 text-muted-foreground">{text(item.medicalSummary, 'No medical summary was supplied.')}</span>
-                        {Array.isArray(item.declaredConditions) && item.declaredConditions.length ? <span className="flex flex-wrap gap-1.5">{item.declaredConditions.map((condition, n) => <span key={n} className="rounded-md border border-secondary/10 bg-surface px-2 py-1 text-[10px] text-foreground">{text(condition)}</span>)}</span> : null}
-                        <span className="mt-auto flex w-full items-center justify-between border-t border-border-soft pt-3 text-[11px] font-medium text-secondary">{selected === i ? 'Collapse evaluation' : 'View evaluation'}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform motion-reduce:transition-none', selected === i && 'rotate-180')} /></span>
                       </TabsTrigger>
-                    ))}
+                      <div><p id={`${scope}-summary-${i}`} className="text-[11px] leading-5 text-muted-foreground">{long && !expanded ? `${summary.slice(0, 220).trimEnd()}…` : summary}</p>{long ? <button type="button" aria-expanded={expanded} aria-controls={`${scope}-summary-${i}`} onClick={() => setExpandedSummaries((current) => ({ ...current, [memberKey]: !expanded }))} className="mt-1 rounded text-[11px] font-medium text-secondary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40">{expanded ? 'Show less' : 'Read more'}</button> : null}</div>
+                      {declaredMedicalConditions(item.declaredConditions).length ? <div className="flex flex-wrap gap-1.5">{declaredMedicalConditions(item.declaredConditions).map((finding, n) => <span key={n} className="rounded-full border border-secondary/10 bg-secondary/10 px-2 py-1 text-[10px] leading-4 text-secondary">{finding.condition}</span>)}</div> : null}
+                      <button type="button" onClick={() => { setSelected(selected === i ? null : i); setDetailTab('rules') }} aria-expanded={selected === i} className="mt-auto flex w-full items-center justify-between border-t border-border-soft pt-3 text-[11px] font-medium text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40">{selected === i ? 'Collapse evaluation' : 'View evaluation'}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform motion-reduce:transition-none', selected === i && 'rotate-180')} /></button>
+                      </article>
+                    })}
                   </TabsList>
                   <AnimatePresence mode="wait" initial={false}>
                   {selected !== null && members[selected] ? <motion.div ref={evaluationRef} key={text(member.memberId, String(selected))}
@@ -103,11 +109,9 @@ export function HealthAiEvaluation({ value, loading, onReevaluate, renderEvidenc
                     initial="collapsed" animate="expanded" exit="collapsed"
                     onAnimationComplete={(phase) => {
                       if (phase !== 'expanded' || !evaluationRef.current) return
-                      const top = evaluationRef.current.getBoundingClientRect().top
-                      const distance = Math.min(120, Math.max(0, top - window.innerHeight * 0.6))
-                      if (distance > 0) window.scrollBy({ top: distance, behavior: reducedMotion ? 'instant' : 'smooth' })
+                      evaluationRef.current.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' })
                     }}
-                    transition={{ duration: reducedMotion ? 0 : 0.25, ease: 'easeInOut' }} className="scroll-mt-28 overflow-hidden">
+                    transition={{ duration: reducedMotion ? 0 : 0.25, ease: 'easeInOut' }} className="scroll-mt-48 overflow-hidden">
                     <TabsContent value={String(selected)} forceMount className="outline-none">
                     <div className="overflow-hidden rounded-xl border border-border-soft">
                       <div className="p-4 sm:p-5">

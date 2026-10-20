@@ -99,12 +99,13 @@ export async function getInquiryDetail(id: string): Promise<InquiryDetail> {
 
 export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
   const normalizedRouteId = normalizeDataverseId(id)
-  const [inquiryResult, inquiryChoiceFieldsResult, referenceData] = await Promise.all([
+  const [inquiryResult, inquiryChoiceFieldsResult, referenceData, tpaResult] = await Promise.all([
     Aur_quotesesService.get(id),
     Aur_quotesesService.get(id, {
       select: ['aur_inquiry_type', 'aur_inquiry_typename', 'aur_inquiry_status', 'aur_inquiry_statusname', 'aur_ai_evaluation_json_response'],
     }).catch(() => ({ data: undefined })),
     getInquiryReferenceData(),
+    Aur_quotesesService.get(id, { select: ['aur_tpa', 'aur_tpa_network', 'aur_tpa_networkname'] }).catch(() => ({ data: undefined })),
   ])
   const productMap = new Map((referenceData.products ?? []).map((product) => [normalizeDataverseId(product.aur_productsid), product.aur_name]))
   const planMap = new Map((referenceData.plans ?? []).map((plan) => [normalizeDataverseId(plan.aur_planid), plan.aur_name ?? 'Unnamed plan']))
@@ -122,6 +123,7 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
     inquiryResult.data
       ? {
           ...inquiryResult.data,
+          ...(tpaResult.data ?? {}),
           aur_ai_evaluation_json_response:
             (inquiryChoiceFieldsResult.data as { aur_ai_evaluation_json_response?: string | null } | undefined)?.aur_ai_evaluation_json_response ??
             (inquiryResult.data as { aur_ai_evaluation_json_response?: string | null }).aur_ai_evaluation_json_response,
@@ -800,7 +802,17 @@ export async function applyInquiryRatingOrder(input: {
 
 export async function syncInquiryHealthFinalPremium(inquiryId: string, finalPremium: number) {
   if (!Number.isFinite(finalPremium) || finalPremium < 0) throw new Error('The evaluated policy premium is invalid.')
-  await Aur_quotesesService.update(inquiryId, { aur_total_amount_charge: finalPremium } as never)
+  const premiumToBeCharged = Math.ceil(finalPremium)
+  if (premiumToBeCharged > 2147483647) throw new Error('The evaluated premium exceeds the Inquiry field limit.')
+  const recordId = normalizeDataverseId(inquiryId)
+  const result = await Aur_quotesesService.update(recordId, { aur_total_amount_charge: premiumToBeCharged })
+  if (!result.success) throw result.error ?? new Error('Dataverse could not update Premium to be Charged.')
+  const saved = await Aur_quotesesService.get(recordId, { select: ['aur_total_amount_charge'] })
+  if (!saved.success) throw saved.error ?? new Error('Unable to verify the saved premium.')
+  if (Number(saved.data?.aur_total_amount_charge) !== premiumToBeCharged || saved.data?.aur_total_amount_charge == null) {
+    throw new Error('Dataverse did not retain the evaluated Premium to be Charged. Please refresh and retry.')
+  }
+  return premiumToBeCharged
 }
 
 export async function createQuoteFromInquiry(

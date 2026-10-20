@@ -26,6 +26,9 @@ import { Input } from '../../components/ui/Input'
 import { formatAmount, formatCurrency } from '../../lib/formatters'
 import { AmountInput } from '../../components/ui/AmountInput'
 import { generateQuotePdf } from '../../lib/quotePdf'
+import { generateHealthQuotePdf } from '../../lib/healthMemberCardPdf'
+import { getInquiryDetailCore } from '../../services/inquiriesService'
+import nextcareLogoSrc from '../../assets/nextcarelogo.png?inline'
 import healthHeaderSrc from '../../assets/insureAIHealthLogo.png.png?inline'
 import alBuhairaHeaderSrc from '../../assets/al-buhaira-logo.png?inline'
 import { inquiryProductKind } from '../../lib/healthInquiry'
@@ -238,7 +241,16 @@ export function QuoteWorkbenchPage() {
       setExportMessage(null)
       setExportError(null)
       if (!currentDetail.inquiryId) throw new Error('Link this quote to an inquiry before generating and emailing it.')
-      const pdf = await generateQuotePdf({
+      const isHealth = inquiryProductKind(data?.options.products.find((product) => product.id === currentForm.productId)?.name ?? currentDetail.productName) === 'health'
+      const pdf = isHealth ? await generateHealthQuotePdf({
+        detail: currentDetail,
+        inquiry: await getInquiryDetailCore(currentDetail.inquiryId),
+        form: currentForm,
+        planName: data?.options.plans.find((plan) => plan.id === currentForm.planId)?.name ?? currentDetail.planName,
+        planSections: visiblePlanSections,
+        healthLogoSrc: healthHeaderSrc,
+        nextcareLogoSrc,
+      }) : await generateQuotePdf({
         detail: currentDetail,
         form: currentForm,
         planSections: visiblePlanSections,

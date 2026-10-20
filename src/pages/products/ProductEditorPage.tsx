@@ -34,6 +34,7 @@ import {
   updateProductPlan,
 } from '../../services/productWorkspaceService'
 import { formatCompactNumber } from '../../lib/formatters'
+import { RULE_GROUPS, categorizeRule, type RuleGroup } from '../../lib/productRuleGroups'
 
 interface ProductFormState {
   name: string
@@ -75,16 +76,6 @@ const emptyPlanDraft: PlanDraftState = {
   cealing: '',
   floor: '',
 }
-
-const RULE_GROUPS = [
-  'Mandatory Field',
-  'Required Document',
-  'Inclusion',
-  'Exclusion',
-  'Conditional',
-] as const
-
-type RuleGroup = (typeof RULE_GROUPS)[number]
 
 export function ProductEditorPage() {
   const navigate = useNavigate()
@@ -973,15 +964,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </div>
   )
-}
-
-function categorizeRule(name: string, context: string, description: string): RuleGroup {
-  const content = [name, context, description].join(' ').toLowerCase()
-  if (content.includes('required document') || content.includes('required docs') || content.includes('document')) return 'Required Document'
-  if (content.includes('inclusion') || content.includes('include') || content.includes('cover')) return 'Inclusion'
-  if (content.includes('exclusion') || content.includes('exclude') || content.includes('not cover')) return 'Exclusion'
-  if (content.includes('mandatory') || content.includes('required') || content.includes('must')) return 'Mandatory Field'
-  return 'Conditional'
 }
 
 function ruleGroupIcon(group: RuleGroup) {

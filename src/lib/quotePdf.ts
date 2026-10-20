@@ -4,7 +4,7 @@ import { formatAmount } from './formatters'
 import type { QuoteDetail } from '../domain/app'
 import type { QuotePlanLinkedSection } from '../services/quotesService'
 
-interface QuotePdfFormValues {
+export interface QuotePdfFormValues {
   name: string
   totalPremium: string
   grossPremium: string
@@ -222,7 +222,7 @@ export async function generateQuotePdf({
   return { fileName, contentBytes }
 }
 
-async function loadImageData(src: string) {
+export async function loadImageData(src: string) {
   const dataUrl = src.startsWith('data:')
     ? src
     : await fetch(src)

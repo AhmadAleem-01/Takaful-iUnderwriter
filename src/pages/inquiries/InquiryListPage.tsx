@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import type { ColumnDef } from '@tanstack/react-table'
-import { ClipboardList, Filter, Plus, RotateCcw, X } from 'lucide-react'
+import { Car, ClipboardList, Filter, HeartPulse, Plus, RotateCcw, Search, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import { createInquiry, getInquiryEditorOptions, listInquiries } from '../../services/inquiriesService'
 import { INQUIRY_TYPE_OPTIONS } from '../../services/inquiryTypeOptions'
 import type { InquirySummary } from '../../domain/app'
 import { PageHeader } from '../../components/layout/PageHeader'
-import { FilterBar } from '../../components/ui/FilterBar'
 import { Button } from '../../components/ui/Button'
 import { DataTable } from '../../components/ui/DataTable'
 import { Badge } from '../../components/ui/Badge'
@@ -17,6 +16,8 @@ import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import type { SelectOption } from '../../components/ui/Select'
 import { formatCurrency, formatDate } from '../../lib/formatters'
+import { inquiryProductKind } from '../../lib/healthInquiry'
+import { HEALTH_INQUIRY_FILTERS, matchesHealthInquiryFilter } from '../../lib/healthInquiryFilters'
 
 type ColumnFilterKey = 'inquiry' | 'broker' | 'product' | 'status' | 'riskScore' | 'premium' | 'updated'
 
@@ -41,7 +42,9 @@ const defaultColumnFilters: InquiryColumnFilters = {
 }
 
 export function InquiriesPage() {
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
+  const productView = params.get('view') === 'health' ? 'health' : 'motor'
+  const productViewLabel = productView === 'health' ? 'Health Insurance' : 'Motor Insurance'
   const [search, setSearch] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeFilterKey, setActiveFilterKey] = useState<ColumnFilterKey | null>(null)
@@ -56,15 +59,25 @@ export function InquiriesPage() {
     productId: '',
     planId: '',
   })
-  const scope = params.get('type') ?? undefined
+  const healthStage = params.get('stage')
+  const scope = productView === 'health'
+    ? HEALTH_INQUIRY_FILTERS.find((filter) => filter.key === healthStage)?.key
+    : params.get('type') ?? undefined
+  const scopeLabel = productView === 'health' ? HEALTH_INQUIRY_FILTERS.find((filter) => filter.key === scope)?.label : scope
   const { data, loading, error } = useAsyncData(() => listInquiries(), [refreshKey])
   const optionsLoad = useAsyncData(() => getInquiryEditorOptions(), [])
 
+  const productRecords = useMemo(
+    () => (data ?? []).filter((record) => inquiryProductKind(record.productName) === productView),
+    [data, productView],
+  )
+
   const scopeFiltered = useMemo(() => {
-    const records = data ?? []
+    const records = productRecords
     if (!scope) return records
+    if (productView === 'health') return records.filter((record) => matchesHealthInquiryFilter(record, scope))
     return records.filter((record) => record.inquiryType.toLowerCase() === scope.toLowerCase())
-  }, [data, scope])
+  }, [productRecords, scope, productView])
 
   const filtered = useMemo(() => {
     const records = scopeFiltered
@@ -128,7 +141,7 @@ export function InquiriesPage() {
   }, [columnFilters, scopeFiltered, search])
 
   const counts = useMemo(() => {
-    const records = data ?? []
+    const records = productRecords
     return new Map(
       INQUIRY_TYPE_OPTIONS.map((option) => [
         option.value,
@@ -138,7 +151,7 @@ export function InquiriesPage() {
         ).length,
       ]),
     )
-  }, [data])
+  }, [productRecords])
 
   const premiumTotal = filtered.reduce((sum, item) => sum + item.grossPremium, 0)
   const averageRiskScore =
@@ -148,24 +161,24 @@ export function InquiriesPage() {
 
   const statusOptions = useMemo(
     () =>
-      [...new Set((data ?? []).map((record) => record.status).filter(Boolean))]
+      [...new Set(productRecords.map((record) => record.status).filter(Boolean))]
         .sort()
         .map((option) => ({ label: option, value: normalizeFilterValue(option) })),
-    [data],
+    [productRecords],
   )
   const brokerOptions = useMemo(
     () =>
-      [...new Set((data ?? []).map((record) => record.brokerName).filter(Boolean))]
+      [...new Set(productRecords.map((record) => record.brokerName).filter(Boolean))]
         .sort()
         .map((option) => ({ label: option, value: normalizeFilterValue(option) })),
-    [data],
+    [productRecords],
   )
   const productOptions = useMemo(
     () =>
-      [...new Set((data ?? []).map((record) => record.productName).filter(Boolean))]
+      [...new Set(productRecords.map((record) => record.productName).filter(Boolean))]
         .sort()
         .map((option) => ({ label: option, value: normalizeFilterValue(option) })),
-    [data],
+    [productRecords],
   )
 
   const activeFilterCount = countActiveFilters(columnFilters)
@@ -373,6 +386,27 @@ export function InquiriesPage() {
     setActiveFilterKey(null)
   }
 
+  function changeProductView(view: 'motor' | 'health') {
+    if (view === productView) return
+    setSearch('')
+    clearAllFilters()
+    const next = new URLSearchParams(params)
+    next.set('view', view)
+    next.delete('type')
+    next.delete('stage')
+    setParams(next)
+  }
+
+  function scopeLink(type?: string) {
+    const next = new URLSearchParams(params)
+    next.set('view', productView)
+    const filterParam = productView === 'health' ? 'stage' : 'type'
+    next.delete(productView === 'health' ? 'type' : 'stage')
+    if (type) next.set(filterParam, type)
+    else next.delete(filterParam)
+    return `/inquiries?${next.toString()}`
+  }
+
   async function handleCreateInquiry() {
     if (!createForm.name.trim()) {
       setCreateError('Inquiry name is required.')
@@ -408,8 +442,8 @@ export function InquiriesPage() {
     <div className="space-y-6">
       <PageHeader
         icon={ClipboardList}
-        title={scope ? `${scope} Inquiries` : 'All Inquiries'}
-        description="Operational queue for browsing intake records and drilling into the underwriting workspace."
+        title={`${productViewLabel} Inquiries`}
+        description={scopeLabel ? `${scopeLabel} inquiries in the ${productViewLabel.toLowerCase()} queue.` : `Browse and manage ${productViewLabel.toLowerCase()} inquiries.`}
         actions={
           <Button type="button" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" />
@@ -417,16 +451,36 @@ export function InquiriesPage() {
           </Button>
         }
       />
-      <FilterBar
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search inquiries by number, broker, or product"
-      >
+      <div className="space-y-3 rounded-2xl border border-border-soft bg-surface p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-semibold">Inquiry View</p>
+        <div role="group" aria-label="Inquiry product view" className="flex w-full gap-1 rounded-xl bg-surface-muted p-1 sm:w-auto">
+          {([{ value: 'motor', label: 'Motor Insurance', icon: Car }, { value: 'health', label: 'Health Insurance', icon: HeartPulse }] as const).map(({ value, label, icon: Icon }) => <Button key={value} type="button" size="sm" variant={productView === value ? 'primary' : 'ghost'} aria-pressed={productView === value} onClick={() => changeProductView(value)} className="min-h-10 flex-1 rounded-lg px-3 text-xs shadow-none sm:flex-none"><Icon className="h-4 w-4 shrink-0" />{label}{!loading && !error ? <span className={`rounded-md px-1.5 py-0.5 text-[10px] tabular-nums ${productView === value ? 'bg-white/20 text-white' : 'bg-surface text-muted-foreground'}`}>{(data ?? []).filter((record) => inquiryProductKind(record.productName) === value).length}</span> : null}</Button>)}
+        </div>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-border-soft pt-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <ScopeChip label="All Inquiries" count={productRecords.length} active={!scope} to={scopeLink()} />
+            {productView === 'health' ? HEALTH_INQUIRY_FILTERS.map((filter) => (
+              <ScopeChip key={filter.key} label={filter.label}
+                count={productRecords.filter((record) => matchesHealthInquiryFilter(record, filter.key)).length}
+                active={scope === filter.key} to={scopeLink(filter.key)} />
+            )) : INQUIRY_TYPE_OPTIONS.map((option) => (
+              <ScopeChip key={option.value} label={option.label} count={counts.get(option.value) ?? 0}
+                active={scope?.toLowerCase() === option.label.toLowerCase()} to={scopeLink(option.label)} />
+            ))}
+          </div>
+        <div className="flex w-full shrink-0 items-center gap-2 lg:w-auto">
+          <label className="relative min-w-0 flex-1 lg:w-56 lg:flex-none">
+            <span className="sr-only">Search {productViewLabel.toLowerCase()} inquiries</span>
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search inquiries..." className="h-10 rounded-lg pl-9 text-xs" />
+          </label>
         <Button
           type="button"
           variant="secondary"
           size="sm"
-          className="rounded-full bg-white dark:bg-[#1E293B]"
+          className="h-10 shrink-0 rounded-lg bg-surface"
           disabled={activeFilterCount === 0 && !search.trim()}
           onClick={() => {
             setSearch('')
@@ -436,18 +490,8 @@ export function InquiriesPage() {
           <RotateCcw className="h-4 w-4" />
           Clear Filters
         </Button>
-      </FilterBar>
-      <div className="flex flex-wrap items-center gap-2">
-        <ScopeChip label="All Inquiries" count={(data ?? []).length} active={!scope} to="/inquiries" />
-        {INQUIRY_TYPE_OPTIONS.map((option) => (
-          <ScopeChip
-            key={option.value}
-            label={option.label}
-            count={counts.get(option.value) ?? 0}
-            active={scope?.toLowerCase() === option.label.toLowerCase()}
-            to={`/inquiries?type=${encodeURIComponent(option.label)}`}
-          />
-        ))}
+        </div>
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <MiniMetric label="Visible Records" value={String(filtered.length)} helper="Current queue after scope and search." />
@@ -466,8 +510,8 @@ export function InquiriesPage() {
         <DataTable
           columns={columns}
           data={filtered}
-          emptyTitle="No inquiries found"
-          emptyDescription="Try adjusting the scope or search criteria."
+          emptyTitle={`No ${productViewLabel.toLowerCase()} inquiries found`}
+          emptyDescription="Try adjusting the type, filters or search, or switch to the other product view."
           preserveHeaderOnEmpty
         />
       )}

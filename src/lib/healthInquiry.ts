@@ -66,3 +66,11 @@ export function healthBirthDate(value: unknown): string {
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) return 'Not provided'
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date)
 }
+export function tpaNetworkPremiumAdjustment(label?: string): string {
+  const network = label?.trim().replace(/\s+/g, ' ').toLowerCase()
+  if (network === 'basic network' || network === 'basic') return '0%'
+  if (network === 'standard network' || network === 'standard') return '+10%'
+  if (network === 'premium network' || network === 'premium') return '+20%'
+  return 'Not available'
+}
+

@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
-import { ChevronDown, FileText, List, Mail, Paperclip, RefreshCw, Save, Sparkles, Table2, type LucideIcon } from 'lucide-react'
+import { ChevronDown, FileText, List, Mail, Paperclip, RefreshCw, Save, ShieldCheck, Sparkles, Table2, type LucideIcon } from 'lucide-react'
 import type { InquiryDetail, InquiryEmailSummary, QuoteResponse } from '../../domain/app'
 import { formatDate, formatPercent } from '../../lib/formatters'
 import { getUnderwriterSubActions, underwriterActions } from '../../lib/inquiryUnderwriting'
@@ -37,8 +37,8 @@ export function InquiryInformationSection({ title, icon: Icon, children }: { tit
   )
 }
 
-export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premiumContent, action, subAction, editing, busy, onAction, onSubAction, onEdit, onSave }: {
-  inquiry: InquiryDetail; hideCompleteness?: boolean; premiumContent?: ReactNode; action: string; subAction: string; editing: boolean; busy: boolean;
+export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premiumContent, afterActionContent, action, subAction, editing, busy, onAction, onSubAction, onEdit, onSave }: {
+  inquiry: InquiryDetail; hideCompleteness?: boolean; premiumContent?: ReactNode; afterActionContent?: ReactNode; action: string; subAction: string; editing: boolean; busy: boolean;
   onAction: (value: string) => void; onSubAction: (value: string) => void; onEdit: () => void; onSave: () => void
 }) {
   const completeness = Math.min(100, Math.max(0, inquiry.readiness[0]?.value ?? 0))
@@ -46,7 +46,7 @@ export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premium
   return (
     <aside aria-label="Underwriting overview" className="space-y-4 [&_.form-field-surface]:text-[13px] [&_[role=combobox]]:text-[13px]">
       <section className="rounded-2xl border border-border-soft bg-surface p-5">
-        <h2 className="text-sm font-semibold">Underwriting Action</h2>
+        <div className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/10 bg-surface text-primary"><ShieldCheck className="h-4 w-4" /></span><h2 className="text-sm font-semibold">Underwriting Action</h2></div>
         <p className="mt-1 text-xs text-muted-foreground">{selectedAction ?? 'Not recorded yet'}</p>
         <div className="mt-5 space-y-4">
           <label className="block space-y-2"><span className="text-[11px] font-medium">Action Status</span><Select aria-label="Underwriting action status" value={action} disabled={!editing || busy} onValueChange={onAction} options={[{ value: '', label: 'Select a status' }, ...underwriterActions.map((item) => ({ value: String(item.value), label: item.label }))]} /></label>
@@ -54,6 +54,7 @@ export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premium
           <Button type="button" className="w-full rounded-lg" disabled={busy} onClick={editing ? onSave : onEdit}>{busy ? 'Saving...' : editing ? 'Save Action' : 'Edit Action'}</Button>
         </div>
       </section>
+      {afterActionContent}
       {premiumContent}
       {!hideCompleteness ? <section className="rounded-2xl border border-border-soft bg-surface p-5">
         <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Completeness</h2><span className="text-sm font-semibold">{formatPercent(completeness)}</span></div>

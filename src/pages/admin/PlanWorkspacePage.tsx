@@ -26,6 +26,9 @@ import {
   type PlanPricingOrderItem,
 } from '../../services/adminCatalogService'
 import { formatCurrency } from '../../lib/formatters'
+import { PlanContents } from '../../components/plans/PlanContents'
+import { PlanBusinessRules } from '../../components/plans/PlanBusinessRules'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/Tabs'
 
 interface PlanFormState {
   name: string
@@ -248,7 +251,7 @@ export function PlanWorkspacePage() {
         icon={Boxes}
         eyebrow="Product Management"
         title={form.name || 'Edit Plan'}
-        description={`${productName} · Maintain plan pricing, limits, and rating order in one workspace.`}
+        description={`${productName} · Manage plan settings, pricing order and related coverage details.`}
         actions={
           <>
             <Button type="button" variant="secondary" className="bg-white dark:bg-[#1E293B]" asChild>
@@ -267,11 +270,17 @@ export function PlanWorkspacePage() {
 
       {saveError ? <Card className="border-danger/20 bg-danger/5 text-sm text-danger">{saveError}</Card> : null}
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <Tabs defaultValue="details">
+        <TabsList aria-label="Plan workspace" className="mb-6">
+          <TabsTrigger value="details">Plan Details</TabsTrigger>
+          <TabsTrigger value="contents">Plan Contents</TabsTrigger>
+          <TabsTrigger value="rules">Business Rules</TabsTrigger>
+        </TabsList>
+        <TabsContent value="details" forceMount className="data-[state=inactive]:hidden">
+      <div className="grid items-start gap-6 xl:grid-cols-2">
         <Card className="space-y-5">
           <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Plan Details</p>
-            <h2 className="mt-1 text-xl font-bold">Core plan setup</h2>
+            <h2 className="text-base font-semibold">Plan Setup</h2>
             <p className="mt-1 text-sm text-muted-foreground">Edit the product link, pricing limits, and plan description.</p>
           </div>
 
@@ -317,8 +326,7 @@ export function PlanWorkspacePage() {
         <Card className="space-y-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Rating Pricing Order</p>
-              <h2 className="mt-1 text-xl font-bold">Order list</h2>
+              <h2 className="text-base font-semibold">Rating Pricing Order</h2>
               <p className="mt-1 text-sm text-muted-foreground">Sequence rating consequences from the product’s business rules.</p>
             </div>
             <Button type="button" variant="secondary" className="bg-white dark:bg-[#1E293B]" onClick={() => void handleRefreshPricingOrder()} disabled={!form.productId || pricingBusy}>
@@ -363,10 +371,10 @@ export function PlanWorkspacePage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col gap-2">
-                      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 rounded-full border border-border-soft bg-white p-0 dark:bg-slate-950/50" disabled={index === 0} onClick={() => movePricingItem(index, index - 1)}>
+                      <Button type="button" variant="ghost" size="sm" aria-label={`Move ${item.consequenceName} up`} className="h-8 w-8 rounded-full border border-border-soft bg-white p-0 dark:bg-slate-950/50" disabled={index === 0} onClick={() => movePricingItem(index, index - 1)}>
                         <ArrowUp className="h-4 w-4" />
                       </Button>
-                      <Button type="button" variant="ghost" size="sm" className="h-8 w-8 rounded-full border border-border-soft bg-white p-0 dark:bg-slate-950/50" disabled={index === form.pricingOrderItems.length - 1} onClick={() => movePricingItem(index, index + 1)}>
+                      <Button type="button" variant="ghost" size="sm" aria-label={`Move ${item.consequenceName} down`} className="h-8 w-8 rounded-full border border-border-soft bg-white p-0 dark:bg-slate-950/50" disabled={index === form.pricingOrderItems.length - 1} onClick={() => movePricingItem(index, index + 1)}>
                         <ArrowDown className="h-4 w-4" />
                       </Button>
                     </div>
@@ -387,6 +395,14 @@ export function PlanWorkspacePage() {
           )}
         </Card>
       </div>
+        </TabsContent>
+        <TabsContent value="contents">
+          <PlanContents key={id} planId={id} />
+        </TabsContent>
+        <TabsContent value="rules">
+          <PlanBusinessRules key={form.productId} productId={form.productId} productName={productName} />
+        </TabsContent>
+      </Tabs>
     </form>
   )
 }
@@ -394,7 +410,7 @@ export function PlanWorkspacePage() {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="space-y-2">
-      <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
       {children}
     </div>
   )

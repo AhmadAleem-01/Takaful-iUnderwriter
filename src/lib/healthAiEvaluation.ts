@@ -32,6 +32,20 @@ export function evaluationText(value: unknown, fallback = 'Not provided'): strin
   return typeof value === 'string' && value.trim() ? value.trim() : typeof value === 'number' && Number.isFinite(value) ? String(value) : fallback
 }
 
+export function declaredMedicalConditions(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((entry) => {
+    if (typeof entry === 'string') {
+      return entry.trim() ? [{ condition: entry.trim(), diagnosed: '', status: '' }] : []
+    }
+    const record = evaluationObject(entry)
+    const condition = evaluationText(record.condition, '')
+    const diagnosed = evaluationText(record.diagnosed, '')
+    const status = evaluationText(record.status, '')
+    return condition || diagnosed || status ? [{ condition: condition || 'Medical condition', diagnosed, status }] : []
+  })
+}
+
 export function parseHealthAiEvaluation(raw?: string): EvaluationRecord | null {
   try {
     const value = JSON.parse(raw ?? '')

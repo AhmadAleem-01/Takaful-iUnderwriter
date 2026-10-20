@@ -1,5 +1,29 @@
 # App Design Context
 
+Health inquiry grid uses workflow filters rather than vehicle types: Intake (Draft/Created/Product Match/Emirates ID), Verification (ICP/DOH), KYC Required, AI Processing (including Determined), Awaiting Review and Quote Sent. Status codes drive membership, with shared-label fallback for missing numeric codes. Health uses the stage URL parameter and ignores vehicle-type scopes; Motor retains existing type chips. All Inquiries always includes every record in the selected product view.
+
+Inquiry toolbar row one is Inquiry View label on the left and Motor/Health buttons on the right. Row two groups inquiry-type chips on the left with search and Clear Filters on the right, stacking responsively when needed. Search belongs to the type-filter row, not the product-view row.
+
+Inquiry queue controls use a single compact toolbar: product-view buttons on the left, search and Clear Filters on the right, and inquiry-type chips on a separated second row within the same surface. Do not add separate view-description or search cards. Controls stack on narrow screens.
+
+Inquiry list has Motor and Health product views, defaulting to Motor. URL view=health selects Health/Medical inquiries; other values default to Motor. Product scoping precedes inquiry-type, search and column filters, so rows, counts and filter options never mix products. Type links preserve the selected product view; switching views clears the previous type/search/column filters. Shared pressed-state buttons provide the compact view switch.
+
+Health quote PDFs use compact 190x125mm landscape member cards matching the provided reference: two logos, plain label/value rows and thin dividers, without report-style colour fills. Each member starts a new card page with essential details, TPA/network, premiums and applicable loading rules. No standalone overview, policy loading appendix or Plan Benefits & Terms section is generated. Overflow pages retain branding and member context. Other products remain unchanged.
+
+Health/Medical Generate Quote uses a dedicated health PDF with InsureAI Health left and NextCare right on every page. It reads the linked Inquiry afresh for members, TPA/network, Gross Premium and Premium to be Charged; member pages show age/gender, condition names only, member-base loading calculations, and applicable rules, never medical narrative or internal review notes. Member base fallback requires an unambiguous submitted-name match. Policy and member charges stay separate; never compound or add them twice. Other products retain the existing PDF. Download and the existing customer email flow share identical PDF content.
+
+Health AI member summaries preview 220 characters with independent native Read more/Show less buttons, not interactive elements nested inside selection tabs. Condition tags use secondary-purple tint rather than white. Selection uses native smooth scrollIntoView after expansion, with scroll margin leaving some member-card context above the evaluation. Underwriting Action uses the same icon tile heading pattern as other sections.
+
+Health AI condition tags show only condition names while accepting both structured and legacy JSON. Health/Medical inquiries show a read-only TPA card immediately after Underwriting Action and before premiums: aur_tpa preserves multiline text and aur_tpa_network displays its Dataverse formatted label, never its numeric code. Other products do not show the TPA card.
+
+Health AI declaredConditions accepts structured condition/diagnosed/status objects and legacy strings. Member summaries display names, diagnosis dates and status as compact findings; omit empty values instead of rendering object placeholders.
+
+Plan Business Rules is a separate read-only tab, inheriting associations from the selected Linked Product via getProductWorkspace. Match Product's grouped category/card design and share its existing categorization helper; never create plan-specific associations or expose Product unlink actions here. Changing the Linked Product reloads the rules; setup and pricing-order drafts remain intact.
+
+Plan workspace has Plan Details and Plan Contents tabs. Details retains setup fields and pricing order; Contents holds the six-category related-record browser. Keep Details mounted when switching tabs so unsaved inputs remain intact.
+
+Plan workspace retains side-by-side setup and rating-order editing, followed by a full-width read-only Plan Contents browser. Related Coverages, Benefits, Inclusions, Exclusions, Warranties and Deductibles reuse getQuotePlanLinkedSections and filter by the opened Plan ID, not Product ID. Shared tabs provide counts, category-local search and expandable descriptions; loading/error/retry/empty states are independent of plan editing. Viewing related records does not mutate them or reset unsaved plan fields.
+
 Theme rounded-2xl is 24px (not Tailwind's default 16px). Inquiry section headers therefore use 23px inner radii for a 1px card border. Standard border tokens define visible outer section outlines; keep overflow visible on form sections so dropdowns and pricing popovers are not clipped.
 
 Inquiry section headers are white in light mode and use the normal surface in dark mode, with rounded inner corners. Health AI member expansion only nudges the page downward when needed, capped at 120px, rather than scrolling the evaluation to the viewport top; reduced motion remains respected.
