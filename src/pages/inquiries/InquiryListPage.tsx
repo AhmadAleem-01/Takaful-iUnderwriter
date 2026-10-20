@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Car, ClipboardList, Filter, HeartPulse, Plus, RotateCcw, Search, X } from 'lucide-react'
+import { ClipboardList, Filter, Plus, RotateCcw, Search, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import { createInquiry, getInquiryEditorOptions, listInquiries } from '../../services/inquiriesService'
@@ -41,10 +41,11 @@ const defaultColumnFilters: InquiryColumnFilters = {
   updated: { from: '', to: '' },
 }
 
+const NO_PRODUCT_LINKED_LABEL = 'No Product Linked'
+
 export function InquiriesPage() {
   const [params, setParams] = useSearchParams()
-  const productView = params.get('view') === 'health' ? 'health' : 'motor'
-  const productViewLabel = productView === 'health' ? 'Health Insurance' : 'Motor Insurance'
+  const requestedProduct = params.get('product')?.trim() ?? ''
   const [search, setSearch] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeFilterKey, setActiveFilterKey] = useState<ColumnFilterKey | null>(null)
@@ -59,25 +60,49 @@ export function InquiriesPage() {
     productId: '',
     planId: '',
   })
-  const healthStage = params.get('stage')
-  const scope = productView === 'health'
-    ? HEALTH_INQUIRY_FILTERS.find((filter) => filter.key === healthStage)?.key
-    : params.get('type') ?? undefined
-  const scopeLabel = productView === 'health' ? HEALTH_INQUIRY_FILTERS.find((filter) => filter.key === scope)?.label : scope
   const { data, loading, error } = useAsyncData(() => listInquiries(), [refreshKey])
   const optionsLoad = useAsyncData(() => getInquiryEditorOptions(), [])
 
+  const populatedProducts = useMemo(() => {
+    const products = new Map<string, { name: string; count: number }>()
+    for (const record of data ?? []) {
+      const name = record.productName.trim()
+      if (!name || normalizeFilterValue(name) === normalizeFilterValue(NO_PRODUCT_LINKED_LABEL)) continue
+      const key = normalizeFilterValue(name)
+      const existing = products.get(key)
+      products.set(key, { name: existing?.name ?? name, count: (existing?.count ?? 0) + 1 })
+    }
+    return [...products.values()].sort((left, right) => left.name.localeCompare(right.name))
+  }, [data])
+
+  const selectedProduct = populatedProducts.find(
+    (product) => normalizeFilterValue(product.name) === normalizeFilterValue(requestedProduct),
+  )?.name ?? ''
+  const selectedProductKind = selectedProduct ? inquiryProductKind(selectedProduct) : 'other'
+  const productViewLabel = selectedProduct || 'All'
+  const healthStage = params.get('stage')
+  const scope = selectedProductKind === 'health'
+    ? HEALTH_INQUIRY_FILTERS.find((filter) => filter.key === healthStage)?.key
+    : params.get('type') ?? undefined
+  const scopeLabel = selectedProductKind === 'health'
+    ? HEALTH_INQUIRY_FILTERS.find((filter) => filter.key === scope)?.label
+    : scope
+
   const productRecords = useMemo(
-    () => (data ?? []).filter((record) => inquiryProductKind(record.productName) === productView),
-    [data, productView],
+    () => selectedProduct
+      ? (data ?? []).filter(
+          (record) => normalizeFilterValue(record.productName) === normalizeFilterValue(selectedProduct),
+        )
+      : (data ?? []),
+    [data, selectedProduct],
   )
 
   const scopeFiltered = useMemo(() => {
     const records = productRecords
     if (!scope) return records
-    if (productView === 'health') return records.filter((record) => matchesHealthInquiryFilter(record, scope))
+    if (selectedProductKind === 'health') return records.filter((record) => matchesHealthInquiryFilter(record, scope))
     return records.filter((record) => record.inquiryType.toLowerCase() === scope.toLowerCase())
-  }, [productRecords, scope, productView])
+  }, [productRecords, scope, selectedProductKind])
 
   const filtered = useMemo(() => {
     const records = scopeFiltered
@@ -175,7 +200,9 @@ export function InquiriesPage() {
   )
   const productOptions = useMemo(
     () =>
-      [...new Set(productRecords.map((record) => record.productName).filter(Boolean))]
+      [...new Set(productRecords
+        .map((record) => record.productName)
+        .filter((name) => name && normalizeFilterValue(name) !== normalizeFilterValue(NO_PRODUCT_LINKED_LABEL)))]
         .sort()
         .map((option) => ({ label: option, value: normalizeFilterValue(option) })),
     [productRecords],
@@ -386,12 +413,14 @@ export function InquiriesPage() {
     setActiveFilterKey(null)
   }
 
-  function changeProductView(view: 'motor' | 'health') {
-    if (view === productView) return
+  function changeProductView(productName?: string) {
+    if ((productName ?? '') === selectedProduct) return
     setSearch('')
     clearAllFilters()
     const next = new URLSearchParams(params)
-    next.set('view', view)
+    next.delete('view')
+    if (productName) next.set('product', productName)
+    else next.delete('product')
     next.delete('type')
     next.delete('stage')
     setParams(next)
@@ -399,9 +428,11 @@ export function InquiriesPage() {
 
   function scopeLink(type?: string) {
     const next = new URLSearchParams(params)
-    next.set('view', productView)
-    const filterParam = productView === 'health' ? 'stage' : 'type'
-    next.delete(productView === 'health' ? 'type' : 'stage')
+    next.delete('view')
+    if (selectedProduct) next.set('product', selectedProduct)
+    else next.delete('product')
+    const filterParam = selectedProductKind === 'health' ? 'stage' : 'type'
+    next.delete(selectedProductKind === 'health' ? 'type' : 'stage')
     if (type) next.set(filterParam, type)
     else next.delete(filterParam)
     return `/inquiries?${next.toString()}`
@@ -442,8 +473,12 @@ export function InquiriesPage() {
     <div className="space-y-6">
       <PageHeader
         icon={ClipboardList}
-        title={`${productViewLabel} Inquiries`}
-        description={scopeLabel ? `${scopeLabel} inquiries in the ${productViewLabel.toLowerCase()} queue.` : `Browse and manage ${productViewLabel.toLowerCase()} inquiries.`}
+        title={selectedProduct ? `${selectedProduct} Inquiries` : 'All Inquiries'}
+        description={scopeLabel
+          ? `${scopeLabel} inquiries${selectedProduct ? ` for ${selectedProduct}` : ''}.`
+          : selectedProduct
+            ? `Browse and manage inquiries for ${selectedProduct}.`
+            : 'Browse and manage inquiries across all populated products.'}
         actions={
           <Button type="button" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" />
@@ -453,15 +488,24 @@ export function InquiriesPage() {
       />
       <div className="space-y-3 rounded-2xl border border-border-soft bg-surface p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs font-semibold">Inquiry View</p>
-        <div role="group" aria-label="Inquiry product view" className="flex w-full gap-1 rounded-xl bg-surface-muted p-1 sm:w-auto">
-          {([{ value: 'motor', label: 'Motor Insurance', icon: Car }, { value: 'health', label: 'Health Insurance', icon: HeartPulse }] as const).map(({ value, label, icon: Icon }) => <Button key={value} type="button" size="sm" variant={productView === value ? 'primary' : 'ghost'} aria-pressed={productView === value} onClick={() => changeProductView(value)} className="min-h-10 flex-1 rounded-lg px-3 text-xs shadow-none sm:flex-none"><Icon className="h-4 w-4 shrink-0" />{label}{!loading && !error ? <span className={`rounded-md px-1.5 py-0.5 text-[10px] tabular-nums ${productView === value ? 'bg-white/20 text-white' : 'bg-surface text-muted-foreground'}`}>{(data ?? []).filter((record) => inquiryProductKind(record.productName) === value).length}</span> : null}</Button>)}
+        <div role="group" aria-label="Filter inquiries by product" className="flex w-full flex-wrap gap-1 rounded-xl bg-surface-muted p-1 sm:ml-auto sm:w-auto sm:justify-end">
+          <Button type="button" size="sm" variant={!selectedProduct ? 'primary' : 'ghost'} aria-pressed={!selectedProduct} onClick={() => changeProductView()} className="min-h-10 flex-1 rounded-lg px-3 text-xs shadow-none sm:flex-none">
+            All Products
+            {!loading && !error ? <span className={`rounded-md px-1.5 py-0.5 text-[10px] tabular-nums ${!selectedProduct ? 'bg-white/20 text-white' : 'bg-surface text-muted-foreground'}`}>{(data ?? []).length}</span> : null}
+          </Button>
+          {populatedProducts.map((product) => {
+            const active = product.name === selectedProduct
+            return <Button key={normalizeFilterValue(product.name)} type="button" size="sm" variant={active ? 'primary' : 'ghost'} aria-pressed={active} onClick={() => changeProductView(product.name)} className="min-h-10 flex-1 rounded-lg px-3 text-xs shadow-none sm:flex-none">
+              {product.name}
+              <span className={`rounded-md px-1.5 py-0.5 text-[10px] tabular-nums ${active ? 'bg-white/20 text-white' : 'bg-surface text-muted-foreground'}`}>{product.count}</span>
+            </Button>
+          })}
         </div>
         </div>
         <div className="flex flex-col gap-3 border-t border-border-soft pt-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ScopeChip label="All Inquiries" count={productRecords.length} active={!scope} to={scopeLink()} />
-            {productView === 'health' ? HEALTH_INQUIRY_FILTERS.map((filter) => (
+            {selectedProductKind === 'health' ? HEALTH_INQUIRY_FILTERS.map((filter) => (
               <ScopeChip key={filter.key} label={filter.label}
                 count={productRecords.filter((record) => matchesHealthInquiryFilter(record, filter.key)).length}
                 active={scope === filter.key} to={scopeLink(filter.key)} />
@@ -510,8 +554,8 @@ export function InquiriesPage() {
         <DataTable
           columns={columns}
           data={filtered}
-          emptyTitle={`No ${productViewLabel.toLowerCase()} inquiries found`}
-          emptyDescription="Try adjusting the type, filters or search, or switch to the other product view."
+          emptyTitle={selectedProduct ? `No ${selectedProduct.toLowerCase()} inquiries found` : 'No inquiries found'}
+          emptyDescription="Try adjusting the type, product, column filters, or search."
           preserveHeaderOnEmpty
         />
       )}

@@ -31,7 +31,7 @@ export async function getPolicyWorkspace(id: string): Promise<PolicyWorkspace> {
     customerName: policy.cr058_customername,
     customerEmail: policy.cr058_customeremail ?? '',
     customerPhone: policy.cr058_customerphone ?? '',
-    productName: policy.cr058_productname ?? quote?.aur_productname ?? inquiry?.aur_productname ?? 'No product linked',
+    productName: policy.cr058_productname ?? quote?.aur_productname ?? inquiry?.aur_productname ?? 'No Product Linked',
     productId: policy._cr058_product_value,
     issueDate: policy.cr058_issuedate,
     expiryDate: policy.cr058_expirydate,

@@ -205,7 +205,7 @@ export async function getAdminCatalog(entity: AdminEntityKey): Promise<AdminCata
       name: policy.cr058_policynumber,
       description: policy.cr058_customername,
       status: policy.statuscodename ?? policy.statecodename ?? 'Active',
-      context: policy.cr058_productname ?? 'No product linked',
+      context: policy.cr058_productname ?? 'No Product Linked',
       detail: [
         policy.cr058_status,
         policy.cr058_expirydate ? `Expires ${new Date(policy.cr058_expirydate).toLocaleDateString('en')}` : '',

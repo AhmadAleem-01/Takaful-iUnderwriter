@@ -34,7 +34,7 @@ export async function listRenewals(): Promise<RenewalSummary[]> {
       id: policy.cr058_policyid,
       policyNumber: policy.cr058_policynumber,
       client: policy.cr058_customername,
-      product: policy.cr058_productname ?? linkedQuote?.aur_productname ?? 'No product linked',
+      product: policy.cr058_productname ?? linkedQuote?.aur_productname ?? 'No Product Linked',
       expiryDate: policy.cr058_expirydate,
       daysRemaining,
       status: buildRenewalStatus(daysRemaining),

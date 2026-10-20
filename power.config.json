@@ -1,10 +1,10 @@
 {
   "version": "1.0",
-  "appId": "ac6d8d9d-391d-47dc-b330-16d955c8ee6f",
+  "appId": "b637ba18-d8df-44ab-a010-60108c5970d5",
   "appDisplayName": "Insurance Quotes",
   "region": "prod",
   "appType": "CodeApp",
-  "environmentId": "e5c3bee2-afc4-e36f-950c-724ca9893bc9",
+  "environmentId": "21f8a490-bce3-eda4-bd73-080c1e4b5353",
   "description": "Insurance Quotes Power Apps code app",
   "buildPath": "dist",
   "buildEntryPoint": "index.html",

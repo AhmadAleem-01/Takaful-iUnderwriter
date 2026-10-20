@@ -242,7 +242,7 @@ export function PlanWorkspacePage() {
   const productName =
     load.data?.products.find((product) => product.id === form.productId)?.name ||
     form.productName ||
-    'No product linked'
+    'No Product Linked'
   const productOptions = buildProductOptions(load.data?.products ?? [], form.productId, form.productName)
 
   return (
