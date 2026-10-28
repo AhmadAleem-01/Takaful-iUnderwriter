@@ -2,6 +2,7 @@ import { BriefcaseBusiness, Check, ChevronDown, CircleUserRound, RefreshCw } fro
 import { useEffect, useRef, useState } from 'react'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { Button } from '../ui/Button'
+import { TakafulM2MDebugger } from './TakafulM2MDebugger'
 import { ROLE_LABELS, ROLE_OPTIONS } from '../../lib/constants'
 import { useRole } from '../../hooks/useRole'
 import { usePageRefreshAction } from '../../hooks/usePageRefresh'
@@ -53,6 +54,7 @@ export function TopHeader() {
             <RefreshCw className="h-4 w-4" />
           </Button>
           <ThemeToggle />
+          <TakafulM2MDebugger />
           <div ref={menuRef} className="relative">
             <button
               type="button"

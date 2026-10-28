@@ -33,6 +33,85 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "aur_takafulmanagemanytomany": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "",
+    "dataSourceType": "Dataverse",
+    "apis": {
+      "aur_TakafulManageManyToMany": {
+        "path": "/api/data/v9.2/aur_TakafulManageManyToMany",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "Operation",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "RelationshipName",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "TargetTable",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "RelatedIdsJson",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "PageSize",
+            "in": "body",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "PageNumber",
+            "in": "body",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "PagingCookie",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "ColumnsJson",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "TargetId",
+            "in": "body",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "TargetColumnsJson",
+            "in": "body",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
   "aur_benefitses": {
     "tableId": "",
     "version": "",

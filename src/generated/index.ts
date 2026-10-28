@@ -6,6 +6,7 @@
 // Models
 export * as AccountsModel from './models/AccountsModel';
 export * as ActivitymimeattachmentsModel from './models/ActivitymimeattachmentsModel';
+export * as Aur_TakafulManageManyToManyModel from './models/Aur_TakafulManageManyToManyModel';
 export * as Aur_ai_extracted_responsesModel from './models/Aur_ai_extracted_responsesModel';
 export * as Aur_aml_screeningsModel from './models/Aur_aml_screeningsModel';
 export * as Aur_benefitsesModel from './models/Aur_benefitsesModel';
@@ -53,6 +54,7 @@ export * as WhenQuoteGenerated_SendEmailtoCustomerModel from './models/WhenQuote
 // Services
 export * from './services/AccountsService';
 export * from './services/ActivitymimeattachmentsService';
+export * from './services/Aur_TakafulManageManyToManyService';
 export * from './services/Aur_ai_extracted_responsesService';
 export * from './services/Aur_aml_screeningsService';
 export * from './services/Aur_benefitsesService';
