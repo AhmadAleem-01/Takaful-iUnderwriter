@@ -8,12 +8,11 @@ import { Aur_fac_offersService } from '../generated/services/Aur_fac_offersServi
 import { Aur_cessionsService } from '../generated/services/Aur_cessionsService'
 import { Aur_cession_linesService } from '../generated/services/Aur_cession_linesService'
 import { Aur_policy_conversionsService } from '../generated/services/Aur_policy_conversionsService'
-import { Cr058_policiesService } from '../generated/services/Cr058_policiesService'
+import { Aur_policiesService } from '../generated/services/Aur_policiesService'
 import { AccountsService } from '../generated/services/AccountsService'
 import { Aur_productsesService } from '../generated/services/Aur_productsesService'
-import { Aur_quotesesService } from '../generated/services/Aur_quotesesService'
+import { Aur_inquiriesService } from '../generated/services/Aur_inquiriesService'
 import { Aur_quotesService } from '../generated/services/Aur_quotesService'
-import { Aur_brokersService } from '../generated/services/Aur_brokersService'
 import {
   Aur_reinsurersaur_country,
   Aur_reinsurersaur_party_type,
@@ -429,12 +428,12 @@ export async function listTreatyLayerLookupOptions(): Promise<ReinsuranceLookupO
 }
 
 export async function listInquiryLookupOptions(): Promise<ReinsuranceLookupOption[]> {
-  const result = await Aur_quotesesService.getAll({ orderBy: ['createdon desc'] })
+  const result = await Aur_inquiriesService.getAll({ orderBy: ['createdon desc'] })
   return (result.data ?? [])
-    .filter((inquiry) => inquiry.aur_quotesid)
+    .filter((inquiry) => inquiry.aur_inquiryid)
     .map((inquiry) => ({
-      value: inquiry.aur_quotesid,
-      label: inquiry.aur_name ?? inquiry.aur_quote_number ?? 'Untitled Inquiry',
+      value: inquiry.aur_inquiryid,
+      label: inquiry.aur_name ?? inquiry.aur_inquiry_number ?? 'Untitled Inquiry',
     }))
 }
 
@@ -449,23 +448,23 @@ export async function listQuoteLookupOptions(): Promise<ReinsuranceLookupOption[
 }
 
 export async function listInquiryQuoteLookupOptions(): Promise<ReinsuranceLookupOption[]> {
-  const result = await Aur_quotesesService.getAll({ orderBy: ['createdon desc'] })
+  const result = await Aur_inquiriesService.getAll({ orderBy: ['createdon desc'] })
   return (result.data ?? [])
-    .filter((inquiry) => inquiry.aur_quotesid)
+    .filter((inquiry) => inquiry.aur_inquiryid)
     .map((inquiry) => ({
-      value: inquiry.aur_quotesid,
-      label: inquiry.aur_quote_number
-        ? `${inquiry.aur_quote_number} - ${inquiry.aur_name}`
+      value: inquiry.aur_inquiryid,
+      label: inquiry.aur_inquiry_number
+        ? `${inquiry.aur_inquiry_number} - ${inquiry.aur_name}`
         : inquiry.aur_name ?? 'Untitled Inquiry',
     }))
 }
 
 export async function listBrokerLookupOptions(): Promise<ReinsuranceLookupOption[]> {
-  const result = await Aur_brokersService.getAll({ orderBy: ['aur_name asc'] })
+  const result = await Aur_reinsurersService.getAll({ orderBy: ['aur_name asc'] })
   return (result.data ?? [])
-    .filter((broker) => broker.aur_brokerid)
+    .filter((broker) => broker.aur_reinsurerid && broker.aur_party_type === 3)
     .map((broker) => ({
-      value: broker.aur_brokerid,
+      value: broker.aur_reinsurerid,
       label: broker.aur_name ?? 'Untitled Broker',
     }))
 }
@@ -597,12 +596,12 @@ export async function listPolicyConversionLookupOptions(): Promise<ReinsuranceLo
 }
 
 export async function listPolicyLookupOptions(): Promise<ReinsuranceLookupOption[]> {
-  const result = await Cr058_policiesService.getAll({ orderBy: ['cr058_policynumber asc'] })
+  const result = await Aur_policiesService.getAll({ orderBy: ['aur_policy_number asc'] })
   return (result.data ?? [])
-    .filter((policy) => policy.cr058_policyid)
+    .filter((policy) => policy.aur_policyid)
     .map((policy) => ({
-      value: policy.cr058_policyid,
-      label: policy.cr058_policynumber ?? policy.cr058_customername ?? 'Untitled Policy',
+      value: policy.aur_policyid,
+      label: policy.aur_policy_number ?? policy.aur_customer_idname ?? 'Untitled Policy',
     }))
 }
 
@@ -895,7 +894,7 @@ function buildRiCapacityCheckPayload(
     ...(findOptionKey(Aur_ri_capacity_checksaur_outcome, input.outcome)
       ? { aur_outcome: findOptionKey(Aur_ri_capacity_checksaur_outcome, input.outcome) }
       : {}),
-    ...(inquiryId ? { 'aur_inquiry_id@odata.bind': `/aur_quoteses(${inquiryId})` } : {}),
+    ...(inquiryId ? { 'aur_inquiry_id@odata.bind': `/aur_inquiries(${inquiryId})` } : {}),
     ...(quoteId ? { 'aur_quote_id@odata.bind': `/aur_quotes(${quoteId})` } : {}),
     ...(treatyId ? { 'aur_treaty_id@odata.bind': `/aur_treaties(${treatyId})` } : {}),
   }
@@ -1036,7 +1035,7 @@ function buildCessionPayload(input: CessionSaveInput): Partial<Omit<Aur_cessions
       : {}),
     ...(adjuststCessionId ? { 'aur_adjustst_cession_id@odata.bind': `/aur_cessions(${adjuststCessionId})` } : {}),
     ...(policyConversionId ? { 'aur_policy_conversion_id@odata.bind': `/aur_policy_conversions(${policyConversionId})` } : {}),
-    ...(policyId ? { 'aur_policy_id@odata.bind': `/cr058_policies(${policyId})` } : {}),
+    ...(policyId ? { 'aur_policy_id@odata.bind': `/aur_policies(${policyId})` } : {}),
   }
 
   return payload as Partial<Omit<Aur_cessionsBase, 'aur_cessionid'>>

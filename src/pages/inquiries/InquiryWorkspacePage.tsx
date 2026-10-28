@@ -9,7 +9,7 @@ import { HealthInquiryStepper } from '../../components/inquiries/HealthInquirySt
 import { healthAnswer, inquiryProductKind, parseHealthCustomerData, tpaNetworkPremiumAdjustment } from '../../lib/healthInquiry'
 import { evaluationNumber, evaluationObject, parseHealthAiEvaluation } from '../../lib/healthAiEvaluation'
 import { ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
-import type { InquiryDetail, RiCapacityCheckSummary } from '../../domain/app'
+import type { InquiryDetail, InquiryEmailAttachment, RiCapacityCheckSummary } from '../../domain/app'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import { useRole } from '../../hooks/useRole'
 import {
@@ -20,13 +20,15 @@ import {
   createInquiryEmail,
   getConsequenceLinkedTemplatePreview,
   getInquiryDetailCore,
+  getInquiryEmailAttachmentContent,
+  getInquiryEmailTimeline,
   getInquiryDetailSupplementary,
   getInquiryEditorOptions,
   listWonQuotesForProduct,
   recalculateRiCapacityChecks,
   saveInquiryDetail,
   syncInquiryHealthFinalPremium,
-  updateInquiryQuoteDetailResponse,
+  updateInquiryAiExtractedResponse,
 } from '../../services/inquiriesService'
 import type { ConsequenceTemplatePreview } from '../../services/inquiriesService'
 import type { PlanPricingOrderItem } from '../../services/adminCatalogService'
@@ -107,6 +109,8 @@ export function InquiryWorkspacePage() {
   const [composerEditorVersion, setComposerEditorVersion] = useState(0)
   const [composeBusy, setComposeBusy] = useState(false)
   const [composeError, setComposeError] = useState<string | null>(null)
+  const [attachmentBusyId, setAttachmentBusyId] = useState<string | null>(null)
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('details')
   const [aiView, setAiView] = useState<'card' | 'table'>('card')
   const [aiCategory, setAiCategory] = useState('All')
@@ -138,6 +142,7 @@ export function InquiryWorkspacePage() {
   const optionsLoad = useAsyncData(async () => getInquiryEditorOptions(), [])
   const sharePointSiteLoad = useAsyncData(getSharePointSiteUrl, [])
   const supplementaryLoad = useAsyncData(async () => getInquiryDetailSupplementary(id), [id, supplementaryRefreshKey])
+  const inquiryEmailLoad = useAsyncData(async () => getInquiryEmailTimeline(id), [id, supplementaryRefreshKey])
   const copySourceProductId = form?.productId || inquiryState?.productId || coreLoad.data?.productId || ''
   const productWonQuotesLoad = useAsyncData(
     async () => (copySourceProductId ? listWonQuotesForProduct(copySourceProductId) : []),
@@ -300,7 +305,7 @@ export function InquiryWorkspacePage() {
 
   const detailSource = inquiryState ?? coreLoad.data
   const quoteDetails = detailSource?.quoteDetails ?? []
-  const emailTimeline = detailSource?.emailTimeline ?? []
+  const emailTimeline = inquiryEmailLoad.data ?? []
 
   const filteredEmails = useMemo(() => {
     const emails = emailTimeline
@@ -409,6 +414,52 @@ export function InquiryWorkspacePage() {
     setSupplementaryRefreshKey((value) => value + 1)
   }
 
+  async function handleOpenEmailAttachment(file: InquiryEmailAttachment) {
+    const previewWindow = window.open('', '_blank')
+    if (previewWindow) previewWindow.opener = null
+    setAttachmentBusyId(file.id)
+    setAttachmentError(null)
+    try {
+      const attachment = await getInquiryEmailAttachmentContent(file.id)
+      const objectUrl = URL.createObjectURL(base64AttachmentToBlob(attachment.body, attachment.mimeType))
+      if (previewWindow) {
+        previewWindow.location.href = objectUrl
+      } else {
+        const link = document.createElement('a')
+        link.href = objectUrl
+        link.target = '_blank'
+        link.rel = 'noopener noreferrer'
+        link.click()
+      }
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+    } catch (cause) {
+      previewWindow?.close()
+      setAttachmentError(cause instanceof Error ? cause.message : 'Unable to open the attachment.')
+    } finally {
+      setAttachmentBusyId(null)
+    }
+  }
+
+  async function handleDownloadEmailAttachment(file: InquiryEmailAttachment) {
+    setAttachmentBusyId(file.id)
+    setAttachmentError(null)
+    try {
+      const attachment = await getInquiryEmailAttachmentContent(file.id)
+      const objectUrl = URL.createObjectURL(base64AttachmentToBlob(attachment.body, attachment.mimeType))
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = attachment.name || file.name
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000)
+    } catch (cause) {
+      setAttachmentError(cause instanceof Error ? cause.message : 'Unable to download the attachment.')
+    } finally {
+      setAttachmentBusyId(null)
+    }
+  }
+
   const error = coreLoad.error || optionsLoad.error || productWonQuotesLoad.error
   if (error) return <Card>{error}</Card>
   if (coreLoad.loading || !detailSource || !form) return <InquiryWorkspaceSkeleton />
@@ -448,6 +499,7 @@ export function InquiryWorkspacePage() {
       setActionSuccess(null)
       await saveInquiryDetail(inquiryRecordId, buildInquirySavePayload(form, {
         inquiryStatus: inquiryStatusValueForDisposition(disposition),
+        underwriterActionStatus: disposition === 'Decline' ? 2 : 1,
       }))
       const nextStatus = inquiryStatusLabelForDisposition(disposition)
       setInquiryState((current) =>
@@ -456,6 +508,7 @@ export function InquiryWorkspacePage() {
               ...current,
               status: nextStatus,
               inquiryStatusValue: inquiryStatusValueForDisposition(disposition),
+              underwriterActionStatus: disposition === 'Decline' ? 2 : 1,
             }
           : current,
       )
@@ -464,6 +517,7 @@ export function InquiryWorkspacePage() {
           ? {
               ...current,
               inquiryStatus: String(inquiryStatusValueForDisposition(disposition)),
+              underwriterActionStatus: String(disposition === 'Decline' ? 2 : 1),
             }
           : current,
       )
@@ -1001,7 +1055,7 @@ export function InquiryWorkspacePage() {
         },
       }))
 
-      await updateInquiryQuoteDetailResponse(quoteDetailId, nextResponse)
+      await updateInquiryAiExtractedResponse(quoteDetailId, nextResponse)
 
       setInquiryState((current) =>
         current
@@ -1528,6 +1582,11 @@ export function InquiryWorkspacePage() {
               <div><h2 className="text-base font-semibold">Emails</h2><p className="mt-1 text-xs text-muted-foreground">{emailTimeline.length} messages · {emailTimeline.reduce((sum, email) => sum + email.attachments.length, 0)} attachments</p></div>
               <div className="flex flex-wrap gap-2"><Input aria-label="Search emails" className="w-[220px] text-xs" value={emailSearch} onChange={(event) => setEmailSearch(event.target.value)} placeholder="Search emails..." /><Button type="button" size="sm" className="rounded-lg" onClick={() => setIsComposerOpen((value) => !value)}><MailPlus className="h-4 w-4" />{isComposerOpen ? 'Hide Composer' : 'Compose Email'}</Button></div>
             </div>
+            {inquiryEmailLoad.error ? (
+              <div className="border-b border-danger/20 bg-danger/5 px-5 py-3 text-sm text-danger">
+                Unable to load inquiry emails: {inquiryEmailLoad.error}
+              </div>
+            ) : null}
             <div className={isComposerOpen ? 'border-b border-border-soft p-5' : ''}>
                     {isComposerOpen ? (
                       <div ref={composerSectionRef}>
@@ -1603,7 +1662,16 @@ export function InquiryWorkspacePage() {
 
 
             </div>
-            <InquiryEmailReader emails={filteredEmails} loading={isHydratingSupplementary} bodyHtml={getPrimaryEmailHtml} previewText={getPrimaryEmailText} />
+            <InquiryEmailReader
+              emails={filteredEmails}
+              loading={inquiryEmailLoad.loading}
+              bodyHtml={getPrimaryEmailHtml}
+              previewText={getPrimaryEmailText}
+              attachmentBusyId={attachmentBusyId}
+              attachmentError={attachmentError}
+              onOpenAttachment={(file) => void handleOpenEmailAttachment(file)}
+              onDownloadAttachment={(file) => void handleDownloadEmailAttachment(file)}
+            />
           </section>
         </TabsContent>
         <TabsContent value="actions" className="mt-4">
@@ -3112,6 +3180,7 @@ function buildInquirySavePayload(
   overrides?: Partial<{
     inquiryStatus: number
     riskScore: number
+    underwriterActionStatus: number
   }>,
 ) {
   return {
@@ -3131,6 +3200,10 @@ function buildInquirySavePayload(
     territorialScope: form.territorialScope,
     noOfItems: form.noOfItems,
     basePremium: Number(form.basePremium) || 0,
+    underwriterActionStatus:
+      overrides?.underwriterActionStatus ??
+      (form.underwriterActionStatus ? Number(form.underwriterActionStatus) : null),
+    underwriterSubAction: form.underwriterSubAction ? Number(form.underwriterSubAction) : null,
     premiumToBeCharged: Number(form.premiumToBeCharged) || 0,
     brokerage: Number(form.brokerage) || 0,
     grossPremium: Number(form.grossPremium) || 0,
@@ -3144,6 +3217,16 @@ function buildInquirySavePayload(
 function getPrimaryEmailText(value: string) {
   const html = getPrimaryEmailHtml(value)
   return htmlToPlainText(html)
+}
+
+function base64AttachmentToBlob(value: string, mimeType: string) {
+  const base64 = value.includes(',') ? value.slice(value.indexOf(',') + 1) : value
+  const binary = window.atob(base64.replace(/\s/g, ''))
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return new Blob([bytes], { type: mimeType || 'application/octet-stream' })
 }
 
 function getPrimaryEmailHtml(value: string) {

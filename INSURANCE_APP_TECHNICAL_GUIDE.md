@@ -105,13 +105,13 @@ Below are the main Dataverse tables currently connected through `power.config.js
 
 ### Core underwriting and quote processing
 
-- `aur_quotes`
+- `aur_inquiry`
   Purpose: Inquiry table
 - `aur_quote`
   Purpose: Quote table
-- `aur_quotes_details`
-  Purpose: AI extracted / quote detail responses linked to an inquiry
-- `cr058_policy`
+- `aur_ai_extracted_response`
+  Purpose: AI extracted responses linked to an inquiry
+- `aur_policy`
   Purpose: Policy records
 - `aur_plan`
   Purpose: Insurance plans
@@ -126,8 +126,8 @@ Below are the main Dataverse tables currently connected through `power.config.js
   Purpose: Master consequence definitions
 - `aur_consequences_result`
   Purpose: Inquiry-linked outcome/action results
-- `cr058_productrulelink1`
-  Purpose: Product-to-business-rule bridge table
+- Product-to-business-rule custom Web API
+  Purpose: Read and update the native product/business-rule association
 
 ### Plan-linked catalog tables
 
@@ -146,53 +146,47 @@ These tables are filtered by plan in Quote and Product experiences.
   Purpose: Activity timeline emails shown in inquiry workspace
 - `activitymimeattachment`
   Purpose: Email attachments for the Dataverse email activity
-- `cr058_emailtemplate`
+- `template`
   Purpose: Reusable email templates
-- `aur_customdocumenttemplates`
+- `aur_custom_document_templates`
   Purpose: Reusable document templates
-- `aur_email_record`
-  Legacy/custom email source retained in datasource list
-- `aur_email_attachments`
-  Legacy/custom attachment source retained in datasource list
-
 ### Accounts, contacts, users, and admin data
 
 - `account`
 - `contact`
 - `systemuser`
 - `businessunit`
-- `aur_broker`
 
 ## Key Relationships
 
 ## Inquiry relationships
 
-- Inquiry (`aur_quotes`) to Product
+- Inquiry (`aur_inquiry`) to Product
   Many inquiries to one product
-- Inquiry (`aur_quotes`) to Plan
+- Inquiry (`aur_inquiry`) to Plan
   Many inquiries to one plan
-- Inquiry (`aur_quotes`) to Account
+- Inquiry (`aur_inquiry`) to Account
   Many inquiries to one account
   Used as Broker display/source in the UI
-- Inquiry (`aur_quotes`) to Contact
+- Inquiry (`aur_inquiry`) to Contact
   Broker agent / linked contact
-- Inquiry (`aur_quotes`) to Quote Details (`aur_quotes_details`)
-  One inquiry to many quote-detail response records
-- Inquiry (`aur_quotes`) to Consequence Results (`aur_consequences_result`)
+- Inquiry (`aur_inquiry`) to AI Extracted Responses (`aur_ai_extracted_response`)
+  One inquiry to many AI extracted response records
+- Inquiry (`aur_inquiry`) to Consequence Results (`aur_consequences_result`)
   One inquiry to many outcome/action result records
-- Inquiry (`aur_quotes`) to Email (`email`)
+- Inquiry (`aur_inquiry`) to Email (`email`)
   Inquiry record used as `regardingobjectid`
 
 ## Quote relationships
 
-- Quote (`aur_quote`) to Inquiry (`aur_quotes`)
+- Quote (`aur_quote`) to Inquiry (`aur_inquiry`)
 - Quote (`aur_quote`) to Product (`aur_products`)
 - Quote (`aur_quote`) to Plan (`aur_plan`)
 
 ## Product relationships
 
 - Product (`aur_products`) to Business Rule (`aur_business_rules`)
-  Many-to-many through `cr058_productrulelink1`
+  Many-to-many association managed through the custom Web API
 - Product (`aur_products`) to Plan
   Product workspaces organize linked plans
 
@@ -204,8 +198,8 @@ These tables are filtered by plan in Quote and Product experiences.
 ## Consequence relationships
 
 - Consequence Result (`aur_consequences_result`) to Consequence (`aur_consequences`)
-- Consequence (`aur_consequences`) to Email Template (`cr058_emailtemplate`) through lookup
-- Consequence (`aur_consequences`) to Document Template (`aur_customdocumenttemplates`) through lookup
+- Consequence (`aur_consequences`) to Email Template (`template`) through lookup
+- Consequence (`aur_consequences`) to Document Template (`aur_custom_document_templates`) through lookup
 
 ## Account and Contact relationships
 
@@ -257,7 +251,7 @@ Main inquiry orchestration layer:
 - inquiry update
 - quote creation from inquiry
 - quote copy into inquiry
-- inline quote-detail response updates
+- inline AI extracted response updates
 - consequence application
 - email creation
 - linked template preview retrieval
@@ -335,8 +329,8 @@ Main data sources:
 - `aur_plan`
 - `account`
 - `email`
-- `cr058_emailtemplate`
-- `aur_customdocumenttemplates`
+- `template`
+- `aur_custom_document_templates`
 
 Key behaviors:
 
@@ -409,13 +403,13 @@ Key behaviors:
 - Broker comes from inquiry account lookup
 - Broker Agent comes from inquiry contact lookup
 - Inquiry status uses the configured status workflow behavior
-- Risk Summary uses `aur_risksummary`
+- Risk Summary uses `aur_risk_summary`
 
 ### AI Extracted Response
 
 Data source:
 
-- `aur_quotes_details`
+- `aur_ai_extracted_response`
 
 What is shown:
 
@@ -430,7 +424,7 @@ What is shown:
 
 Inline save behavior:
 
-- Only the edited quote-detail response is saved
+- Only the edited AI extracted response is saved
 - Uses inquiry-facing service mutation
 - Updates local UI in place
 
@@ -546,7 +540,7 @@ Purpose:
 
 Primary data source:
 
-- `cr058_policy`
+- `aur_policy`
 
 ## 7. AI Analytics
 
@@ -590,7 +584,7 @@ Key behaviors:
 
 - Auto Apply Actions toggle updates `aur_apply_action_automatically`
 - Plans are created/edited in modal flows
-- Business rules are associated through `cr058_productrulelink1`
+- Business rules are associated through the product-to-business-rule custom Web API
 - Business rule association modal uses grouped/accordion presentation
 
 ## 9. Business Rules
@@ -708,7 +702,7 @@ Key behaviors:
 
 Primary table:
 
-- `cr058_emailtemplate`
+- `template`
 
 ## 12. Document Templates
 
@@ -724,12 +718,12 @@ Purpose:
 
 Primary table:
 
-- `aur_customdocumenttemplates`
+- `aur_custom_document_templates`
 
 Stored fields:
 
 - `aur_name`
-- `aur_templatecontent`
+- `aur_template_content`
 - `statuscode`
 
 Key behaviors:
@@ -774,14 +768,14 @@ The app can duplicate eligible won quotes into the current inquiry:
 
 ## AI extracted response correction
 
-1. Quote-detail response records load from `aur_quotes_details`.
+1. AI extracted response records load from `aur_ai_extracted_response`.
 2. User edits `aur_response` inline.
 3. Only the affected row is saved.
 4. UI refreshes in place without restarting the whole inquiry experience.
 
 ## Draft email generation from missing information
 
-When quote-detail responses contain `No information provided`:
+When AI extracted responses contain `No information provided`:
 
 - user can trigger `Request a Draft`
 - app opens/expands the email activity composer
@@ -806,9 +800,9 @@ The app supports different apply paths depending on consequence type/action:
 ## Product to business rule assignment
 
 1. Product editor loads available business rules.
-2. Existing associations are determined from `cr058_productrulelink1`.
+2. Existing associations are loaded through the custom Web API.
 3. User associates or removes rules.
-4. Product-specific rule map updates through the bridge table.
+4. Product-specific rule associations are updated through the custom Web API.
 
 ## Business rule import assistant
 

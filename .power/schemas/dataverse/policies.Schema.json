@@ -1,129 +1,215 @@
 {
-  "name": "cr058_policy",
+  "name": "aur_policy",
   "title": "Policies",
   "schema": {
     "type": "array",
     "items": {
       "type": "object",
       "x-ms-dataverse-entity": true,
-      "x-ms-dataverse-entityset": "cr058_policies",
-      "x-ms-dataverse-primary-id": "cr058_policyid",
-      "x-ms-dataverse-primary-name": "cr058_policynumber",
+      "x-ms-dataverse-entityset": "aur_policies",
+      "x-ms-dataverse-primary-id": "aur_policyid",
+      "x-ms-dataverse-primary-name": "aur_policy_number",
       "properties": {
-        "cr058_customeremail": {
+        "aur_cession_status": {
           "type": "string",
-          "title": "Customer Email",
-          "x-ms-dataverse-attribute": "cr058_customeremail",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr058_CustomerEmail",
-          "maxLength": 100
+          "title": "Cession Status",
+          "x-ms-dataverse-attribute": "aur_cession_status",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "aur_cession_status",
+          "enum": [
+            "Not Applicable",
+            "Pending",
+            "Ceded",
+            "Partially Ceded",
+            "Reversed"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "d45c0b05-a475-4b27-8646-acb7b99fb02e",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Cession Status Types",
+          "x-ms-optionSetType": "Picklist"
         },
-        "cr058_customername": {
+        "aur_cession_statusname": {
           "type": "string",
-          "title": "Customer Name",
-          "x-ms-dataverse-attribute": "cr058_customername",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr058_CustomerName",
-          "required": true,
-          "maxLength": 100
+          "title": "aur_cession_statusname",
+          "x-ms-dataverse-attribute": "aur_cession_statusname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "aur_cession_statusName",
+          "x-ms-read-only": true
         },
-        "cr058_customerphone": {
+        "aur_customer_id": {
           "type": "string",
-          "title": "Customer Phone",
-          "x-ms-dataverse-attribute": "cr058_customerphone",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr058_CustomerPhone",
-          "maxLength": 100
+          "title": "Customer",
+          "x-ms-dataverse-attribute": "aur_customer_id",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_customer_id"
         },
-        "cr058_expirydate": {
+        "aur_customer_idname": {
+          "type": "string",
+          "title": "aur_customer_idname",
+          "x-ms-dataverse-attribute": "aur_customer_idname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_customer_idName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_customer_idyominame": {
+          "type": "string",
+          "title": "aur_customer_idyominame",
+          "x-ms-dataverse-attribute": "aur_customer_idyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_customer_idYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_expiry_date": {
           "type": "string",
           "title": "Expiry Date",
-          "x-ms-dataverse-attribute": "cr058_expirydate",
+          "x-ms-dataverse-attribute": "aur_expiry_date",
           "x-ms-dataverse-type": "DateTimeType",
-          "x-ms-schema-name": "cr058_ExpiryDate",
-          "required": true
+          "x-ms-schema-name": "aur_expiry_date"
         },
-        "cr058_inquiry": {
+        "aur_inquiry": {
           "type": "string",
           "title": "Inquiry",
-          "x-ms-dataverse-attribute": "cr058_inquiry",
+          "x-ms-dataverse-attribute": "aur_inquiry",
           "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "cr058_Inquiry"
+          "x-ms-schema-name": "aur_inquiry"
         },
-        "cr058_inquiryname": {
+        "aur_inquiryname": {
           "type": "string",
-          "title": "cr058_inquiryname",
-          "x-ms-dataverse-attribute": "cr058_inquiryname",
+          "title": "aur_inquiryname",
+          "x-ms-dataverse-attribute": "aur_inquiryname",
           "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr058_InquiryName",
+          "x-ms-schema-name": "aur_inquiryName",
           "x-ms-read-only": true,
           "maxLength": 850
         },
-        "cr058_issuedate": {
+        "aur_issue_date": {
           "type": "string",
           "title": "Issue Date",
-          "x-ms-dataverse-attribute": "cr058_issuedate",
+          "x-ms-dataverse-attribute": "aur_issue_date",
           "x-ms-dataverse-type": "DateTimeType",
-          "x-ms-schema-name": "cr058_IssueDate",
-          "required": true
+          "x-ms-schema-name": "aur_issue_date"
         },
-        "cr058_notes": {
+        "aur_notes": {
           "type": "string",
           "title": "Notes",
-          "x-ms-dataverse-attribute": "cr058_notes",
+          "x-ms-dataverse-attribute": "aur_notes",
           "x-ms-dataverse-type": "MemoType",
-          "x-ms-schema-name": "cr058_Notes",
-          "maxLength": 2000
+          "x-ms-schema-name": "aur_notes",
+          "maxLength": 1048576
         },
-        "cr058_policyid": {
+        "aur_participant_id": {
+          "type": "string",
+          "title": "Participant Id",
+          "x-ms-dataverse-attribute": "aur_participant_id",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_participant_id"
+        },
+        "aur_participant_idname": {
+          "type": "string",
+          "title": "aur_participant_idname",
+          "x-ms-dataverse-attribute": "aur_participant_idname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_participant_idName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_participant_idyominame": {
+          "type": "string",
+          "title": "aur_participant_idyominame",
+          "x-ms-dataverse-attribute": "aur_participant_idyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_participant_idYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_policy_conversion": {
+          "type": "string",
+          "title": "Policy Conversion",
+          "x-ms-dataverse-attribute": "aur_policy_conversion",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_policy_conversion"
+        },
+        "aur_policy_conversionname": {
+          "type": "string",
+          "title": "aur_policy_conversionname",
+          "x-ms-dataverse-attribute": "aur_policy_conversionname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_policy_conversionName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "aur_policy_number": {
+          "type": "string",
+          "title": "Policy Number",
+          "x-ms-dataverse-attribute": "aur_policy_number",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_policy_number",
+          "x-ms-dataverse-primary-name": true,
+          "maxLength": 850
+        },
+        "aur_policyid": {
           "type": "string",
           "title": "Policy",
-          "x-ms-dataverse-attribute": "cr058_policyid",
+          "x-ms-dataverse-attribute": "aur_policyid",
           "x-ms-dataverse-type": "UniqueidentifierType",
-          "x-ms-schema-name": "cr058_PolicyId",
+          "x-ms-schema-name": "aur_policyId",
           "x-ms-dataverse-primary-id": true,
           "required": true,
           "x-ms-keyType": "primary"
         },
-        "cr058_policynumber": {
-          "type": "string",
-          "title": "Policy Number",
-          "x-ms-dataverse-attribute": "cr058_policynumber",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr058_PolicyNumber",
-          "x-ms-dataverse-primary-name": true,
-          "required": true,
-          "maxLength": 850
-        },
-        "cr058_premiumamount": {
+        "aur_premium_amount": {
           "type": "string",
           "title": "Premium Amount",
-          "x-ms-dataverse-attribute": "cr058_premiumamount",
-          "x-ms-dataverse-type": "IntegerType",
-          "x-ms-schema-name": "cr058_PremiumAmount"
+          "x-ms-dataverse-attribute": "aur_premium_amount",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "aur_premium_amount"
         },
-        "cr058_product": {
+        "aur_premium_amount_base": {
+          "type": "string",
+          "title": "Premium Amount (Base)",
+          "x-ms-dataverse-attribute": "aur_premium_amount_base",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "aur_premium_amount_Base",
+          "x-ms-read-only": true
+        },
+        "aur_product": {
           "type": "string",
           "title": "Product",
-          "x-ms-dataverse-attribute": "cr058_product",
+          "x-ms-dataverse-attribute": "aur_product",
           "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "cr058_Product"
+          "x-ms-schema-name": "aur_product"
         },
-        "cr058_productname": {
+        "aur_productname": {
           "type": "string",
-          "title": "cr058_productname",
-          "x-ms-dataverse-attribute": "cr058_productname",
+          "title": "aur_productname",
+          "x-ms-dataverse-attribute": "aur_productname",
           "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr058_ProductName",
+          "x-ms-schema-name": "aur_productName",
           "x-ms-read-only": true,
           "maxLength": 850
         },
-        "cr058_remindersent": {
+        "aur_reminder_sent": {
           "type": "string",
           "title": "Reminder Sent",
-          "x-ms-dataverse-attribute": "cr058_remindersent",
+          "x-ms-dataverse-attribute": "aur_reminder_sent",
           "x-ms-dataverse-type": "BooleanType",
-          "x-ms-schema-name": "cr058_ReminderSent",
+          "x-ms-schema-name": "aur_reminder_sent",
           "enum": [
             "No",
             "Yes"
@@ -136,26 +222,18 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "c9069c46-da3e-f111-bec7-7ced8da0b39a",
+          "x-ms-optionsetmetadataid": "e97735b9-2fd1-f111-a05b-70a8a51d5b4c",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Reminder Sent",
           "x-ms-optionSetType": "Boolean"
         },
-        "cr058_remindersentname": {
+        "aur_reminder_sentname": {
           "type": "string",
-          "title": "cr058_remindersentname",
-          "x-ms-dataverse-attribute": "cr058_remindersentname",
+          "title": "aur_reminder_sentname",
+          "x-ms-dataverse-attribute": "aur_reminder_sentname",
           "x-ms-dataverse-type": "VirtualType",
-          "x-ms-schema-name": "cr058_remindersentName",
+          "x-ms-schema-name": "aur_reminder_sentName",
           "x-ms-read-only": true
-        },
-        "cr058_status": {
-          "type": "string",
-          "title": "Status",
-          "x-ms-dataverse-attribute": "cr058_status",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "cr058_Status",
-          "maxLength": 100
         },
         "createdby": {
           "type": "string",
@@ -218,6 +296,14 @@
           "x-ms-read-only": true,
           "required": true,
           "maxLength": 100
+        },
+        "exchangerate": {
+          "type": "string",
+          "title": "Exchange Rate",
+          "x-ms-dataverse-attribute": "exchangerate",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "ExchangeRate",
+          "x-ms-read-only": true
         },
         "importsequencenumber": {
           "type": "string",
@@ -384,7 +470,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "4fd51312-563d-f111-bec6-6045bde4c6e5",
+          "x-ms-optionsetmetadataid": "cd591018-b2c6-4e72-9254-5481d750b0b8",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -415,7 +501,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "59d51312-563d-f111-bec6-6045bde4c6e5",
+          "x-ms-optionsetmetadataid": "636362d7-915d-4d17-9afa-954bbcee1d1b",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"
@@ -435,6 +521,22 @@
           "x-ms-dataverse-type": "IntegerType",
           "x-ms-schema-name": "TimeZoneRuleVersionNumber"
         },
+        "transactioncurrencyid": {
+          "type": "string",
+          "title": "Currency",
+          "x-ms-dataverse-attribute": "transactioncurrencyid",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "TransactionCurrencyId"
+        },
+        "transactioncurrencyidname": {
+          "type": "string",
+          "title": "transactioncurrencyidname",
+          "x-ms-dataverse-attribute": "transactioncurrencyidname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "TransactionCurrencyIdName",
+          "x-ms-read-only": true,
+          "maxLength": 100
+        },
         "utcconversiontimezonecode": {
           "type": "string",
           "title": "UTC Conversion Time Zone Code",
@@ -452,11 +554,7 @@
         }
       },
       "required": [
-        "cr058_customername",
-        "cr058_expirydate",
-        "cr058_issuedate",
-        "cr058_policyid",
-        "cr058_policynumber",
+        "aur_policyid",
         "createdbyyominame",
         "createdonbehalfbyyominame",
         "modifiedbyyominame",

@@ -23,7 +23,7 @@ import {
   type AdminFormPayload,
   type PlanPricingOrderItem,
 } from '../../services/adminCatalogService'
-import { Aur_plansService, Aur_productsesService, Aur_quotesesService } from '../../generated'
+import { AccountsService, Aur_inquiriesService, Aur_plansService, Aur_productsesService } from '../../generated'
 
 interface AdminCatalogPageProps {
   entity: AdminEntityKey
@@ -61,6 +61,7 @@ const defaultEditor: EditorState = {
   businessUnitId: '',
   accessMode: '',
   customerName: '',
+  customerId: '',
   issueDate: '',
   expiryDate: '',
   premiumAmount: '',
@@ -85,11 +86,12 @@ export function AdminCatalogPage({ entity, icon }: AdminCatalogPageProps) {
   const [draggedPricingIndex, setDraggedPricingIndex] = useState<number | null>(null)
 
   const { data, loading, error } = useAsyncData(async () => {
-    const [dataset, productsResult, plansResult, inquiriesResult] = await Promise.all([
+    const [dataset, productsResult, plansResult, inquiriesResult, accountsResult] = await Promise.all([
       getAdminCatalog(entity),
       Aur_productsesService.getAll(),
       Aur_plansService.getAll(),
-      Aur_quotesesService.getAll(),
+      Aur_inquiriesService.getAll(),
+      AccountsService.getAll(),
     ])
     return {
       dataset,
@@ -102,8 +104,12 @@ export function AdminCatalogPage({ entity, icon }: AdminCatalogPageProps) {
         label: plan.aur_name ?? 'Unnamed plan',
       })),
       inquiries: (inquiriesResult.data ?? []).map((inquiry) => ({
-        value: inquiry.aur_quotesid,
-        label: inquiry.aur_quote_number ?? inquiry.aur_name,
+        value: inquiry.aur_inquiryid,
+        label: inquiry.aur_inquiry_number ?? inquiry.aur_name,
+      })),
+      accounts: (accountsResult.data ?? []).map((account) => ({
+        value: account.accountid,
+        label: account.name,
       })),
     }
   }, [entity, refreshKey])
@@ -259,6 +265,7 @@ export function AdminCatalogPage({ entity, icon }: AdminCatalogPageProps) {
       businessUnitId: '',
       accessMode: '',
       customerName: '',
+      customerId: '',
       issueDate: '',
       expiryDate: '',
       premiumAmount: '',
@@ -418,13 +425,18 @@ export function AdminCatalogPage({ entity, icon }: AdminCatalogPageProps) {
                   />
                 </Field>
                 {entity === 'policies' ? (
-                  <Field label="Customer Name">
-                    <Input
-                      value={editor.customerName}
-                      onChange={(event) => setEditor((current) => ({ ...current, customerName: event.target.value }))}
-                      placeholder="Enter customer or insured name"
-                      required
-                    />
+                  <Field label="Linked Customer">
+                    <Select
+                      value={editor.customerId}
+                      onChange={(event) => setEditor((current) => ({ ...current, customerId: event.target.value }))}
+                    >
+                      <option value="">No customer selected</option>
+                      {(data?.accounts ?? []).map((account) => (
+                        <option key={account.value} value={account.value}>
+                          {account.label}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                 ) : entity === 'business-rules' ? (
                   <Field label="Category">
@@ -634,27 +646,6 @@ export function AdminCatalogPage({ entity, icon }: AdminCatalogPageProps) {
                         value={editor.premiumAmount}
                         onChange={(event) => setEditor((current) => ({ ...current, premiumAmount: event.target.value }))}
                         placeholder="0.00"
-                      />
-                    </Field>
-                    <Field label="Status Text">
-                      <Input
-                        value={editor.statusText}
-                        onChange={(event) => setEditor((current) => ({ ...current, statusText: event.target.value }))}
-                        placeholder="Active, Pending Renewal, Issued..."
-                      />
-                    </Field>
-                    <Field label="Customer Email">
-                      <Input
-                        value={editor.email}
-                        onChange={(event) => setEditor((current) => ({ ...current, email: event.target.value }))}
-                        placeholder="customer@company.com"
-                      />
-                    </Field>
-                    <Field label="Customer Phone">
-                      <Input
-                        value={editor.phone}
-                        onChange={(event) => setEditor((current) => ({ ...current, phone: event.target.value }))}
-                        placeholder="+971 ..."
                       />
                     </Field>
                     <Field label="Inquiry Id">

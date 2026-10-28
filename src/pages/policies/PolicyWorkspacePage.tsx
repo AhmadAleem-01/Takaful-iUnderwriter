@@ -11,13 +11,9 @@ import { formatCurrency, formatDate, formatRelativeDays } from '../../lib/format
 import { getPolicyWorkspace, savePolicyWorkspace } from '../../services/policiesService'
 
 interface PolicyFormState {
-  customerName: string
-  customerEmail: string
-  customerPhone: string
   issueDate: string
   expiryDate: string
   premiumAmount: string
-  status: string
   reminderSent: boolean
   notes: string
 }
@@ -33,13 +29,9 @@ export function PolicyWorkspacePage() {
   useEffect(() => {
     if (!data) return
     setForm({
-      customerName: data.customerName,
-      customerEmail: data.customerEmail,
-      customerPhone: data.customerPhone,
       issueDate: data.issueDate.slice(0, 10),
       expiryDate: data.expiryDate.slice(0, 10),
       premiumAmount: String(data.premiumAmount || 0),
-      status: data.status,
       reminderSent: data.reminderSent,
       notes: data.notes,
     })
@@ -56,13 +48,9 @@ export function PolicyWorkspacePage() {
       setSaving(true)
       setSaveError(null)
       await savePolicyWorkspace(id, {
-        customerName: currentForm.customerName,
-        customerEmail: currentForm.customerEmail,
-        customerPhone: currentForm.customerPhone,
         issueDate: currentForm.issueDate,
         expiryDate: currentForm.expiryDate,
         premiumAmount: Number(currentForm.premiumAmount) || 0,
-        status: currentForm.status,
         reminderSent: currentForm.reminderSent,
         notes: currentForm.notes,
       })
@@ -110,7 +98,7 @@ export function PolicyWorkspacePage() {
           <StatusCard label="Reminder Count" value={String(data.reminderCount)} helper="Recorded reminder outcomes against the linked inquiry." />
           <StatusCard label="Reminder Flag" value={data.reminderSent ? 'Yes' : 'No'} helper="Operational servicing signal on the policy record." />
           <StatusCard label="Issued On" value={formatDate(data.issueDate)} helper="Original policy issue date from Dataverse." />
-          <StatusCard label="Current Status" value={data.status} helper="Editable servicing status label." />
+          <StatusCard label="Current Status" value={data.status} helper="Current Dataverse policy status." />
         </div>
       </Card>
 
@@ -135,16 +123,16 @@ export function PolicyWorkspacePage() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Customer Name">
-                    <Input value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} />
+                    <Input value={data.customerName} readOnly />
                   </Field>
                   <Field label="Customer Email">
-                    <Input value={form.customerEmail} onChange={(event) => setForm({ ...form, customerEmail: event.target.value })} />
+                    <Input value={data.customerEmail} readOnly />
                   </Field>
                   <Field label="Customer Phone">
-                    <Input value={form.customerPhone} onChange={(event) => setForm({ ...form, customerPhone: event.target.value })} />
+                    <Input value={data.customerPhone} readOnly />
                   </Field>
                   <Field label="Status">
-                    <Input value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} />
+                    <Input value={data.status} readOnly />
                   </Field>
                   <Field label="Issue Date">
                     <Input type="date" value={form.issueDate} onChange={(event) => setForm({ ...form, issueDate: event.target.value })} />
@@ -215,7 +203,7 @@ export function PolicyWorkspacePage() {
                   </div>
                 </div>
                 <p className="text-sm leading-7 text-muted-foreground">
-                  Use this page to keep policy status, dates, premium, contact details, and reminder state aligned before we expand into deeper policy-linked claims and endorsement flows.
+                  Use this page to keep policy dates, premium, notes, and reminder state aligned. Customer contact details come from the linked Account record.
                 </p>
               </Card>
             </div>

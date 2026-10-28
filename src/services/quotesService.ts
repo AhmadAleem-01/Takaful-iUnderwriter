@@ -15,18 +15,18 @@ export async function sendGeneratedQuoteToCustomer(inquiryId: string, pdf: { fil
   if (!result.success) throw result.error ?? new Error('The customer email flow could not be started.')
 }
 import { Aur_coveragesesService } from '../generated/services/Aur_coveragesesService'
-import { Aur_customdocumenttemplatesesService } from '../generated/services/Aur_customdocumenttemplatesesService'
+import { Aur_custom_document_templatesesService } from '../generated/services/Aur_custom_document_templatesesService'
 import { Aur_deductiblesesService } from '../generated/services/Aur_deductiblesesService'
 import { Aur_exclusionsesService } from '../generated/services/Aur_exclusionsesService'
 import { Aur_inclusionsesService } from '../generated/services/Aur_inclusionsesService'
 import { Aur_plansService } from '../generated/services/Aur_plansService'
 import { Aur_plan_details_extractionsService } from '../generated/services/Aur_plan_details_extractionsService'
 import { Aur_productsesService } from '../generated/services/Aur_productsesService'
-import { Aur_quotes_detailsesService } from '../generated/services/Aur_quotes_detailsesService'
+import { Aur_ai_extracted_responsesService } from '../generated/services/Aur_ai_extracted_responsesService'
 import { Aur_quotesService } from '../generated/services/Aur_quotesService'
-import { Aur_quotesesService } from '../generated/services/Aur_quotesesService'
+import { Aur_inquiriesService } from '../generated/services/Aur_inquiriesService'
 import { Aur_warrantiesesService } from '../generated/services/Aur_warrantiesesService'
-import { Cr058_emailtemplatesService } from '../generated/services/Cr058_emailtemplatesService'
+import { TemplatesService } from '../generated/services/TemplatesService'
 import { HTTP_OnUploadFileforPlanDetailsComparison_RunAIEvaluationService } from '../generated/services/HTTP_OnUploadFileforPlanDetailsComparison_RunAIEvaluationService'
 import type {
   DocumentTemplateSummary,
@@ -83,10 +83,10 @@ export async function listQuotes(): Promise<QuoteSummary[]> {
 export async function getQuoteDetail(id: string): Promise<QuoteDetail> {
   const [quoteResult, inquiriesResult, detailResult, emailTemplatesResult, documentTemplatesResult, productsResult, plansResult] = await Promise.all([
     Aur_quotesService.get(id),
-    Aur_quotesesService.getAll(),
-    Aur_quotes_detailsesService.getAll(),
-    Cr058_emailtemplatesService.getAll(),
-    Aur_customdocumenttemplatesesService.getAll(),
+    Aur_inquiriesService.getAll(),
+    Aur_ai_extracted_responsesService.getAll(),
+    TemplatesService.getAll(),
+    Aur_custom_document_templatesesService.getAll(),
     Aur_productsesService.getAll(),
     Aur_plansService.getAll(),
   ])
@@ -96,27 +96,26 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail> {
   const quote = quoteResult.data ? resolveQuoteRelations(quoteResult.data, productMap, planMap) : undefined
   if (!quote) throw new Error('Quote not found.')
 
-  const inquiry = (inquiriesResult.data ?? []).find((item) => item.aur_quotesid === quote._aur_quotes_value)
+  const inquiry = (inquiriesResult.data ?? []).find((item) => item.aur_inquiryid === quote._aur_quotes_value)
   const responses = (detailResult.data ?? [])
-    .filter((item) => item._aur_quotes_value === id)
+    .filter((item) => normalizeDataverseId(item._aur_inquiry_value) === normalizeDataverseId(quote._aur_quotes_value))
     .map(mapQuoteResponse)
   const emailTemplates = (emailTemplatesResult.data ?? [])
     .filter((template) => {
-      const category = template.cr058_categoryname?.toLowerCase() ?? ''
-      return category === 'quote' || category === 'general'
+      return Number(template.templatetypecode) === 1084
     })
     .map<EmailTemplateSummary>((template) => ({
-      id: template.cr058_emailtemplateid,
-      name: template.cr058_templatename,
-      subject: template.cr058_subject,
-      body: template.cr058_body,
-      category: template.cr058_categoryname ?? 'General',
-      isActive: template.cr058_isactive ?? false,
+      id: template.templateid,
+      name: template.title,
+      subject: template.subject ?? '',
+      body: template.body ?? '',
+      category: template.templatetypecodename ?? 'Quote',
+      isActive: template.componentstate === 0,
     }))
   const documentTemplates = (documentTemplatesResult.data ?? []).map<DocumentTemplateSummary>((template) => ({
-    id: template.aur_customdocumenttemplatesid,
-    name: template.aur_name,
-    content: template.aur_templatecontent ?? '',
+    id: template.aur_custom_document_templatesid,
+    name: template.aur_name ?? 'Untitled template',
+    content: template.aur_template_content ?? '',
   }))
 
   return mapQuoteDetail(

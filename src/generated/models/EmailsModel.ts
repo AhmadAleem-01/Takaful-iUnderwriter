@@ -10,12 +10,25 @@ export const Emailsactivitytypecode = {
   4201: 'Appointment',
   4212: 'Task',
   4251: 'RecurringAppointment',
-  10197: 'Teamschat',
-  10325: 'InviteRedemption',
-  10326: 'PortalComment',
-  10537: 'CustomerVoicealert',
-  10547: 'CustomerVoicesurveyinvite',
-  10549: 'CustomerVoicesurveyresponse'
+  10269: 'Teamschat',
+  10446: 'InviteRedemption',
+  10447: 'PortalComment',
+  4406: 'QuickCampaign',
+  4402: 'CampaignActivity',
+  4401: 'CampaignResponse',
+  4206: 'CaseResolution',
+  4214: 'ServiceActivity',
+  4208: 'OpportunityClose',
+  4209: 'OrderClose',
+  4211: 'QuoteClose',
+  10764: 'CustomerVoicealert',
+  10779: 'CustomerVoicesurveyinvite',
+  10782: 'CustomerVoicesurveyresponse',
+  10892: 'Conversation',
+  10909: 'Session',
+  11273: 'CopilotTranscript',
+  11397: 'Voicemail',
+  11706: 'Outboundmessage'
 } as const;
 export type Emailsactivitytypecode = keyof typeof Emailsactivitytypecode;
 export const Emailscorrelationmethod = {
@@ -48,6 +61,36 @@ export const Emailsemailremindertype = {
   2: 'Remindmeanywaysat'
 } as const;
 export type Emailsemailremindertype = keyof typeof Emailsemailremindertype;
+export const Emailsmsdyn_autofill_type = {
+  0: 'Manual',
+  1: 'SemiAutonomous',
+  2: 'FullyAutonomous'
+} as const;
+export type Emailsmsdyn_autofill_type = keyof typeof Emailsmsdyn_autofill_type;
+export const Emailsmsdyn_classificationStatus = {
+  0: 'Default',
+  1: 'Skipped',
+  2: 'Success',
+  3: 'Failed'
+} as const;
+export type Emailsmsdyn_classificationStatus = keyof typeof Emailsmsdyn_classificationStatus;
+export const Emailsmsdyn_sentiment = {
+  0: 'N_A',
+  6: 'Failure',
+  7: 'Verynegative',
+  8: 'Negative',
+  9: 'Slightlynegative',
+  10: 'Neutral',
+  11: 'Slightlypositive',
+  12: 'Positive',
+  13: 'Verypositive'
+} as const;
+export type Emailsmsdyn_sentiment = keyof typeof Emailsmsdyn_sentiment;
+export const Emailsmsdyn_sentimentreason = {
+  0: 'Transient',
+  1: 'NonTransient'
+} as const;
+export type Emailsmsdyn_sentimentreason = keyof typeof Emailsmsdyn_sentimentreason;
 export const Emailsnotifications = {
   0: 'None',
   1: 'ThemessagewassavedasaMicrosoftDynamics365emailrecord_butnotalltheattachmentscouldbesavedwithit_Anattachmentcannotbesavedifitisblockedorifitsfiletypeisinvalid_',
@@ -119,6 +162,14 @@ export interface EmailsBase {
   messageiddupcheck: string;
   mimetype?: string;
   msdyn_associatedagentname?: string;
+  msdyn_autofill_type?: Emailsmsdyn_autofill_type;
+  msdyn_classificationStatus?: Emailsmsdyn_classificationStatus;
+  msdyn_copilotengaged?: boolean;
+  "msdyn_emailclassificationcategory@odata.bind"?: string;
+  msdyn_emailengagementinteractions?: string;
+  msdyn_recipientlist?: string;
+  msdyn_sentiment?: Emailsmsdyn_sentiment;
+  msdyn_sentimentreason?: Emailsmsdyn_sentimentreason;
   notifications?: Emailsnotifications;
   opencount?: number;
   overriddencreatedon?: string;
@@ -140,6 +191,7 @@ export interface EmailsBase {
   sender?: string;
   "SensitivityLabelId@odata.bind"?: string;
   sensitivitylabelinfo?: string;
+  "ServiceId@odata.bind"?: string;
   "SLAId@odata.bind"?: string;
   sortdate?: string;
   stageid?: string;
@@ -204,6 +256,12 @@ export interface Emails extends EmailsBase {
   modifiedon?: string;
   modifiedonbehalfbyname?: string;
   modifiedonbehalfbyyominame?: string;
+  msdyn_autofill_typename?: string;
+  msdyn_classificationstatusname?: string;
+  msdyn_copilotengagedname?: string;
+  msdyn_emailclassificationcategoryname?: string;
+  msdyn_sentimentname?: string;
+  msdyn_sentimentreasonname?: string;
   notificationsname?: string;
   onholdtime?: number;
   owneridname: string;
@@ -225,6 +283,7 @@ export interface Emails extends EmailsBase {
   sendersaccountyominame?: string;
   sensitivitylabelidname?: string;
   senton?: string;
+  serviceidname?: string;
   slainvokedidname?: string;
   slaname?: string;
   statecodename?: string;
@@ -246,6 +305,8 @@ export interface Emails extends EmailsBase {
   _modifiedby_value?: string;
   modifiedonbehalfby?: object;
   _modifiedonbehalfby_value?: string;
+  msdyn_emailclassificationcategory?: object;
+  _msdyn_emailclassificationcategory_value?: string;
   owningbusinessunit?: object;
   _owningbusinessunit_value?: string;
   owningteam?: object;
@@ -264,6 +325,8 @@ export interface Emails extends EmailsBase {
   _sendersaccount_value?: string;
   sensitivitylabelid?: object;
   _sensitivitylabelid_value?: string;
+  serviceid?: object;
+  _serviceid_value?: string;
   slaid?: object;
   _slaid_value?: string;
   slainvokedid?: object;

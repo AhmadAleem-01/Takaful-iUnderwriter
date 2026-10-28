@@ -1,32 +1,63 @@
 {
-  "name": "aur_email_record",
-  "title": "Email Records",
+  "name": "aur_ai_extracted_response",
+  "title": "AI Extracted Responses",
   "schema": {
     "type": "array",
     "items": {
       "type": "object",
       "x-ms-dataverse-entity": true,
-      "x-ms-dataverse-entityset": "aur_email_records",
-      "x-ms-dataverse-primary-id": "aur_email_recordid",
+      "x-ms-dataverse-entityset": "aur_ai_extracted_responses",
+      "x-ms-dataverse-primary-id": "aur_ai_extracted_responseid",
       "x-ms-dataverse-primary-name": "aur_name",
       "properties": {
-        "aur_email_body": {
+        "aur_ai_extracted_responseid": {
           "type": "string",
-          "title": "Email Body",
-          "x-ms-dataverse-attribute": "aur_email_body",
-          "x-ms-dataverse-type": "MemoType",
-          "x-ms-schema-name": "aur_email_body",
-          "maxLength": 1048576
-        },
-        "aur_email_recordid": {
-          "type": "string",
-          "title": "Email Record",
-          "x-ms-dataverse-attribute": "aur_email_recordid",
+          "title": "AI Extracted Response",
+          "x-ms-dataverse-attribute": "aur_ai_extracted_responseid",
           "x-ms-dataverse-type": "UniqueidentifierType",
-          "x-ms-schema-name": "aur_email_recordId",
+          "x-ms-schema-name": "aur_ai_extracted_responseId",
           "x-ms-dataverse-primary-id": true,
           "required": true,
           "x-ms-keyType": "primary"
+        },
+        "aur_business_rule": {
+          "type": "string",
+          "title": "Business Rule",
+          "x-ms-dataverse-attribute": "aur_business_rule",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_business_rule"
+        },
+        "aur_business_rulename": {
+          "type": "string",
+          "title": "aur_business_rulename",
+          "x-ms-dataverse-attribute": "aur_business_rulename",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_business_ruleName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "aur_condition_met": {
+          "type": "string",
+          "title": "Condition Met",
+          "x-ms-dataverse-attribute": "aur_condition_met",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_condition_met",
+          "maxLength": 4000
+        },
+        "aur_confidence_score": {
+          "type": "string",
+          "title": "Confidence Score",
+          "x-ms-dataverse-attribute": "aur_confidence_score",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "aur_confidence_score"
+        },
+        "aur_evidence": {
+          "type": "string",
+          "title": "Evidence",
+          "x-ms-dataverse-attribute": "aur_evidence",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_evidence",
+          "maxLength": 1048576
         },
         "aur_inquiry": {
           "type": "string",
@@ -51,16 +82,15 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "aur_name",
           "x-ms-dataverse-primary-name": true,
-          "required": true,
           "maxLength": 850
         },
-        "aur_subject": {
+        "aur_response": {
           "type": "string",
-          "title": "Subject",
-          "x-ms-dataverse-attribute": "aur_subject",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_subject",
-          "maxLength": 4000
+          "title": "Response",
+          "x-ms-dataverse-attribute": "aur_response",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_response",
+          "maxLength": 1048576
         },
         "createdby": {
           "type": "string",
@@ -289,7 +319,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "6540eee4-2a43-f111-bec6-6045bde5fb33",
+          "x-ms-optionsetmetadataid": "6923a5c8-2532-427e-9a65-c06fefaa379f",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -320,7 +350,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "6f40eee4-2a43-f111-bec6-6045bde5fb33",
+          "x-ms-optionsetmetadataid": "aaa92259-c125-44a4-a1b4-3c8be7d6b5a2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"
@@ -357,8 +387,7 @@
         }
       },
       "required": [
-        "aur_email_recordid",
-        "aur_name",
+        "aur_ai_extracted_responseid",
         "createdbyyominame",
         "createdonbehalfbyyominame",
         "modifiedbyyominame",

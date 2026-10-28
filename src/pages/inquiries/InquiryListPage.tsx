@@ -56,7 +56,7 @@ export function InquiriesPage() {
   const [createForm, setCreateForm] = useState({
     name: '',
     inquiryType: String(INQUIRY_TYPE_OPTIONS[0]?.value ?? ''),
-    statusCode: '751820006',
+    statusCode: '1',
     productId: '',
     planId: '',
   })
@@ -457,7 +457,7 @@ export function InquiriesPage() {
       setCreateForm({
         name: '',
         inquiryType: String(INQUIRY_TYPE_OPTIONS[0]?.value ?? ''),
-        statusCode: '751820006',
+        statusCode: '1',
         productId: '',
         planId: '',
       })

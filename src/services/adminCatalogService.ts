@@ -1,9 +1,8 @@
 import {
   AccountsService,
-  Aur_brokersService,
   Aur_benefitsesService,
   Aur_business_rulesesService,
-  Aur_customdocumenttemplatesesService,
+  Aur_custom_document_templatesesService,
   Aur_coveragesesService,
   Aur_deductiblesesService,
   Aur_exclusionsesService,
@@ -15,9 +14,8 @@ import {
   Aur_warrantiesesService,
   BusinessunitsService,
   ContactsService,
-  Cr058_emailtemplatesService,
-  Cr058_policiesService,
-  Cr058_productrulelink1sService,
+  TemplatesService,
+  Aur_policiesService,
   SystemusersService,
 } from '../generated'
 import { Accountsaur_account_type } from '../generated/models/AccountsModel'
@@ -29,7 +27,7 @@ import {
   Aur_coveragesesaur_applicable,
   Aur_coveragesesaur_type,
 } from '../generated/models/Aur_coveragesesModel'
-import { Cr058_emailtemplatescr058_category } from '../generated/models/Cr058_emailtemplatesModel'
+import { Templatestemplatetypecode } from '../generated/models/TemplatesModel'
 import {
   Systemusersaccessmode,
   Systemusersincomingemaildeliverymethod,
@@ -70,6 +68,7 @@ export interface AdminFormPayload {
   businessUnitId?: string
   accessMode?: string
   customerName?: string
+  customerId?: string
   issueDate?: string
   expiryDate?: string
   premiumAmount?: string
@@ -197,23 +196,23 @@ export async function getAdminCatalog(entity: AdminEntityKey): Promise<AdminCata
   let records: AdminCatalogItem[] = []
 
   if (entity === 'policies') {
-    const result = await Cr058_policiesService.getAll({
-      orderBy: ['cr058_expirydate asc'],
+    const result = await Aur_policiesService.getAll({
+      orderBy: ['aur_expiry_date asc'],
     })
     records = (result.data ?? []).map((policy) => ({
-      id: policy.cr058_policyid,
-      name: policy.cr058_policynumber,
-      description: policy.cr058_customername,
+      id: policy.aur_policyid,
+      name: policy.aur_policy_number ?? `POL-${policy.aur_policyid.slice(0, 8).toUpperCase()}`,
+      description: policy.aur_customer_idname ?? 'No customer linked',
       status: policy.statuscodename ?? policy.statecodename ?? 'Active',
-      context: policy.cr058_productname ?? 'No Product Linked',
+      context: policy.aur_productname ?? 'No Product Linked',
       detail: [
-        policy.cr058_status,
-        policy.cr058_expirydate ? `Expires ${new Date(policy.cr058_expirydate).toLocaleDateString('en')}` : '',
-        typeof policy.cr058_premiumamount === 'number' ? `Premium ${policy.cr058_premiumamount.toLocaleString('en')}` : '',
+        policy.aur_cession_statusname,
+        policy.aur_expiry_date ? `Expires ${new Date(policy.aur_expiry_date).toLocaleDateString('en')}` : '',
+        typeof policy.aur_premium_amount === 'number' ? `Premium ${policy.aur_premium_amount.toLocaleString('en')}` : '',
       ]
         .filter(Boolean)
         .join(' • '),
-      productId: policy._cr058_product_value,
+      productId: policy._aur_product_value,
     }))
   }
 
@@ -316,7 +315,7 @@ export async function getAdminCatalog(entity: AdminEntityKey): Promise<AdminCata
     records = (result.data ?? []).map((rule) => ({
       id: rule.aur_business_rulesid,
       name: rule.aur_name,
-      description: rule.aur_categoryname ?? 'No linked category record yet.',
+      description: rule.aur_propertiesname ?? 'No linked property rule yet.',
       status: rule.statuscodename ?? 'Active',
       context: rule.aur_categoriesname ?? resolveRuleCategory(rule.aur_categories),
       detail: 'Rule library',
@@ -368,11 +367,13 @@ export async function getAdminCatalog(entity: AdminEntityKey): Promise<AdminCata
   }
 
   if (entity === 'brokers') {
-    const result = await Aur_brokersService.getAll()
-    records = (result.data ?? []).map((broker) => ({
-      id: broker.aur_brokerid,
-      name: broker.aur_name,
-      description: broker.aur_email ?? 'No broker email captured yet.',
+    const result = await AccountsService.getAll()
+    records = (result.data ?? [])
+      .filter((account) => account.aur_account_type === 751820000 || account.aur_account_typename?.toLowerCase() === 'broker')
+      .map((broker) => ({
+      id: broker.accountid,
+      name: broker.name ?? 'Unnamed broker',
+      description: broker.emailaddress1 ?? 'No broker email captured yet.',
       status: broker.statuscodename ?? 'Active',
       context: 'Broker Directory',
       detail: broker.createdon ? `Created ${new Date(broker.createdon).toLocaleDateString('en')}` : 'Broker record',
@@ -407,23 +408,23 @@ export async function getAdminCatalog(entity: AdminEntityKey): Promise<AdminCata
   }
 
   if (entity === 'email-templates') {
-    const result = await Cr058_emailtemplatesService.getAll()
+    const result = await TemplatesService.getAll()
     records = (result.data ?? []).map((template) => ({
-      id: template.cr058_emailtemplateid,
-      name: template.cr058_templatename,
-      description: template.cr058_subject,
-      status: template.cr058_isactive ? 'Active' : 'Inactive',
-      context: template.cr058_categoryname ?? 'General',
-      detail: template.cr058_description ?? 'Communication template',
+      id: template.templateid,
+      name: template.title,
+      description: template.subject ?? '',
+      status: template.componentstate === 0 ? 'Published' : 'Unpublished',
+      context: template.templatetypecodename ?? 'Email template',
+      detail: template.description ?? 'Communication template',
     }))
   }
 
   if (entity === 'document-templates') {
-    const result = await Aur_customdocumenttemplatesesService.getAll()
+    const result = await Aur_custom_document_templatesesService.getAll()
     records = (result.data ?? []).map((template) => ({
-      id: template.aur_customdocumenttemplatesid,
-      name: template.aur_name,
-      description: template.aur_templatecontent?.slice(0, 120) ?? 'No template content captured yet.',
+      id: template.aur_custom_document_templatesid,
+      name: template.aur_name ?? 'Untitled template',
+      description: template.aur_template_content?.slice(0, 120) ?? 'No template content captured yet.',
       status: template.statuscodename ?? 'Active',
       context: 'Document Workspace',
       detail: template.createdon ? `Updated ${new Date(template.createdon).toLocaleDateString('en')}` : 'Document template',
@@ -471,22 +472,20 @@ export async function saveAdminRecord(entity: AdminEntityKey, payload: AdminForm
 
 export async function getAdminRecord(entity: AdminEntityKey, id: string): Promise<AdminFormPayload> {
   if (entity === 'policies') {
-    const record = (await Cr058_policiesService.get(id)).data
+    const record = (await Aur_policiesService.get(id)).data
     if (!record) throw new Error('Policy not found.')
     return {
-      id: record.cr058_policyid,
-      name: record.cr058_policynumber,
-      customerName: record.cr058_customername,
-      email: record.cr058_customeremail ?? '',
-      phone: record.cr058_customerphone ?? '',
-      issueDate: record.cr058_issuedate ? record.cr058_issuedate.slice(0, 10) : '',
-      expiryDate: record.cr058_expirydate ? record.cr058_expirydate.slice(0, 10) : '',
-      premiumAmount: typeof record.cr058_premiumamount === 'number' ? String(record.cr058_premiumamount) : '',
-      statusText: record.cr058_status ?? '',
-      reminderSent: record.cr058_remindersent ?? false,
-      description: record.cr058_notes ?? '',
-      productId: record._cr058_product_value ?? '',
-      inquiryId: record._cr058_inquiry_value ?? '',
+      id: record.aur_policyid,
+      name: record.aur_policy_number ?? '',
+      customerId: record._aur_customer_id_value ?? '',
+      customerName: record.aur_customer_idname ?? '',
+      issueDate: record.aur_issue_date ? record.aur_issue_date.slice(0, 10) : '',
+      expiryDate: record.aur_expiry_date ? record.aur_expiry_date.slice(0, 10) : '',
+      premiumAmount: typeof record.aur_premium_amount === 'number' ? String(record.aur_premium_amount) : '',
+      reminderSent: record.aur_reminder_sent ?? false,
+      description: record.aur_notes ?? '',
+      productId: record._aur_product_value ?? '',
+      inquiryId: record._aur_inquiry_value ?? '',
     }
   }
   if (entity === 'plans') {
@@ -535,12 +534,12 @@ export async function getAdminRecord(entity: AdminEntityKey, id: string): Promis
     }
   }
   if (entity === 'brokers') {
-    const record = (await Aur_brokersService.get(id)).data
+    const record = (await AccountsService.get(id)).data
     if (!record) throw new Error('Broker not found.')
     return {
-      id: record.aur_brokerid,
-      name: record.aur_name,
-      email: record.aur_email ?? '',
+      id: record.accountid,
+      name: record.name ?? '',
+      email: record.emailaddress1 ?? '',
     }
   }
   if (entity === 'business-units') {
@@ -574,39 +573,39 @@ export async function getAdminRecord(entity: AdminEntityKey, id: string): Promis
     }
   }
   if (entity === 'email-templates') {
-    const record = (await Cr058_emailtemplatesService.get(id)).data
+    const record = (await TemplatesService.get(id)).data
     if (!record) throw new Error('Email template not found.')
     return {
-      id: record.cr058_emailtemplateid,
-      name: record.cr058_templatename,
-      description: record.cr058_description ?? '',
-      subject: record.cr058_subject,
-      body: record.cr058_body,
-      category: record.cr058_categoryname ?? '',
-      isActive: record.cr058_isactive ?? false,
+      id: record.templateid,
+      name: record.title,
+      description: record.description ?? '',
+      subject: record.subject ?? '',
+      body: record.body ?? '',
+      category: record.templatetypecodename ?? '',
+      isActive: record.componentstate === 0,
     }
   }
   if (entity === 'document-templates') {
-    const record = (await Aur_customdocumenttemplatesesService.get(id)).data
+    const record = (await Aur_custom_document_templatesesService.get(id)).data
     if (!record) throw new Error('Document template not found.')
     return {
-      id: record.aur_customdocumenttemplatesid,
-      name: record.aur_name,
-      content: record.aur_templatecontent ?? '',
+      id: record.aur_custom_document_templatesid,
+      name: record.aur_name ?? 'Untitled template',
+      content: record.aur_template_content ?? '',
     }
   }
   throw new Error('Record hydration is only required for admin operations entities.')
 }
 
 export async function deleteAdminRecord(entity: AdminEntityKey, id: string) {
-  if (entity === 'policies') return Cr058_policiesService.delete(id)
+  if (entity === 'policies') return Aur_policiesService.delete(id)
   if (entity === 'accounts') return AccountsService.delete(id)
   if (entity === 'contacts') return ContactsService.delete(id)
-  if (entity === 'brokers') return Aur_brokersService.delete(id)
+  if (entity === 'brokers') return AccountsService.delete(id)
   if (entity === 'business-units') return BusinessunitsService.delete(id)
   if (entity === 'users') return SystemusersService.delete(id)
-  if (entity === 'email-templates') return Cr058_emailtemplatesService.delete(id)
-  if (entity === 'document-templates') return Aur_customdocumenttemplatesesService.delete(id)
+  if (entity === 'email-templates') return TemplatesService.delete(id)
+  if (entity === 'document-templates') return Aur_custom_document_templatesesService.delete(id)
   if (entity === 'plans') return Aur_plansService.delete(id)
   if (entity === 'coverages') return Aur_coveragesesService.delete(id)
   if (entity === 'benefits') return Aur_benefitsesService.delete(id)
@@ -714,18 +713,15 @@ function resolveRuleCategory(value?: number) {
 function buildPayload(entity: AdminEntityKey, payload: AdminFormPayload) {
   if (entity === 'policies') {
     return {
-      cr058_policynumber: payload.name,
-      cr058_customername: payload.customerName || payload.description || payload.name,
-      cr058_customeremail: payload.email,
-      cr058_customerphone: payload.phone,
-      cr058_issuedate: payload.issueDate,
-      cr058_expirydate: payload.expiryDate,
-      cr058_premiumamount: payload.premiumAmount ? Number(payload.premiumAmount) : undefined,
-      cr058_status: payload.statusText,
-      cr058_remindersent: payload.reminderSent,
-      cr058_notes: payload.description,
-      ...(payload.productId ? { 'cr058_Product@odata.bind': `/aur_productses(${payload.productId})` } : {}),
-      ...(payload.inquiryId ? { 'cr058_Inquiry@odata.bind': `/aur_quoteses(${payload.inquiryId})` } : {}),
+      aur_policy_number: payload.name,
+      aur_issue_date: payload.issueDate,
+      aur_expiry_date: payload.expiryDate,
+      aur_premium_amount: payload.premiumAmount ? Number(payload.premiumAmount) : undefined,
+      aur_reminder_sent: payload.reminderSent,
+      aur_notes: payload.description,
+      ...(payload.customerId ? { 'aur_customer_id@odata.bind': `/accounts(${payload.customerId})` } : {}),
+      ...(payload.productId ? { 'aur_product@odata.bind': `/aur_productses(${payload.productId})` } : {}),
+      ...(payload.inquiryId ? { 'aur_inquiry@odata.bind': `/aur_inquiries(${payload.inquiryId})` } : {}),
     }
   }
   if (entity === 'plans') {
@@ -800,8 +796,9 @@ function buildPayload(entity: AdminEntityKey, payload: AdminFormPayload) {
   }
   if (entity === 'brokers') {
     return {
-      aur_name: payload.name,
-      aur_email: payload.email,
+      name: payload.name,
+      emailaddress1: payload.email,
+      aur_account_type: 751820000,
     }
   }
   if (entity === 'business-units') {
@@ -835,20 +832,19 @@ function buildPayload(entity: AdminEntityKey, payload: AdminFormPayload) {
   }
   if (entity === 'email-templates') {
     return {
-      cr058_templatename: payload.name,
-      cr058_subject: payload.subject,
-      cr058_body: payload.body,
-      cr058_description: payload.description,
-      cr058_isactive: payload.isActive,
-      ...(findOptionKey(Cr058_emailtemplatescr058_category, payload.category)
-        ? { cr058_category: findOptionKey(Cr058_emailtemplatescr058_category, payload.category) }
-        : {}),
+      title: payload.name,
+      subject: payload.subject,
+      body: payload.body,
+      description: payload.description,
+      languagecode: 1033,
+      ispersonal: false,
+      templatetypecode: findOptionKey(Templatestemplatetypecode, payload.category) ?? 1084,
     }
   }
   if (entity === 'document-templates') {
     return {
       aur_name: payload.name,
-      aur_templatecontent: payload.content,
+      aur_template_content: payload.content,
     }
   }
   return {
@@ -868,18 +864,16 @@ function buildPlanLinkedPayload(payload: AdminFormPayload) {
 export async function getPlanRatingPricingOrder(planId: string, productId?: string): Promise<PlanPricingOrderItem[]> {
   if (!productId) return []
 
-  const normalizedProductId = normalizeDataverseId(productId)
-  const [linksResult, rulesResult, consequencesResult, savedOrderResult] = await Promise.all([
-    Cr058_productrulelink1sService.getAll(),
+  const [rulesResult, consequencesResult, savedOrderResult] = await Promise.all([
     Aur_business_rulesesService.getAll(),
     Aur_consequencesesService.getAll(),
     Aur_plan_pricing_ordersService.getAll().catch(() => ({ data: [] })),
   ])
 
   const linkedRuleIds = new Set(
-    (linksResult.data ?? [])
-      .filter((link) => normalizeDataverseId(link.cr058_productid) === normalizedProductId)
-      .map((link) => normalizeDataverseId(link.cr058_businessruleid))
+    (savedOrderResult.data ?? [])
+      .filter((order) => normalizeDataverseId(order._aur_plan_value) === normalizeDataverseId(planId))
+      .map((order) => normalizeDataverseId(order._aur_business_rule_value))
       .filter(Boolean),
   )
 
@@ -956,14 +950,14 @@ function resolvePricingActionLabel(value?: string | number) {
 }
 
 function createEntity(entity: AdminEntityKey, data: Record<string, unknown>) {
-  if (entity === 'policies') return Cr058_policiesService.create(data as never)
+  if (entity === 'policies') return Aur_policiesService.create(data as never)
   if (entity === 'accounts') return AccountsService.create(data as never)
   if (entity === 'contacts') return ContactsService.create(data as never)
-  if (entity === 'brokers') return Aur_brokersService.create(data as never)
+  if (entity === 'brokers') return AccountsService.create(data as never)
   if (entity === 'business-units') return createBusinessUnit(data)
   if (entity === 'users') return createSystemUser(data)
-  if (entity === 'email-templates') return Cr058_emailtemplatesService.create(data as never)
-  if (entity === 'document-templates') return Aur_customdocumenttemplatesesService.create(data as never)
+  if (entity === 'email-templates') return TemplatesService.create(data as never)
+  if (entity === 'document-templates') return Aur_custom_document_templatesesService.create(data as never)
   if (entity === 'plans') return Aur_plansService.create(data as never)
   if (entity === 'coverages') return Aur_coveragesesService.create(data as never)
   if (entity === 'benefits') return Aur_benefitsesService.create(data as never)
@@ -975,14 +969,14 @@ function createEntity(entity: AdminEntityKey, data: Record<string, unknown>) {
 }
 
 function updateEntity(entity: AdminEntityKey, id: string, data: Record<string, unknown>) {
-  if (entity === 'policies') return Cr058_policiesService.update(id, data)
+  if (entity === 'policies') return Aur_policiesService.update(id, data)
   if (entity === 'accounts') return AccountsService.update(id, data)
   if (entity === 'contacts') return ContactsService.update(id, data)
-  if (entity === 'brokers') return Aur_brokersService.update(id, data)
+  if (entity === 'brokers') return AccountsService.update(id, data)
   if (entity === 'business-units') return BusinessunitsService.update(id, data)
   if (entity === 'users') return SystemusersService.update(id, data)
-  if (entity === 'email-templates') return Cr058_emailtemplatesService.update(id, data)
-  if (entity === 'document-templates') return Aur_customdocumenttemplatesesService.update(id, data)
+  if (entity === 'email-templates') return TemplatesService.update(id, data)
+  if (entity === 'document-templates') return Aur_custom_document_templatesesService.update(id, data)
   if (entity === 'plans') return Aur_plansService.update(id, data)
   if (entity === 'coverages') return Aur_coveragesesService.update(id, data)
   if (entity === 'benefits') return Aur_benefitsesService.update(id, data)

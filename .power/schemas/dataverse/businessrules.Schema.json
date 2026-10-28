@@ -53,7 +53,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "454d097e-1052-4ba5-868a-f4a826e9ad46",
+          "x-ms-optionsetmetadataid": "5523d09e-b769-4adb-b8d5-c4f622b465fd",
           "x-ms-isGlobal": true,
           "x-ms-optionsetdisplayname": "Categories",
           "x-ms-optionSetType": "Picklist"
@@ -66,22 +66,6 @@
           "x-ms-schema-name": "aur_categoriesName",
           "x-ms-read-only": true
         },
-        "aur_category": {
-          "type": "string",
-          "title": "Properties",
-          "x-ms-dataverse-attribute": "aur_category",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_category"
-        },
-        "aur_categoryname": {
-          "type": "string",
-          "title": "aur_categoryname",
-          "x-ms-dataverse-attribute": "aur_categoryname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_categoryName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
         "aur_inquiry_type": {
           "type": "string",
           "title": "Inquiry Type",
@@ -92,27 +76,21 @@
             "New",
             "Renewal",
             "Endorsement",
-            "Claims",
-            "Company Vehicle",
-            "Personal Vehicle"
+            "Claims"
           ],
           "x-ms-enum-values": [
             1,
             2,
             3,
-            4,
-            5,
-            6
+            4
           ],
           "Color": [
             null,
             null,
             null,
-            null,
-            null,
             null
           ],
-          "x-ms-optionsetmetadataid": "a503de35-5803-4862-855f-ebd5d6f6fe4c",
+          "x-ms-optionsetmetadataid": "568e124a-10b0-47ef-a0f5-985e3cf9a832",
           "x-ms-isGlobal": true,
           "x-ms-optionsetdisplayname": "Inquiry Type",
           "x-ms-optionSetType": "Picklist"
@@ -133,6 +111,22 @@
           "x-ms-schema-name": "aur_name",
           "x-ms-dataverse-primary-name": true,
           "required": true,
+          "maxLength": 850
+        },
+        "aur_properties": {
+          "type": "string",
+          "title": "Properties",
+          "x-ms-dataverse-attribute": "aur_properties",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_properties"
+        },
+        "aur_propertiesname": {
+          "type": "string",
+          "title": "aur_propertiesname",
+          "x-ms-dataverse-attribute": "aur_propertiesname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_propertiesName",
+          "x-ms-read-only": true,
           "maxLength": 850
         },
         "createdby": {
@@ -362,7 +356,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "465db0ac-95c0-f111-aaad-002248e3ba3f",
+          "x-ms-optionsetmetadataid": "720df6c6-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -393,7 +387,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "505db0ac-95c0-f111-aaad-002248e3ba3f",
+          "x-ms-optionsetmetadataid": "7c0df6c6-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"
