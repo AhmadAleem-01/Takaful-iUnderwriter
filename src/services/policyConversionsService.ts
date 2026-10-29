@@ -1,13 +1,13 @@
 import { AccountsService } from '../generated/services/AccountsService'
 import { Aur_aml_screeningsService } from '../generated/services/Aur_aml_screeningsService'
-import { Aur_customdocumenttemplatesesService } from '../generated/services/Aur_customdocumenttemplatesesService'
+import { Aur_custom_document_templatesesService } from '../generated/services/Aur_custom_document_templatesesService'
 import { Aur_policy_bookingsService } from '../generated/services/Aur_policy_bookingsService'
 import { Aur_policy_conversionsService } from '../generated/services/Aur_policy_conversionsService'
 import { Aur_productsesService } from '../generated/services/Aur_productsesService'
 import { Aur_quotesService } from '../generated/services/Aur_quotesService'
 import { BusinessunitsService } from '../generated/services/BusinessunitsService'
 import { ContactsService } from '../generated/services/ContactsService'
-import { Cr058_emailtemplatesService } from '../generated/services/Cr058_emailtemplatesService'
+import { TemplatesService } from '../generated/services/TemplatesService'
 import { EmailsService } from '../generated/services/EmailsService'
 import { GeneratePaymentLinkService } from '../generated/services/GeneratePaymentLinkService'
 import { SystemusersService } from '../generated/services/SystemusersService'
@@ -386,29 +386,31 @@ export async function savePolicyBooking(conversionId: string, form: PolicyBookin
 }
 
 export async function getPolicyConversionEmailTemplate(): Promise<ConversionTemplatePreview> {
-  const result = await Cr058_emailtemplatesService.getAll()
+  const result = await TemplatesService.getAll()
   const template = (result.data ?? []).find(
-    (record) => record.cr058_subject?.trim().toLowerCase() === 'policy conversion template',
+    (record) =>
+      record.title.trim().toLowerCase() === 'policy conversion template' ||
+      record.subject?.trim().toLowerCase() === 'policy conversion template',
   )
   if (!template) throw new Error('Policy Conversion email template was not found.')
   return {
-    id: template.cr058_emailtemplateid,
-    title: template.cr058_templatename || template.cr058_subject || 'Policy Conversion Template',
-    subject: template.cr058_subject,
-    content: template.cr058_body || '',
+    id: template.templateid,
+    title: template.title || template.subject || 'Policy Conversion Template',
+    subject: template.subject ?? '',
+    content: template.body || '',
   }
 }
 
 export async function getPolicyConversionDocumentTemplate(): Promise<ConversionTemplatePreview> {
-  const result = await Aur_customdocumenttemplatesesService.getAll()
+  const result = await Aur_custom_document_templatesesService.getAll()
   const template = (result.data ?? []).find(
     (record) => record.aur_name?.trim().toLowerCase() === 'policy conversion template',
   )
   if (!template) throw new Error('Policy Conversion document template was not found.')
   return {
-    id: template.aur_customdocumenttemplatesid,
+    id: template.aur_custom_document_templatesid,
     title: template.aur_name || 'Policy Conversion Template',
-    content: template.aur_templatecontent || '',
+    content: template.aur_template_content || '',
   }
 }
 

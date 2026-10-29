@@ -44,9 +44,9 @@ Example:
 
 - Inquiry workspace page calls `getInquiryDetail(id)`.
 - `getInquiryDetail` reads:
-  - `aur_quoteses`
+  - `aur_inquiries`
   - `aur_quotes`
-  - `aur_quotes_details`
+  - `aur_ai_extracted_response`
   - `aur_business_rules`
   - `aur_consequences_result`
   - `email`
@@ -70,7 +70,7 @@ Generated services usually expose:
 
 Example service:
 
-- [src/generated/services/Aur_quotesesService.ts](/C:/AI-Insuarance-App/src/generated/services/Aur_quotesesService.ts)
+- `src/generated/services/Aur_inquiriesService.ts`
 
 ## CRUD Pattern Used in This App
 
@@ -81,9 +81,9 @@ Reads are done using generated `get` or `getAll`.
 Examples:
 
 - list inquiries:
-  - `Aur_quotesesService.getAll()`
+  - `Aur_inquiriesService.getAll()`
 - get one inquiry:
-  - `Aur_quotesesService.get(id)`
+  - `Aur_inquiriesService.get(id)`
 - get all plans:
   - `Aur_plansService.getAll()`
 
@@ -114,7 +114,7 @@ await Aur_quotesService.create({
   aur_name: 'Quote Name',
   'aur_product@odata.bind': `/aur_productses(${productId})`,
   'aur_plan@odata.bind': `/aur_plans(${planId})`,
-  'aur_quotes@odata.bind': `/aur_quoteses(${inquiryId})`,
+  'aur_quotes@odata.bind': `/aur_inquiries(${inquiryId})`,
 } as never)
 ```
 
@@ -140,9 +140,9 @@ Update flow:
 Example:
 
 ```ts
-await Aur_quotesesService.update(recordId, {
+await Aur_inquiriesService.update(recordId, {
   aur_name: payload.name,
-  aur_inquiry_status: payload.inquiryStatus as never,
+  statuscode: payload.inquiryStatus as never,
   'aur_plan@odata.bind': `/aur_plans(${payload.planId})`,
 })
 ```
@@ -192,9 +192,9 @@ Examples from this app:
 - Inquiry to Account/Broker:
   - `'aur_account@odata.bind': \`/accounts(${brokerId})\``
 - Quote to Inquiry:
-  - `'aur_quotes@odata.bind': \`/aur_quoteses(${inquiryId})\``
+  - `'aur_quotes@odata.bind': \`/aur_inquiries(${inquiryId})\``
 - Email to Inquiry:
-  - `'regardingobjectid_aur_quotes@odata.bind': \`/aur_quoteses(${inquiryId})\``
+  - `'regardingobjectid_aur_inquiry@odata.bind': \`/aur_inquiries(${inquiryId})\``
 
 ## Choice / Option Set Fields
 
@@ -209,7 +209,7 @@ UI pattern used in this app:
 
 Example:
 
-- `aur_inquiry_status`
+- `statuscode`
   - `1 = Decline`
   - `2 = Refer to Underwriter`
   - `3 = Escalate to Head of Aviation`
@@ -230,7 +230,7 @@ Pattern:
 This is how we handle:
 
 - Inquiry -> Quotes
-- Inquiry -> Quote Details
+- Inquiry -> AI Extracted Responses
 - Inquiry -> Consequence Results
 - Inquiry -> Email Activity
 - Inquiry -> Account / Contact / Product / Plan
@@ -246,14 +246,14 @@ Why we use this pattern:
 
 ## Inquiry List
 
-- reads from `aur_quoteses`
+- reads from `aur_inquiries`
 - resolves product, plan, broker/account context
 - supports inquiry type tabs and filters
 - inquiry name is clickable to open the workspace
 
 ## Inquiry Workspace
 
-- reads inquiry master data from `aur_quoteses`
+- reads inquiry master data from `aur_inquiries`
 - edits details, risk, premium
 - saves inquiry updates back to Dataverse
 - supports:
@@ -264,7 +264,7 @@ Why we use this pattern:
 
 ## AI Extracted Response
 
-- reads `aur_quotes_details`
+- reads `aur_ai_extracted_response`
 - filters records by inquiry lookup
 - groups records by business rule category
 - supports:

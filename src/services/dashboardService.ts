@@ -1,10 +1,10 @@
 import { AccountsService } from '../generated/services/AccountsService'
-import { Cr058_emailtemplatesService } from '../generated/services/Cr058_emailtemplatesService'
-import { Aur_customdocumenttemplatesesService } from '../generated/services/Aur_customdocumenttemplatesesService'
+import { TemplatesService } from '../generated/services/TemplatesService'
+import { Aur_custom_document_templatesesService } from '../generated/services/Aur_custom_document_templatesesService'
 import { Aur_plansService } from '../generated/services/Aur_plansService'
 import { Aur_productsesService } from '../generated/services/Aur_productsesService'
 import { Aur_quotesService } from '../generated/services/Aur_quotesService'
-import { Aur_quotesesService } from '../generated/services/Aur_quotesesService'
+import { Aur_inquiriesService } from '../generated/services/Aur_inquiriesService'
 import { EmailsService } from '../generated/services/EmailsService'
 import type { DashboardMetrics } from '../domain/app'
 import {
@@ -26,10 +26,10 @@ function isPreviewMode() {
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const [inquiriesResult, quotesResult, emailTemplatesResult, documentTemplatesResult, emailsResult, productsResult, plansResult, accountsResult] =
     await Promise.all([
-      Aur_quotesesService.getAll({ orderBy: ['createdon desc'] }),
+      Aur_inquiriesService.getAll({ orderBy: ['createdon desc'] }),
       Aur_quotesService.getAll({ orderBy: ['createdon desc'] }),
-      Cr058_emailtemplatesService.getAll().catch(() => ({ data: [] })),
-      Aur_customdocumenttemplatesesService.getAll().catch(() => ({ data: [] })),
+      TemplatesService.getAll().catch(() => ({ data: [] })),
+      Aur_custom_document_templatesesService.getAll().catch(() => ({ data: [] })),
       EmailsService.getAll({ orderBy: ['createdon desc'] }).catch(() => ({ data: [] })),
       Aur_productsesService.getAll().catch(() => ({ data: [] })),
       Aur_plansService.getAll().catch(() => ({ data: [] })),
@@ -52,14 +52,14 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   )
   const inquiryCatalog = new Map(
     inquiries.map((item) => [
-      normalizeDataverseId(item.aur_quotesid),
+      normalizeDataverseId(item.aur_inquiryid),
       {
-        name: item.aur_name || item.aur_quote_number || 'Unnamed inquiry',
-        inquiryNumber: item.aur_quote_number || 'Draft',
+        name: item.aur_name || item.aur_inquiry_number || 'Unnamed inquiry',
+        inquiryNumber: item.aur_inquiry_number || 'Draft',
       },
     ]),
   )
-  const inquiryIds = new Set(inquiries.map((item) => normalizeDataverseId(item.aur_quotesid)))
+  const inquiryIds = new Set(inquiries.map((item) => normalizeDataverseId(item.aur_inquiryid)))
   const wonQuotes = quotes.filter((quote) => quote.aur_quote_status === 751820000 || quote.aur_quote_statusname === 'QuoteWon' || quote.aur_quote_statusname === 'Quote Won')
   const brokerEmails = emails.filter((email) =>
     inquiryIds.has(normalizeDataverseId(email._regardingobjectid_value)),
@@ -213,9 +213,9 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
         tone: 'primary',
       },
       {
-        label: 'Awaiting Review',
-        value: inquiries.filter((item) => (item.statuscodename ?? '').includes('Ready')).length,
-        helper: 'Items progressing toward quote generation',
+        label: 'In Progress',
+        value: inquiries.filter((item) => item.aur_underwriter_action === 1).length,
+        helper: 'Active inquiry records under review',
         tone: 'warning',
       },
       {

@@ -1,9 +1,9 @@
-import type { Aur_quoteses } from '../generated/models/Aur_quotesesModel'
+import type { Aur_inquiries } from '../generated/models/Aur_inquiriesModel'
 import { inquiryTypeLabel } from './inquiryTypeOptions'
 import { INQUIRY_STATUS_OPTIONS } from './inquiryStatusOptions'
 import type { Aur_quotes } from '../generated/models/Aur_quotesModel'
 import type { Aur_productses } from '../generated/models/Aur_productsesModel'
-import type { Aur_quotes_detailses } from '../generated/models/Aur_quotes_detailsesModel'
+import type { Aur_ai_extracted_responses } from '../generated/models/Aur_ai_extracted_responsesModel'
 import type { Accounts } from '../generated/models/AccountsModel'
 import type { Contacts } from '../generated/models/ContactsModel'
 import type {
@@ -37,7 +37,17 @@ export function mapProductSummary(
   }
 }
 
-export function mapInquirySummary(record: Aur_quoteses): InquirySummary {
+type InquiryRecord = Aur_inquiries & {
+  aur_brokername?: string
+  aur_vehicle_value?: string | null
+  aur_tpa?: string | null
+  aur_tpa_network?: number | null
+  aur_tpa_networkname?: string | null
+  'aur_tpa_network@OData.Community.Display.V1.FormattedValue'?: string
+  'statuscode@OData.Community.Display.V1.FormattedValue'?: string
+}
+
+export function mapInquirySummary(record: InquiryRecord): InquirySummary {
   const accountName = record.aur_accountname?.trim() || 'No account linked'
   const brokerName =
     record.aur_brokername?.trim() ||
@@ -45,13 +55,19 @@ export function mapInquirySummary(record: Aur_quoteses): InquirySummary {
     'No broker linked'
 
   return {
-    id: record.aur_quotesid,
+    id: record.aur_inquiryid,
     name: record.aur_name,
-    inquiryNumber: record.aur_quote_number ?? `INQ-${record.aur_quotesid.slice(0, 8).toUpperCase()}`,
+    inquiryNumber: record.aur_inquiry_number ?? `INQ-${record.aur_inquiryid.slice(0, 8).toUpperCase()}`,
     inquiryType: record.aur_inquiry_typename ?? inquiryTypeLabel(record.aur_inquiry_type) ?? '',
     inquiryTypeValue: record.aur_inquiry_type ? Number(record.aur_inquiry_type) : undefined,
-    status: inquiryLifecycleStatusLabel(record.statuscodename, record.statuscode) ?? record.statuscodename ?? 'Draft',
-    inquiryStatusValue: record.statuscode ? Number(record.statuscode) : undefined,
+    status: inquiryLifecycleStatusLabel(
+      record['statuscode@OData.Community.Display.V1.FormattedValue'],
+      record.statuscodename,
+      record.statuscode,
+      record.statecodename,
+      record.statecode,
+    ) ?? 'Status unavailable',
+    inquiryStatusValue: inquiryLifecycleStatusValue(record.statuscode, record.statecode),
     accountId: record._aur_account_value,
     accountName,
     contactName: record.aur_contactname ?? 'No contact linked',
@@ -64,14 +80,14 @@ export function mapInquirySummary(record: Aur_quoteses): InquirySummary {
     riskScore: record.aur_risk_score ?? 0,
     grossPremium: record.aur_gross_premium ?? 0,
     totalInsured: record.aur_total_sum_insured ?? 0,
-    createdOn: record.createdon ?? record.aur_created_on ?? '',
-    summary: record.aur_summary ?? record.aur_risksummary ?? 'Awaiting underwriting summary.',
+    createdOn: record.createdon ?? '',
+    summary: record.aur_ai_generated_summary ?? record.aur_risk_summary ?? 'Awaiting underwriting summary.',
     sharepointUrl: record.aur_sharepoint_url ?? '',
   }
 }
 
 export function mapInquiryDetail(
-  record: Aur_quoteses,
+  record: InquiryRecord,
   quotes: QuoteSummary[],
   quoteDetails: QuoteResponse[],
   workflow: WorkflowStep[],
@@ -79,20 +95,7 @@ export function mapInquiryDetail(
   contact?: RelatedParty,
   broker?: RelatedParty,
 ): InquiryDetail {
-  const inquiryRecord = record as Aur_quoteses & {
-    aur_base_premium?: number | null
-    aur_vehicle_value?: string | null
-    aur_customer_data?: string | null
-    aur_ai_evaluation_json_response?: string | null
-    aur_tpa?: string | null
-    aur_tpa_network?: number | null
-    aur_tpa_networkname?: string | null
-    'aur_tpa_network@OData.Community.Display.V1.FormattedValue'?: string
-    aur_underwriter_action_status?: number | null
-    aur_underwriter_sub_action?: number | null
-    aur_action_applied?: boolean | null
-    aur_plan_details?: string | null
-  }
+  const inquiryRecord = record
   const summary = mapInquirySummary(record)
   const resolvedAccountName = account?.name?.trim() || summary.accountName
   const resolvedContactName = contact?.name?.trim() || summary.contactName
@@ -128,25 +131,25 @@ export function mapInquiryDetail(
     accountName: resolvedAccountName,
     contactName: resolvedContactName,
     brokerName: resolvedBrokerName,
-    riskDescription: record.aur_risksummary ?? '',
+    riskDescription: record.aur_risk_description ?? '',
     paymentTerm: record.aur_payment_termname ?? 'Annual',
     territorialScope: record.aur_territorial_scope ?? 'Not specified',
     coverType: record.aur_cover_typename ?? 'Not specified',
     planDetails: inquiryRecord.aur_plan_details ?? '',
-    fee: record.aur_fee ?? 0,
+    fee: record.aur_fees ?? 0,
     declaredValue: record.aur_declared_value ?? 0,
     basePremium: inquiryRecord.aur_base_premium ?? 0,
     vehicleValue: inquiryRecord.aur_vehicle_value ?? '',
-    customerData: inquiryRecord.aur_customer_data ?? '',
+    customerData: inquiryRecord.aur_customer_information ?? '',
     aiEvaluationJsonResponse: inquiryRecord.aur_ai_evaluation_json_response ?? '',
     tpa: inquiryRecord.aur_tpa ?? '',
     tpaNetworkValue: inquiryRecord.aur_tpa_network,
     tpaNetworkLabel: inquiryRecord.aur_tpa_networkname || inquiryRecord['aur_tpa_network@OData.Community.Display.V1.FormattedValue'] || '',
-    underwriterActionStatus: inquiryRecord.aur_underwriter_action_status,
+    underwriterActionStatus: inquiryRecord.aur_underwriter_action,
     underwriterSubAction: inquiryRecord.aur_underwriter_sub_action,
-    totalCharge: record.aur_total_amount_charge ?? 0,
+    totalCharge: record.aur_total_premium_to_be_charged ?? 0,
     actionApplied: Boolean(inquiryRecord.aur_action_applied),
-    aiSummary: record.aur_risksummary ?? record.aur_summary ?? 'AI summary is not available yet.',
+    aiSummary: record.aur_ai_generated_summary ?? record.aur_risk_summary ?? 'AI summary is not available yet.',
     account,
     contact,
     broker,
@@ -204,15 +207,15 @@ export function mapQuoteDetail(
   }
 }
 
-export function mapQuoteResponse(record: Aur_quotes_detailses): QuoteResponse {
-  const rawRecord = record as Aur_quotes_detailses & {
+export function mapQuoteResponse(record: Aur_ai_extracted_responses): QuoteResponse {
+  const rawRecord = record as Aur_ai_extracted_responses & {
     aur_confidence_score?: number | string | null
   }
 
   return {
-    id: record.aur_quotes_detailsid,
-    businessRuleId: record._aur_business_rules_value,
-    businessRuleName: record.aur_business_rulesname ?? 'Business Rule',
+    id: record.aur_ai_extracted_responseid,
+    businessRuleId: record._aur_business_rule_value,
+    businessRuleName: record.aur_business_rulename ?? 'Business Rule',
     businessRuleCategory: 'Uncategorized',
     name: record.aur_name ?? 'Unnamed response',
     response: record.aur_response ?? '',
@@ -258,31 +261,31 @@ export function mapRelatedParty(
 }
 
 export function mapRenewalSummary(
-  inquiry: Aur_quoteses,
+  inquiry: InquiryRecord,
   linkedQuote?: Aur_quotes,
   reminderCount = 0,
 ): RenewalSummary {
   const expiryDate = buildRenewalDate(inquiry, linkedQuote)
   return {
-    id: inquiry.aur_quotesid,
-    inquiryId: inquiry.aur_quotesid,
+    id: inquiry.aur_inquiryid,
+    inquiryId: inquiry.aur_inquiryid,
     quoteId: linkedQuote?.aur_quoteid,
-    policyNumber: linkedQuote?.aur_name ?? inquiry.aur_quote_number ?? `POL-${inquiry.aur_quotesid.slice(0, 6).toUpperCase()}`,
+    policyNumber: linkedQuote?.aur_name ?? inquiry.aur_inquiry_number ?? `POL-${inquiry.aur_inquiryid.slice(0, 6).toUpperCase()}`,
     client: inquiry.aur_accountname ?? inquiry.aur_contactname ?? inquiry.aur_name,
     product: inquiry.aur_productname ?? 'No Product Linked',
     expiryDate: expiryDate.toISOString(),
     daysRemaining: Math.ceil((expiryDate.getTime() - Date.now()) / 86400000),
     status: buildRenewalStatus(expiryDate),
     reminderCount,
-    premiumTotal: linkedQuote?.aur_total_premium ?? inquiry.aur_total_amount_charge ?? 0,
+    premiumTotal: linkedQuote?.aur_total_premium ?? inquiry.aur_total_premium_to_be_charged ?? 0,
   }
 }
 
-export function buildWorkflow(record: Aur_quoteses): WorkflowStep[] {
+export function buildWorkflow(record: InquiryRecord): WorkflowStep[] {
   return [
     {
       label: 'Email Received',
-      complete: Boolean(record.createdon ?? record.aur_created_on),
+      complete: Boolean(record.createdon),
       tone: 'info',
     },
     {
@@ -292,7 +295,7 @@ export function buildWorkflow(record: Aur_quoteses): WorkflowStep[] {
     },
     {
       label: 'Inquiry Created',
-      complete: Boolean(record.aur_quotesid),
+      complete: Boolean(record.aur_inquiryid),
       tone: 'success',
     },
     {
@@ -302,22 +305,22 @@ export function buildWorkflow(record: Aur_quoteses): WorkflowStep[] {
     },
     {
       label: 'AI Processing',
-      complete: Boolean(record.aur_summary || record.aur_risksummary),
+      complete: Boolean(record.aur_ai_generated_summary || record.aur_risk_summary),
       tone: 'info',
     },
     {
       label: 'Awaiting Review',
-      complete: Boolean(record.aur_inquiry_status || record.aur_inquiry_statusname),
+      complete: Boolean(record.aur_underwriter_action || record.aur_underwriter_actionname),
       tone: 'warning',
     },
   ]
 }
 
-export function isRenewal(record: Aur_quoteses) {
+export function isRenewal(record: InquiryRecord) {
   return record.aur_inquiry_type === 2 || record.aur_inquiry_typename === 'Renewal'
 }
 
-export function countByType(records: Aur_quoteses[]): Array<{ label: string; value: number }> {
+export function countByType(records: InquiryRecord[]): Array<{ label: string; value: number }> {
   const counts = new Map<string, number>()
   for (const record of records) {
     const key = record.aur_inquiry_typename ?? inquiryTypeLabel(record.aur_inquiry_type) ?? 'Unknown'
@@ -326,17 +329,42 @@ export function countByType(records: Aur_quoteses[]): Array<{ label: string; val
   return Array.from(counts.entries()).map(([label, value]) => ({ label, value }))
 }
 
-function inquiryLifecycleStatusLabel(formatted?: string, raw?: number | string) {
-  const numericValue = Number(raw)
-  const mappedStatus = INQUIRY_STATUS_OPTIONS.find((option) => option.value === numericValue)
-  if (mappedStatus) return mappedStatus.label
+function inquiryLifecycleStatusLabel(
+  formattedStatusAnnotation?: string,
+  formattedStatusReason?: string,
+  rawStatusReason?: number | string,
+  formattedState?: string,
+  rawState?: number | string,
+) {
+  const annotation = formattedStatusAnnotation?.trim()
+  if (annotation) return annotation
 
-  return formatted
-    ? formatted
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
-        .replace(/\s+/g, ' ')
-        .trim()
-    : undefined
+  const numericStatusReason = Number(rawStatusReason)
+  const mappedStatusReason = INQUIRY_STATUS_OPTIONS.find((option) => option.value === numericStatusReason)
+  if (mappedStatusReason) return mappedStatusReason.label
+
+  const formatted = formattedStatusReason?.trim() || formattedState?.trim()
+  if (formatted) {
+    return formatted
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  if (Number(rawState) === 0) return 'Active'
+  if (Number(rawState) === 1) return 'Inactive'
+  return undefined
+}
+
+function inquiryLifecycleStatusValue(rawStatusReason?: number | string, rawState?: number | string) {
+  const numericStatusReason = Number(rawStatusReason)
+  if (INQUIRY_STATUS_OPTIONS.some((option) => option.value === numericStatusReason)) {
+    return numericStatusReason
+  }
+
+  if (Number(rawState) === 0) return 1
+  if (Number(rawState) === 1) return 2
+  return undefined
 }
 
 function quoteStatusLabel(value?: number) {
@@ -346,19 +374,19 @@ function quoteStatusLabel(value?: number) {
   return undefined
 }
 
-function buildCompletenessScore(record: Aur_quoteses) {
+function buildCompletenessScore(record: InquiryRecord) {
   let score = 40
-  if (record._aur_account_value) score += 10
+  if (record.aur_brokername) score += 10
   if (record._aur_contact_value) score += 10
-  if (record._aur_broker_value) score += 10
+  if (record._aur_account_value) score += 10
   if (record._aur_product_value) score += 10
   if (record.aur_sharepoint_url) score += 10
-  if (record.aur_risksummary || record.aur_summary) score += 10
+  if (record.aur_risk_summary || record.aur_ai_generated_summary) score += 10
   return Math.min(score, 100)
 }
 
-function buildRenewalDate(inquiry: Aur_quoteses, linkedQuote?: Aur_quotes) {
-  const anchor = inquiry.createdon ?? inquiry.aur_created_on ?? linkedQuote?.createdon
+function buildRenewalDate(inquiry: InquiryRecord, linkedQuote?: Aur_quotes) {
+  const anchor = inquiry.createdon ?? linkedQuote?.createdon
   const base = anchor ? new Date(anchor) : new Date()
   base.setDate(base.getDate() + 30)
   return base

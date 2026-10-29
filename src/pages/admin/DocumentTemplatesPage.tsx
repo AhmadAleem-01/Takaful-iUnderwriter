@@ -48,7 +48,7 @@ import { formatDate } from '../../lib/formatters'
 import { Aur_quotesService } from '../../generated/services/Aur_quotesService'
 import { Aur_business_rulesesService } from '../../generated/services/Aur_business_rulesesService'
 import { Aur_productsesService } from '../../generated/services/Aur_productsesService'
-import { Aur_customdocumenttemplatesesService } from '../../generated/services/Aur_customdocumenttemplatesesService'
+import { Aur_custom_document_templatesesService } from '../../generated/services/Aur_custom_document_templatesesService'
 
 type FieldGroupKey = 'Quote' | 'Business Rule' | 'Product'
 type ExtractionPhase =
@@ -134,7 +134,7 @@ export function DocumentTemplatesPage() {
       Aur_quotesService.getAll({ orderBy: ['createdon desc'] }),
       Aur_business_rulesesService.getAll({ orderBy: ['createdon desc'] }),
       Aur_productsesService.getAll({ orderBy: ['createdon desc'] }),
-      Aur_customdocumenttemplatesesService.getAll({ orderBy: ['modifiedon desc', 'createdon desc'] }),
+      Aur_custom_document_templatesesService.getAll({ orderBy: ['modifiedon desc', 'createdon desc'] }),
     ])
 
     return {
@@ -142,9 +142,9 @@ export function DocumentTemplatesPage() {
       rules: rulesResult.data ?? [],
       products: productsResult.data ?? [],
       templates: (templatesResult.data ?? []).map((item) => ({
-        id: item.aur_customdocumenttemplatesid,
-        name: item.aur_name,
-        content: item.aur_templatecontent ?? '',
+        id: item.aur_custom_document_templatesid,
+        name: item.aur_name ?? 'Untitled template',
+        content: item.aur_template_content ?? '',
         statusCode: Number(item.statuscode ?? 1),
         status: item.statuscodename ?? (Number(item.statuscode) === 2 ? 'Inactive' : 'Active'),
         updatedOn: item.modifiedon ?? item.createdon,
@@ -355,16 +355,16 @@ export function DocumentTemplatesPage() {
 
     const payload = {
       aur_name: workspaceName.trim(),
-      aur_templatecontent: content,
+      aur_template_content: content,
       statuscode: workspaceStatus,
     }
 
     try {
       if (selectedTemplateId) {
-        await Aur_customdocumenttemplatesesService.update(selectedTemplateId, payload)
+        await Aur_custom_document_templatesesService.update(selectedTemplateId, payload)
       } else {
-        const result = await Aur_customdocumenttemplatesesService.create(payload as never)
-        const createdId = result.data?.aur_customdocumenttemplatesid
+        const result = await Aur_custom_document_templatesesService.create(payload as never)
+        const createdId = result.data?.aur_custom_document_templatesid
         if (createdId) setSelectedTemplateId(createdId)
       }
       setSaveMessage('Document template saved successfully.')
@@ -407,7 +407,7 @@ export function DocumentTemplatesPage() {
       setDeleteBusy(true)
       setDeleteError(null)
       setSaveMessage(null)
-      await Aur_customdocumenttemplatesesService.delete(deleteTemplate.id)
+      await Aur_custom_document_templatesesService.delete(deleteTemplate.id)
 
       const deletedTemplateName = deleteTemplate.name
       const deletedTemplateId = deleteTemplate.id
@@ -1236,7 +1236,7 @@ function isHighQualityExtractedText(value: string) {
 
   const alphaWords = words.filter((word) => /[A-Za-z]{3,}/.test(word))
   const vowelWords = alphaWords.filter((word) => /[aeiou]/i.test(word))
-  const symbolHeavyWords = words.filter((word) => /[^A-Za-z0-9,.'()\-]/.test(word))
+  const symbolHeavyWords = words.filter((word) => /[^A-Za-z0-9,.'()-]/.test(word))
 
   const alphaRatio = alphaWords.length / words.length
   const vowelRatio = alphaWords.length === 0 ? 0 : vowelWords.length / alphaWords.length

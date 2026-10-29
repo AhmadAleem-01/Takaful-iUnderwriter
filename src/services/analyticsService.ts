@@ -1,11 +1,11 @@
 import { Aur_quotesService } from '../generated/services/Aur_quotesService'
-import { Aur_quotesesService } from '../generated/services/Aur_quotesesService'
+import { Aur_inquiriesService } from '../generated/services/Aur_inquiriesService'
 import type { AnalyticsSnapshot } from '../domain/app'
 import { countByType } from './dataMappers'
 
 export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
   const [inquiriesResult, quotesResult] = await Promise.all([
-    Aur_quotesesService.getAll(),
+    Aur_inquiriesService.getAll(),
     Aur_quotesService.getAll(),
   ])
   const inquiries = inquiriesResult.data ?? []
@@ -31,7 +31,7 @@ export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
   ).map(([label, value]) => ({ label, value }))
   const statusDistribution = Array.from(
     inquiries.reduce((map, inquiry) => {
-      const key = inquiry.statuscodename ?? 'Draft'
+      const key = inquiry.aur_underwriter_actionname ?? inquiry.statuscodename ?? 'Active'
       map.set(key, (map.get(key) ?? 0) + 1)
       return map
     }, new Map<string, number>()),
@@ -58,12 +58,12 @@ export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
       const key = inquiry.aur_productname ?? 'Unassigned'
       const current = map.get(key) ?? { label: key, inquiries: 0, quotes: 0, premium: 0 }
       current.inquiries += 1
-      current.premium += inquiry.aur_total_amount_charge ?? 0
+      current.premium += inquiry.aur_total_premium_to_be_charged ?? 0
       map.set(key, current)
       return map
     }, new Map<string, { label: string; inquiries: number; quotes: number; premium: number }>()),
   )
-    .map(([_, value]) => {
+    .map(([, value]) => {
       value.quotes = quotes.filter((quote) => quote.aur_productname === value.label).length
       return value
     })

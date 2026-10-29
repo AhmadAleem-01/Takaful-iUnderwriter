@@ -1,8 +1,8 @@
 import {
   Aur_business_rulesesService,
   Aur_consequencesesService,
-  Aur_customdocumenttemplatesesService,
-  Cr058_emailtemplatesService,
+  Aur_custom_document_templatesesService,
+  TemplatesService,
 } from '../generated'
 import { Aur_business_rulesesaur_categories } from '../generated/models/Aur_business_rulesesModel'
 import type { Aur_consequenceses } from '../generated/models/Aur_consequencesesModel'
@@ -194,10 +194,10 @@ export async function getBusinessRulesCatalog() {
       name: rule.aur_name,
       categoryLabel: resolveRuleCategoryLabel(rule.aur_categories),
       parentRuleName:
-        (rule._aur_category_value
-          ? ruleNameById.get(normalizeDataverseId(rule._aur_category_value))
+        (rule._aur_properties_value
+          ? ruleNameById.get(normalizeDataverseId(rule._aur_properties_value))
           : undefined) ??
-        rule.aur_categoryname ??
+        rule.aur_propertiesname ??
         '',
       inquiryTypeLabel:
         BUSINESS_RULE_INQUIRY_TYPE_OPTIONS.find(
@@ -220,8 +220,8 @@ export async function getBusinessRuleWorkspace(ruleId?: string): Promise<Busines
   const [rulesResult, consequencesResult, documentTemplatesResult, emailTemplatesResult] = await Promise.all([
     Aur_business_rulesesService.getAll(),
     Aur_consequencesesService.getAll(),
-    Aur_customdocumenttemplatesesService.getAll().catch(() => ({ data: [] })),
-    Cr058_emailtemplatesService.getAll().catch(() => ({ data: [] })),
+    Aur_custom_document_templatesesService.getAll().catch(() => ({ data: [] })),
+    TemplatesService.getAll().catch(() => ({ data: [] })),
   ])
 
   const rules = rulesResult.data ?? []
@@ -239,8 +239,8 @@ export async function getBusinessRuleWorkspace(ruleId?: string): Promise<Busines
       categoryValue: rule.aur_categories ? String(rule.aur_categories) : '',
       inquiryTypeValue: getBusinessRuleInquiryTypeValue(rule as unknown as { aur_inquiry_type?: unknown }),
       categoryLabel: resolveRuleCategoryLabel(rule.aur_categories),
-      parentRuleId: rule._aur_category_value ?? '',
-      parentRuleName: rule.aur_categoryname ?? '',
+      parentRuleId: rule._aur_properties_value ?? '',
+      parentRuleName: rule.aur_propertiesname ?? '',
     }))
     .sort((left, right) => left.name.localeCompare(right.name))
 
@@ -271,8 +271,8 @@ export async function getBusinessRuleWorkspace(ruleId?: string): Promise<Busines
           inquiryTypeValue: getBusinessRuleInquiryTypeValue(
             currentRule as unknown as { aur_inquiry_type?: unknown },
           ),
-          parentRuleId: currentRule._aur_category_value ?? '',
-          parentRuleName: currentRule.aur_categoryname ?? '',
+          parentRuleId: currentRule._aur_properties_value ?? '',
+          parentRuleName: currentRule.aur_propertiesname ?? '',
           status: currentRule.statuscodename ?? 'Active',
           createdOn: currentRule.createdon,
           modifiedOn: currentRule.modifiedon,
@@ -283,15 +283,15 @@ export async function getBusinessRuleWorkspace(ruleId?: string): Promise<Busines
     documentTemplateOptions: documentTemplates
       .filter((item) => Number(item.statuscode ?? 1) === 1)
       .map((item) => ({
-        value: item.aur_customdocumenttemplatesid,
-        label: item.aur_name,
+        value: item.aur_custom_document_templatesid,
+        label: item.aur_name ?? 'Untitled template',
       }))
       .sort((left, right) => left.label.localeCompare(right.label)),
     emailTemplateOptions: emailTemplates
-      .filter((item) => Number(item.statuscode ?? 1) === 1)
+      .filter((item) => item.componentstate === 0)
       .map((item) => ({
-        value: item.cr058_emailtemplateid,
-        label: item.cr058_templatename,
+        value: item.templateid,
+        label: item.title,
       }))
       .sort((left, right) => left.label.localeCompare(right.label)),
     consequences: workspaceConsequences,
@@ -303,7 +303,7 @@ export async function saveBusinessRule(input: SaveBusinessRuleInput) {
     aur_name: input.name.trim(),
     ...(input.categoryValue ? { aur_categories: Number(input.categoryValue) as keyof typeof Aur_business_rulesesaur_categories } : {}),
     ...(input.inquiryTypeValue ? { aur_inquiry_type: Number(input.inquiryTypeValue) } : { aur_inquiry_type: null }),
-    ...(input.parentRuleId ? { 'aur_category@odata.bind': `/aur_business_ruleses(${input.parentRuleId})` } : { 'aur_category@odata.bind': null }),
+    ...(input.parentRuleId ? { 'aur_properties@odata.bind': `/aur_business_ruleses(${input.parentRuleId})` } : { 'aur_properties@odata.bind': null }),
   }
 
   if (input.id) {
@@ -444,11 +444,11 @@ export async function saveBusinessRuleConsequence(input: SaveConsequenceInput) {
         : null,
     'aur_DocumentTemplate@odata.bind':
       input.typeValue === '3' && input.documentTemplateId
-        ? `/aur_customdocumenttemplateses(${input.documentTemplateId})`
+        ? `/aur_custom_document_templateses(${input.documentTemplateId})`
         : null,
     'aur_EmailTemplate@odata.bind':
       input.typeValue === '5' && input.emailTemplateId
-        ? `/cr058_emailtemplates(${input.emailTemplateId})`
+        ? `/templates(${input.emailTemplateId})`
         : null,
     ...(input.id ? {} : { 'aur_business_rule@odata.bind': `/aur_business_ruleses(${input.businessRuleId})` }),
   }

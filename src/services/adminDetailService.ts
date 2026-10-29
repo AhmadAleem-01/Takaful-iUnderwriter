@@ -3,7 +3,7 @@ import {
   BusinessunitsService,
   ContactsService,
   SystemusersService,
-  Aur_customdocumenttemplatesesService,
+  Aur_custom_document_templatesesService,
 } from '../generated'
 import type { AdminDetailRecord, AdminEntityKey, DocumentTemplateSummary } from '../domain/app'
 
@@ -92,11 +92,11 @@ export async function getAdminDetail(entity: Extract<AdminEntityKey, 'business-u
 }
 
 export async function getDocumentTemplatePreview(templateId: string): Promise<DocumentTemplateSummary> {
-  const record = (await Aur_customdocumenttemplatesesService.get(templateId)).data
+  const record = (await Aur_custom_document_templatesesService.get(templateId)).data
   if (!record) throw new Error('Document template not found.')
   return {
-    id: record.aur_customdocumenttemplatesid,
-    name: record.aur_name,
-    content: record.aur_templatecontent ?? '',
+    id: record.aur_custom_document_templatesid,
+    name: record.aur_name ?? 'Untitled template',
+    content: record.aur_template_content ?? '',
   }
 }

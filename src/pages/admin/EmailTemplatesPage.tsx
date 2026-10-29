@@ -41,13 +41,13 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import { cn } from '../../lib/cn'
 import { formatDate } from '../../lib/formatters'
-import { Cr058_emailtemplatesService } from '../../generated/services/Cr058_emailtemplatesService'
+import { TemplatesService } from '../../generated/services/TemplatesService'
 import {
-  Cr058_emailtemplatescr058_category,
-  type Cr058_emailtemplates,
-} from '../../generated/models/Cr058_emailtemplatesModel'
+  Templatestemplatetypecode,
+  type Templates,
+} from '../../generated/models/TemplatesModel'
 
-type TemplateCategory = 'Inquiry' | 'Quote' | 'Policy' | 'Reminder' | 'General'
+type TemplateCategory = (typeof Templatestemplatetypecode)[keyof typeof Templatestemplatetypecode]
 type StatusFilter = 'all' | 'active' | 'inactive'
 type EditorMode = 'visual' | 'html'
 
@@ -70,10 +70,9 @@ interface TemplateDraft {
   description: string
   body: string
   categoryKey: TemplateCategory | ''
-  isActive: boolean
 }
 
-const CATEGORY_OPTIONS = Object.entries(Cr058_emailtemplatescr058_category).map(([value, label]) => ({
+const CATEGORY_OPTIONS = Object.entries(Templatestemplatetypecode).map(([value, label]) => ({
   value,
   label,
 }))
@@ -94,8 +93,7 @@ const EMPTY_DRAFT: TemplateDraft = {
   subject: '',
   description: '',
   body: '<p>Write your email content here. Use the toolbar above for formatting and insert placeholders for dynamic content.</p>',
-  categoryKey: '',
-  isActive: true,
+  categoryKey: 'Quote',
 }
 
 export function EmailTemplatesPage() {
@@ -119,7 +117,7 @@ export function EmailTemplatesPage() {
   const editorRef = useRef<HTMLDivElement | null>(null)
 
   const { data, loading, error } = useAsyncData(async () => {
-    const result = await Cr058_emailtemplatesService.getAll({
+    const result = await TemplatesService.getAll({
       orderBy: ['modifiedon desc', 'createdon desc'],
     })
     return (result.data ?? []).map(mapTemplateRecord)
@@ -137,7 +135,7 @@ export function EmailTemplatesPage() {
     return () => window.removeEventListener('click', onClick)
   }, [openActionId])
 
-  const templates = data ?? []
+  const templates = useMemo(() => data ?? [], [data])
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
@@ -175,7 +173,6 @@ export function EmailTemplatesPage() {
       description: template.description,
       body: template.body,
       categoryKey: template.categoryKey,
-      isActive: template.isActive,
     })
     setEditorMode('visual')
     setSubmitError(null)
@@ -191,7 +188,6 @@ export function EmailTemplatesPage() {
       description: template.description,
       body: template.body,
       categoryKey: template.categoryKey,
-      isActive: template.isActive,
     })
     setEditorMode('visual')
     setSubmitError(null)
@@ -217,18 +213,19 @@ export function EmailTemplatesPage() {
 
     try {
       const payload = {
-        cr058_templatename: draft.templateName.trim(),
-        cr058_subject: draft.subject.trim(),
-        cr058_description: draft.description.trim() || undefined,
-        cr058_body: visualBody,
-        cr058_isactive: draft.isActive,
-        ...(categoryValue ? { cr058_category: Number(categoryValue) as keyof typeof Cr058_emailtemplatescr058_category } : {}),
+        title: draft.templateName.trim(),
+        subject: draft.subject.trim(),
+        description: draft.description.trim() || undefined,
+        body: visualBody,
+        languagecode: 1033,
+        templatetypecode: Number(categoryValue) as keyof typeof Templatestemplatetypecode,
+        ispersonal: false,
       }
 
       if (draft.id) {
-        await Cr058_emailtemplatesService.update(draft.id, payload)
+        await TemplatesService.update(draft.id, payload)
       } else {
-        await Cr058_emailtemplatesService.create(payload as never)
+        await TemplatesService.create(payload as never)
       }
 
       setEditorOpen(false)
@@ -246,7 +243,7 @@ export function EmailTemplatesPage() {
     try {
       setDeleteBusy(true)
       setDeleteError(null)
-      await Cr058_emailtemplatesService.delete(deleteTemplate.id)
+      await TemplatesService.delete(deleteTemplate.id)
       setDeleteOpen(false)
       setDeleteTemplate(null)
       setRefreshKey((value) => value + 1)
@@ -284,7 +281,7 @@ export function EmailTemplatesPage() {
   }
 
   function statusValueLabel(template: TemplateRecord) {
-    return template.isActive ? 'Active' : 'Inactive'
+    return template.isActive ? 'Published' : 'Unpublished'
   }
 
   return (
@@ -296,7 +293,7 @@ export function EmailTemplatesPage() {
             <div className="space-y-2">
               <h1 className="text-[34px] font-bold tracking-[-0.03em]">Email Templates</h1>
               <p className="max-w-3xl text-base leading-8 text-muted-foreground">
-                Manage reusable email templates for customer communications with a cleaner editorial workflow, template previewing, and controlled status handling.
+                Manage reusable Dataverse email templates for customer communications, with editing and previewing in one workspace.
               </p>
             </div>
           </div>
@@ -332,8 +329,8 @@ export function EmailTemplatesPage() {
               onValueChange={(value) => setStatusFilter(value as StatusFilter)}
               options={[
                 { value: 'all', label: 'All Status' },
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
+                { value: 'active', label: 'Published' },
+                { value: 'inactive', label: 'Unpublished' },
               ]}
             />
           </div>
@@ -486,7 +483,7 @@ export function EmailTemplatesPage() {
               <div>
                 <h2 className="text-xl font-semibold">Template sources</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  The current code app is live on editable Dataverse templates and ready for a secondary generated-library source when that schema is added.
+                  The current code app is connected to the out-of-the-box Dataverse Template table.
                 </p>
               </div>
             </div>
@@ -507,8 +504,8 @@ export function EmailTemplatesPage() {
               muted
             />
             <SourceCard
-              title="Currently active"
-              description="Templates ready for operational use."
+              title="Published templates"
+              description="Templates currently published in Dataverse."
               count={activeTemplateCount}
               icon={<CheckCircle2 className="h-4 w-4" />}
             />
@@ -568,29 +565,6 @@ export function EmailTemplatesPage() {
               onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
               placeholder="Brief description of when to use this template"
             />
-          </Field>
-
-          <Field label="Status">
-            <div className="inline-flex rounded-full border border-border-soft bg-surface-muted/80 p-1">
-              <Button
-                type="button"
-                variant={draft.isActive ? 'primary' : 'ghost'}
-                size="sm"
-                className="rounded-full"
-                onClick={() => setDraft((current) => ({ ...current, isActive: true }))}
-              >
-                Active
-              </Button>
-              <Button
-                type="button"
-                variant={!draft.isActive ? 'primary' : 'ghost'}
-                size="sm"
-                className="rounded-full"
-                onClick={() => setDraft((current) => ({ ...current, isActive: false }))}
-              >
-                Inactive
-              </Button>
-            </div>
           </Field>
 
           <Field label="Email Body *">
@@ -788,25 +762,26 @@ export function EmailTemplatesPage() {
   )
 }
 
-function mapTemplateRecord(record: Cr058_emailtemplates): TemplateRecord {
+function mapTemplateRecord(record: Templates): TemplateRecord {
   return {
-    id: record.cr058_emailtemplateid,
-    templateName: record.cr058_templatename,
-    subject: record.cr058_subject,
-    description: record.cr058_description ?? '',
-    body: record.cr058_body ?? '<p>No content captured.</p>',
-    categoryKey: (record.cr058_categoryname as TemplateCategory | undefined) ?? 'General',
-    isActive: record.cr058_isactive ?? record.statuscode === 1,
-    createdOn: record.cr058_createdon ?? record.createdon,
+    id: record.templateid,
+    templateName: record.title,
+    subject: record.subject ?? '',
+    description: record.description ?? '',
+    body: record.body ?? '<p>No content captured.</p>',
+    categoryKey:
+      (record.templatetypecodename as TemplateCategory | undefined) ??
+      Templatestemplatetypecode[record.templatetypecode],
+    isActive: record.componentstate === 0,
+    createdOn: record.createdon,
     updatedOn: record.modifiedon,
   }
 }
 
 function categoryBadgeClass(category: TemplateCategory) {
-  if (category === 'Inquiry') return 'bg-primary text-white'
   if (category === 'Quote') return 'bg-[#99D6D1] text-[#083344]'
-  if (category === 'Policy') return 'bg-[#E4ECFF] text-[#1D4ED8]'
-  if (category === 'Reminder') return 'bg-[#FEE2E2] text-[#B91C1C]'
+  if (category === 'Account' || category === 'Contact') return 'bg-[#E4ECFF] text-[#1D4ED8]'
+  if (category === 'Case' || category === 'ServiceActivity') return 'bg-[#FEE2E2] text-[#B91C1C]'
   return 'bg-slate-200 text-slate-700 dark:bg-white/10 dark:text-white'
 }
 

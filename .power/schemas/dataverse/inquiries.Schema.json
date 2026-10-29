@@ -1,13 +1,13 @@
 {
-  "name": "aur_quotes",
+  "name": "aur_inquiry",
   "title": "Inquiries",
   "schema": {
     "type": "array",
     "items": {
       "type": "object",
       "x-ms-dataverse-entity": true,
-      "x-ms-dataverse-entityset": "aur_quoteses",
-      "x-ms-dataverse-primary-id": "aur_quotesid",
+      "x-ms-dataverse-entityset": "aur_inquiries",
+      "x-ms-dataverse-primary-id": "aur_inquiryid",
       "x-ms-dataverse-primary-name": "aur_name",
       "properties": {
         "aur_account": {
@@ -53,7 +53,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "9c813cc5-95c0-f111-aaad-002248e3ba3f",
+          "x-ms-optionsetmetadataid": "3a39f1f4-21d1-f111-a05d-002248cbe9fc",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Action Applied",
           "x-ms-optionSetType": "Boolean"
@@ -66,26 +66,43 @@
           "x-ms-schema-name": "aur_action_appliedName",
           "x-ms-read-only": true
         },
-        "aur_additional_premium_percentage": {
+        "aur_additional_premium_pct": {
           "type": "string",
-          "title": "Additional Premium Percentage",
-          "x-ms-dataverse-attribute": "aur_additional_premium_percentage",
-          "x-ms-dataverse-type": "IntegerType",
-          "x-ms-schema-name": "aur_additional_premium_percentage"
+          "title": "Additional Premium %",
+          "x-ms-dataverse-attribute": "aur_additional_premium_pct",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "aur_additional_premium_pct"
+        },
+        "aur_ai_evaluation_json_response": {
+          "type": "string",
+          "title": "AI Evaluation JSON Response",
+          "x-ms-dataverse-attribute": "aur_ai_evaluation_json_response",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_ai_evaluation_json_response",
+          "maxLength": 1048576
+        },
+        "aur_ai_generated_summary": {
+          "type": "string",
+          "title": "AI Generated Summary",
+          "x-ms-dataverse-attribute": "aur_ai_generated_summary",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_ai_generated_summary",
+          "maxLength": 1048576
         },
         "aur_base_premium": {
           "type": "string",
           "title": "Base Premium",
           "x-ms-dataverse-attribute": "aur_base_premium",
-          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-dataverse-type": "MoneyType",
           "x-ms-schema-name": "aur_base_premium"
         },
-        "aur_broker": {
+        "aur_base_premium_base": {
           "type": "string",
-          "title": "Broker",
-          "x-ms-dataverse-attribute": "aur_broker",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_broker"
+          "title": "Base Premium (Base)",
+          "x-ms-dataverse-attribute": "aur_base_premium_base",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "aur_base_premium_Base",
+          "x-ms-read-only": true
         },
         "aur_brokerage_pct": {
           "type": "string",
@@ -93,15 +110,6 @@
           "x-ms-dataverse-attribute": "aur_brokerage_pct",
           "x-ms-dataverse-type": "DecimalType",
           "x-ms-schema-name": "aur_brokerage_pct"
-        },
-        "aur_brokername": {
-          "type": "string",
-          "title": "aur_brokername",
-          "x-ms-dataverse-attribute": "aur_brokername",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_brokerName",
-          "x-ms-read-only": true,
-          "maxLength": 850
         },
         "aur_contact": {
           "type": "string",
@@ -155,7 +163,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "3eedb73b-2338-4b6f-b665-17987ad11247",
+          "x-ms-optionsetmetadataid": "19b88361-f010-44c2-a3d6-a374dfcb4780",
           "x-ms-isGlobal": true,
           "x-ms-optionsetdisplayname": "Cover Type",
           "x-ms-optionSetType": "Picklist"
@@ -168,41 +176,50 @@
           "x-ms-schema-name": "aur_cover_typeName",
           "x-ms-read-only": true
         },
-        "aur_created_on": {
+        "aur_customer_information": {
           "type": "string",
-          "title": "Created On",
-          "x-ms-dataverse-attribute": "aur_created_on",
-          "x-ms-dataverse-type": "DateTimeType",
-          "x-ms-schema-name": "aur_created_on"
+          "title": "Customer Information",
+          "x-ms-dataverse-attribute": "aur_customer_information",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_customer_information",
+          "maxLength": 1048576
         },
         "aur_declared_value": {
           "type": "string",
           "title": "Declared Value",
           "x-ms-dataverse-attribute": "aur_declared_value",
-          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-dataverse-type": "MoneyType",
           "x-ms-schema-name": "aur_declared_value"
         },
-        "aur_email_data": {
+        "aur_declared_value_base": {
           "type": "string",
-          "title": "Email Data",
-          "x-ms-dataverse-attribute": "aur_email_data",
+          "title": "Declared Value (Base)",
+          "x-ms-dataverse-attribute": "aur_declared_value_base",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "aur_declared_value_Base",
+          "x-ms-read-only": true
+        },
+        "aur_documents_url": {
+          "type": "string",
+          "title": "Documents URL",
+          "x-ms-dataverse-attribute": "aur_documents_url",
           "x-ms-dataverse-type": "MemoType",
-          "x-ms-schema-name": "aur_email_data",
+          "x-ms-schema-name": "aur_documents_url",
           "maxLength": 1048576
         },
-        "aur_fee": {
+        "aur_fees": {
           "type": "string",
-          "title": "Fee",
-          "x-ms-dataverse-attribute": "aur_fee",
+          "title": "Fees",
+          "x-ms-dataverse-attribute": "aur_fees",
           "x-ms-dataverse-type": "MoneyType",
-          "x-ms-schema-name": "aur_fee"
+          "x-ms-schema-name": "aur_fees"
         },
-        "aur_fee_base": {
+        "aur_fees_base": {
           "type": "string",
-          "title": "Fee (Base)",
-          "x-ms-dataverse-attribute": "aur_fee_base",
+          "title": "Fees (Base)",
+          "x-ms-dataverse-attribute": "aur_fees_base",
           "x-ms-dataverse-type": "MoneyType",
-          "x-ms-schema-name": "aur_fee_Base",
+          "x-ms-schema-name": "aur_fees_Base",
           "x-ms-read-only": true
         },
         "aur_gross_premium": {
@@ -220,17 +237,25 @@
           "x-ms-schema-name": "aur_gross_premium_Base",
           "x-ms-read-only": true
         },
-        "aur_inquiry_status": {
+        "aur_inquiry_number": {
           "type": "string",
-          "title": "Inquiry Status",
-          "x-ms-dataverse-attribute": "aur_inquiry_status",
+          "title": "Inquiry Number",
+          "x-ms-dataverse-attribute": "aur_inquiry_number",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_inquiry_number",
+          "maxLength": 4000
+        },
+        "aur_inquiry_type": {
+          "type": "string",
+          "title": "Inquiry Type",
+          "x-ms-dataverse-attribute": "aur_inquiry_type",
           "x-ms-dataverse-type": "PicklistType",
-          "x-ms-schema-name": "aur_inquiry_status",
+          "x-ms-schema-name": "aur_inquiry_type",
           "enum": [
-            "Decline",
-            "Refer to Underwriter",
-            "Escalate to Head of Aviation",
-            "Property or Reinsurance Team"
+            "New",
+            "Renewal",
+            "Endorsement",
+            "Claims"
           ],
           "x-ms-enum-values": [
             1,
@@ -244,50 +269,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "073891b7-6935-4128-af92-d476e9c41e26",
-          "x-ms-isGlobal": true,
-          "x-ms-optionsetdisplayname": "Inquiry Status",
-          "x-ms-optionSetType": "Picklist"
-        },
-        "aur_inquiry_statusname": {
-          "type": "string",
-          "title": "aur_inquiry_statusname",
-          "x-ms-dataverse-attribute": "aur_inquiry_statusname",
-          "x-ms-dataverse-type": "VirtualType",
-          "x-ms-schema-name": "aur_inquiry_statusName",
-          "x-ms-read-only": true
-        },
-        "aur_inquiry_type": {
-          "type": "string",
-          "title": "Inquiry Type",
-          "x-ms-dataverse-attribute": "aur_inquiry_type",
-          "x-ms-dataverse-type": "PicklistType",
-          "x-ms-schema-name": "aur_inquiry_type",
-          "enum": [
-            "New",
-            "Renewal",
-            "Endorsement",
-            "Claims",
-            "Company Vehicle",
-            "Personal Vehicle"
-          ],
-          "x-ms-enum-values": [
-            1,
-            2,
-            3,
-            4,
-            5,
-            6
-          ],
-          "Color": [
-            null,
-            null,
-            null,
-            null,
-            null,
-            null
-          ],
-          "x-ms-optionsetmetadataid": "a503de35-5803-4862-855f-ebd5d6f6fe4c",
+          "x-ms-optionsetmetadataid": "568e124a-10b0-47ef-a0f5-985e3cf9a832",
           "x-ms-isGlobal": true,
           "x-ms-optionsetdisplayname": "Inquiry Type",
           "x-ms-optionSetType": "Picklist"
@@ -299,6 +281,16 @@
           "x-ms-dataverse-type": "VirtualType",
           "x-ms-schema-name": "aur_inquiry_typeName",
           "x-ms-read-only": true
+        },
+        "aur_inquiryid": {
+          "type": "string",
+          "title": "Inquiry",
+          "x-ms-dataverse-attribute": "aur_inquiryid",
+          "x-ms-dataverse-type": "UniqueidentifierType",
+          "x-ms-schema-name": "aur_inquiryId",
+          "x-ms-dataverse-primary-id": true,
+          "required": true,
+          "x-ms-keyType": "primary"
         },
         "aur_name": {
           "type": "string",
@@ -339,7 +331,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "e2d4f3be-9a63-4b76-80d0-b2ec1d93a7f6",
+          "x-ms-optionsetmetadataid": "c94f258a-b4f8-4504-905c-9291c40b9437",
           "x-ms-isGlobal": true,
           "x-ms-optionsetdisplayname": "Payment Term",
           "x-ms-optionSetType": "Picklist"
@@ -365,7 +357,7 @@
           "x-ms-dataverse-attribute": "aur_plan_details",
           "x-ms-dataverse-type": "MemoType",
           "x-ms-schema-name": "aur_plan_details",
-          "maxLength": 4000
+          "maxLength": 1048576
         },
         "aur_planname": {
           "type": "string",
@@ -392,24 +384,6 @@
           "x-ms-read-only": true,
           "maxLength": 850
         },
-        "aur_quote_number": {
-          "type": "string",
-          "title": "Inquiry Number",
-          "x-ms-dataverse-attribute": "aur_quote_number",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_quote_number",
-          "maxLength": 4000
-        },
-        "aur_quotesid": {
-          "type": "string",
-          "title": "Quotes",
-          "x-ms-dataverse-attribute": "aur_quotesid",
-          "x-ms-dataverse-type": "UniqueidentifierType",
-          "x-ms-schema-name": "aur_quotesId",
-          "x-ms-dataverse-primary-id": true,
-          "required": true,
-          "x-ms-keyType": "primary"
-        },
         "aur_risk_description": {
           "type": "string",
           "title": "Risk Description",
@@ -425,13 +399,13 @@
           "x-ms-dataverse-type": "DecimalType",
           "x-ms-schema-name": "aur_risk_score"
         },
-        "aur_risksummary": {
+        "aur_risk_summary": {
           "type": "string",
           "title": "Risk Summary",
-          "x-ms-dataverse-attribute": "aur_risksummary",
+          "x-ms-dataverse-attribute": "aur_risk_summary",
           "x-ms-dataverse-type": "MemoType",
-          "x-ms-schema-name": "aur_RiskSummary",
-          "maxLength": 2000
+          "x-ms-schema-name": "aur_risk_summary",
+          "maxLength": 1048576
         },
         "aur_sharepoint_url": {
           "type": "string",
@@ -441,14 +415,6 @@
           "x-ms-schema-name": "aur_sharepoint_url",
           "maxLength": 4000
         },
-        "aur_summary": {
-          "type": "string",
-          "title": "AI Generated Summary",
-          "x-ms-dataverse-attribute": "aur_summary",
-          "x-ms-dataverse-type": "MemoType",
-          "x-ms-schema-name": "aur_summary",
-          "maxLength": 1048576
-        },
         "aur_territorial_scope": {
           "type": "string",
           "title": "Territorial Scope",
@@ -457,13 +423,6 @@
           "x-ms-schema-name": "aur_territorial_scope",
           "maxLength": 4000
         },
-        "aur_total_amount_charge": {
-          "type": "string",
-          "title": "Premium to be Charged",
-          "x-ms-dataverse-attribute": "aur_total_amount_charge",
-          "x-ms-dataverse-type": "IntegerType",
-          "x-ms-schema-name": "aur_total_amount_charge"
-        },
         "aur_total_deduction_pct": {
           "type": "string",
           "title": "Total Deduction %",
@@ -471,12 +430,27 @@
           "x-ms-dataverse-type": "DecimalType",
           "x-ms-schema-name": "aur_total_deduction_pct"
         },
-        "aur_total_premium_percentage": {
+        "aur_total_premium_pct": {
           "type": "string",
-          "title": "Total Premium Percentage",
-          "x-ms-dataverse-attribute": "aur_total_premium_percentage",
-          "x-ms-dataverse-type": "IntegerType",
-          "x-ms-schema-name": "aur_total_premium_percentage"
+          "title": "Total Premium %",
+          "x-ms-dataverse-attribute": "aur_total_premium_pct",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "aur_total_premium_pct"
+        },
+        "aur_total_premium_to_be_charged": {
+          "type": "string",
+          "title": "Total Premium to be Charged",
+          "x-ms-dataverse-attribute": "aur_total_premium_to_be_charged",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "aur_total_premium_to_be_charged"
+        },
+        "aur_total_premium_to_be_charged_base": {
+          "type": "string",
+          "title": "Total Premium to be Charged (Base)",
+          "x-ms-dataverse-attribute": "aur_total_premium_to_be_charged_base",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "aur_total_premium_to_be_charged_Base",
+          "x-ms-read-only": true
         },
         "aur_total_sum_insured": {
           "type": "string",
@@ -491,6 +465,110 @@
           "x-ms-dataverse-attribute": "aur_total_sum_insured_base",
           "x-ms-dataverse-type": "MoneyType",
           "x-ms-schema-name": "aur_total_sum_insured_Base",
+          "x-ms-read-only": true
+        },
+        "aur_underwriter_action": {
+          "type": "string",
+          "title": "Underwriter Action",
+          "x-ms-dataverse-attribute": "aur_underwriter_action",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "aur_underwriter_action",
+          "enum": [
+            "In Progress",
+            "Lost",
+            "Converted",
+            "Invalid"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "ac86302d-daad-479d-9b4d-769eedcd2423",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Underwriter Action Status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "aur_underwriter_actionname": {
+          "type": "string",
+          "title": "aur_underwriter_actionname",
+          "x-ms-dataverse-attribute": "aur_underwriter_actionname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "aur_underwriter_actionName",
+          "x-ms-read-only": true
+        },
+        "aur_underwriter_sub_action": {
+          "type": "string",
+          "title": "Underwriter Sub-Action",
+          "x-ms-dataverse-attribute": "aur_underwriter_sub_action",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "aur_underwriter_sub_action",
+          "enum": [
+            "Motor Insurance - TPL",
+            "Motor Insurance - Non-Agency",
+            "Motor Insurance - Agency",
+            "Lost to Competitor - High Premium",
+            "Rejected by UW - Restricted for Outside Agency Repair Only",
+            "Rejected by UW - Restricted Vehicle (TPL cover only)",
+            "No Response - From Customer",
+            "Rejected by UW - Driver Age Below 25 (TPL cover only)",
+            "Rejected by UW - Driving License Less Than 1 Year (TPL cover only)",
+            "Rejected by UW - Claims History Exists",
+            "Rejected by UW - Vehicle Manufacture Year (TPL cover only)",
+            "No Response - from Sales Agent",
+            "Customer Not Interested - Quote Sent",
+            "Rejected by UW - Non GCC (TPL cover only)"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "aaf53f59-7629-4b2b-8bbd-cf379832644b",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Underwriter Sub-Action Status",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "aur_underwriter_sub_actionname": {
+          "type": "string",
+          "title": "aur_underwriter_sub_actionname",
+          "x-ms-dataverse-attribute": "aur_underwriter_sub_actionname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "aur_underwriter_sub_actionName",
           "x-ms-read-only": true
         },
         "createdby": {
@@ -681,8 +759,7 @@
           "x-ms-dataverse-attribute": "owningbusinessunit",
           "x-ms-dataverse-type": "LookupType",
           "x-ms-schema-name": "OwningBusinessUnit",
-          "x-ms-read-only": true,
-          "required": true
+          "x-ms-read-only": true
         },
         "owningbusinessunitname": {
           "type": "string",
@@ -710,20 +787,6 @@
           "x-ms-schema-name": "OwningUser",
           "x-ms-read-only": true
         },
-        "processid": {
-          "type": "string",
-          "title": "Process Id",
-          "x-ms-dataverse-attribute": "processid",
-          "x-ms-dataverse-type": "UniqueidentifierType",
-          "x-ms-schema-name": "processid"
-        },
-        "stageid": {
-          "type": "string",
-          "title": "(Deprecated) Stage Id",
-          "x-ms-dataverse-attribute": "stageid",
-          "x-ms-dataverse-type": "UniqueidentifierType",
-          "x-ms-schema-name": "stageid"
-        },
         "statecode": {
           "type": "string",
           "title": "Status",
@@ -743,7 +806,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "23813cc5-95c0-f111-aaad-002248e3ba3f",
+          "x-ms-optionsetmetadataid": "91be2f1c-9bca-f111-a05a-7ced8d7a7cfc",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -763,60 +826,18 @@
           "x-ms-dataverse-type": "StatusType",
           "x-ms-schema-name": "statuscode",
           "enum": [
-            "Draft",
-            "AI Processing",
-            "Inactive",
-            "Ready to Generate Quote",
-            "Generating Quote",
-            "Quote Generated Successfully",
-            "Further Clarification Required",
-            "Inquiry Created",
-            "Product Match",
-            "Determined Inquiry",
-            "Awaiting Review",
-            "Refer to Underwriter",
-            "Decline",
-            "Quote Provided",
-            "Escalate to Head of Aviation",
-            "Property or Reinsurance Team"
+            "Active",
+            "Inactive"
           ],
           "x-ms-enum-values": [
             1,
-            751820001,
-            2,
-            751820002,
-            751820004,
-            751820003,
-            751820005,
-            751820006,
-            751820007,
-            751820008,
-            751820009,
-            751820010,
-            751820011,
-            751820012,
-            751820013,
-            751820014
+            2
           ],
           "Color": [
             null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
-            null,
             null
           ],
-          "x-ms-optionsetmetadataid": "2d813cc5-95c0-f111-aaad-002248e3ba3f",
+          "x-ms-optionsetmetadataid": "9bbe2f1c-9bca-f111-a05a-7ced8d7a7cfc",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"
@@ -852,14 +873,6 @@
           "x-ms-read-only": true,
           "maxLength": 100
         },
-        "traversedpath": {
-          "type": "string",
-          "title": "(Deprecated) Traversed Path",
-          "x-ms-dataverse-attribute": "traversedpath",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "traversedpath",
-          "maxLength": 1250
-        },
         "utcconversiontimezonecode": {
           "type": "string",
           "title": "UTC Conversion Time Zone Code",
@@ -877,8 +890,8 @@
         }
       },
       "required": [
+        "aur_inquiryid",
         "aur_name",
-        "aur_quotesid",
         "createdbyyominame",
         "createdonbehalfbyyominame",
         "modifiedbyyominame",
@@ -887,7 +900,6 @@
         "owneridname",
         "owneridtype",
         "owneridyominame",
-        "owningbusinessunit",
         "owningbusinessunitname",
         "statecode"
       ]

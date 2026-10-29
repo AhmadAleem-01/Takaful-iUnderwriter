@@ -1,6 +1,8 @@
 export const underwriterActions = [
+  { value: 1, label: 'In Progress' },
   { value: 2, label: 'Lost' },
   { value: 3, label: 'Converted' },
+  { value: 4, label: 'Invalid' },
 ]
 
 export const lostSubActions = [

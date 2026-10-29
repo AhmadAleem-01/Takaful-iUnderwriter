@@ -1,0 +1,115 @@
+{
+  "name": "aur_TakafulManageManyToMany",
+  "title": "aur_TakafulManageManyToMany",
+  "type": "Microsoft.PowerApps/dataverseOperation",
+  "properties": {
+    "displayName": "aur_TakafulManageManyToMany",
+    "swagger": {
+      "swagger": "2.0",
+      "info": {
+        "title": "aur_TakafulManageManyToMany",
+        "version": "1.0"
+      },
+      "basePath": "/api/data/v9.2",
+      "paths": {
+        "/aur_TakafulManageManyToMany": {
+          "post": {
+            "operationId": "aur_TakafulManageManyToMany",
+            "parameters": [
+              {
+                "name": "Operation",
+                "in": "body",
+                "required": true,
+                "type": "string",
+                "x-ms-dataverse-type": "StringType",
+                "x-ms-csdl-type": "Edm.String"
+              },
+              {
+                "name": "RelationshipName",
+                "in": "body",
+                "required": true,
+                "type": "string",
+                "x-ms-dataverse-type": "StringType",
+                "x-ms-csdl-type": "Edm.String"
+              },
+              {
+                "name": "TargetTable",
+                "in": "body",
+                "required": true,
+                "type": "string",
+                "x-ms-dataverse-type": "StringType",
+                "x-ms-csdl-type": "Edm.String"
+              },
+              {
+                "name": "RelatedIdsJson",
+                "in": "body",
+                "required": true,
+                "type": "string",
+                "x-ms-dataverse-type": "StringType",
+                "x-ms-csdl-type": "Edm.String"
+              },
+              {
+                "name": "PageSize",
+                "in": "body",
+                "required": true,
+                "type": "number",
+                "x-ms-dataverse-type": "IntegerType",
+                "x-ms-csdl-type": "Edm.Int32"
+              },
+              {
+                "name": "PageNumber",
+                "in": "body",
+                "required": true,
+                "type": "number",
+                "x-ms-dataverse-type": "IntegerType",
+                "x-ms-csdl-type": "Edm.Int32"
+              },
+              {
+                "name": "PagingCookie",
+                "in": "body",
+                "required": true,
+                "type": "string",
+                "x-ms-dataverse-type": "StringType",
+                "x-ms-csdl-type": "Edm.String"
+              },
+              {
+                "name": "ColumnsJson",
+                "in": "body",
+                "required": true,
+                "type": "string",
+                "x-ms-dataverse-type": "StringType",
+                "x-ms-csdl-type": "Edm.String"
+              },
+              {
+                "name": "TargetId",
+                "in": "body",
+                "required": false,
+                "type": "string",
+                "x-ms-dataverse-type": "UniqueidentifierType",
+                "x-ms-csdl-type": "Edm.Guid"
+              },
+              {
+                "name": "TargetColumnsJson",
+                "in": "body",
+                "required": false,
+                "type": "string",
+                "x-ms-dataverse-type": "StringType",
+                "x-ms-csdl-type": "Edm.String"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Success",
+                "schema": {
+                  "type": "object",
+                  "x-ms-dataverse-type": "LookupType",
+                  "x-ms-csdl-type": "mscrm.aur_TakafulManageManyToManyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,14 +1,14 @@
-import { ClipboardList, ShieldCheck, HeartPulse, ContactRound, Sparkles, ClipboardCheck } from 'lucide-react'
+import { ClipboardList, ShieldCheck } from 'lucide-react'
 import { HEALTH_INQUIRY_STEPS, healthInquiryStepIndex } from '../../lib/healthInquiryStages'
 import { cn } from '../../lib/cn'
 
-const stageIcons = [ClipboardList, ShieldCheck, HeartPulse, ContactRound, Sparkles, ClipboardCheck]
+const stageIcons = [ClipboardList, ShieldCheck]
 
 export function HealthInquiryStepper({ status, statusLabel }: { status?: number | null; statusLabel: string }) {
   const activeIndex = healthInquiryStepIndex(status)
   return (
     <nav aria-label={`Health inquiry progress. Current status: ${statusLabel}`} className="mt-6 border-t border-border-soft pt-6">
-      <ol className="flex flex-col md:grid md:grid-cols-6">
+      <ol className="flex flex-col md:grid md:grid-cols-2">
         {HEALTH_INQUIRY_STEPS.map((step, index) => {
           const Icon = stageIcons[index]
           const reached = activeIndex >= 0 && index <= activeIndex

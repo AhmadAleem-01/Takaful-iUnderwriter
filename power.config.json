@@ -69,8 +69,8 @@
           "isHidden": false
         },
         "inquiries": {
-          "entitySetName": "aur_quoteses",
-          "logicalName": "aur_quotes",
+          "entitySetName": "aur_inquiries",
+          "logicalName": "aur_inquiry",
           "isHidden": false
         },
         "quotes": {
@@ -78,19 +78,9 @@
           "logicalName": "aur_quote",
           "isHidden": false
         },
-        "quotesdetails": {
-          "entitySetName": "aur_quotes_detailses",
-          "logicalName": "aur_quotes_details",
-          "isHidden": false
-        },
         "plans": {
           "entitySetName": "aur_plans",
           "logicalName": "aur_plan",
-          "isHidden": false
-        },
-        "brokers": {
-          "entitySetName": "aur_brokers",
-          "logicalName": "aur_broker",
           "isHidden": false
         },
         "accounts": {
@@ -149,13 +139,13 @@
           "isHidden": false
         },
         "customdocumenttemplates": {
-          "entitySetName": "aur_customdocumenttemplateses",
-          "logicalName": "aur_customdocumenttemplates",
+          "entitySetName": "aur_custom_document_templateses",
+          "logicalName": "aur_custom_document_templates",
           "isHidden": false
         },
         "emailtemplates": {
-          "entitySetName": "cr058_emailtemplates",
-          "logicalName": "cr058_emailtemplate",
+          "entitySetName": "templates",
+          "logicalName": "template",
           "isHidden": false
         },
         "businessunits": {
@@ -169,18 +159,8 @@
           "isHidden": false
         },
         "policies": {
-          "entitySetName": "cr058_policies",
-          "logicalName": "cr058_policy",
-          "isHidden": false
-        },
-        "emailrecords": {
-          "entitySetName": "aur_email_records",
-          "logicalName": "aur_email_record",
-          "isHidden": false
-        },
-        "emailattachments": {
-          "entitySetName": "aur_email_attachmentses",
-          "logicalName": "aur_email_attachments",
+          "entitySetName": "aur_policies",
+          "logicalName": "aur_policy",
           "isHidden": false
         },
         "emailmessages": {
@@ -191,11 +171,6 @@
         "attachments": {
           "entitySetName": "activitymimeattachments",
           "logicalName": "activitymimeattachment",
-          "isHidden": false
-        },
-        "productrulelinks": {
-          "entitySetName": "cr058_productrulelink1s",
-          "logicalName": "cr058_productrulelink1",
           "isHidden": false
         },
         "policyconversions": {
@@ -281,6 +256,11 @@
         "environment_39a902ba": {
           "entitySetName": "Environment",
           "logicalName": "environment_39a902ba",
+          "isHidden": false
+        },
+        "aiextractedresponses": {
+          "entitySetName": "aur_ai_extracted_responses",
+          "logicalName": "aur_ai_extracted_response",
           "isHidden": false
         }
       },

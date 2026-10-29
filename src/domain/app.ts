@@ -174,7 +174,6 @@ export interface InquiryDetail extends InquirySummary {
     title: string
     messages: string[]
   }
-  productRuleLinkNotice?: string
   emailTimeline: InquiryEmailSummary[]
   riCapacityChecks: RiCapacityCheckSummary[]
 }

@@ -12,6 +12,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "aur_ai_extracted_responses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_ai_extracted_responseid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "aur_aml_screenings": {
     "tableId": "",
     "version": "",
@@ -26,17 +33,89 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "aur_takafulmanagemanytomany": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "",
+    "dataSourceType": "Dataverse",
+    "apis": {
+      "aur_TakafulManageManyToMany": {
+        "path": "/api/data/v9.2/aur_TakafulManageManyToMany",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "Operation",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "RelationshipName",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "TargetTable",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "RelatedIdsJson",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "PageSize",
+            "in": "body",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "PageNumber",
+            "in": "body",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "name": "PagingCookie",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "ColumnsJson",
+            "in": "body",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "TargetId",
+            "in": "body",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "TargetColumnsJson",
+            "in": "body",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
   "aur_benefitses": {
     "tableId": "",
     "version": "",
     "primaryKey": "aur_benefitsid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_brokers": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_brokerid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -103,10 +182,10 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "aur_customdocumenttemplateses": {
+  "aur_custom_document_templateses": {
     "tableId": "",
     "version": "",
-    "primaryKey": "aur_customdocumenttemplatesid",
+    "primaryKey": "aur_custom_document_templatesid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -114,13 +193,6 @@ export const dataSourcesInfo = {
     "tableId": "",
     "version": "",
     "primaryKey": "aur_deductiblesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_email_attachmentses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_email_attachmentsid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -138,17 +210,10 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "aur_email_records": {
+  "templates": {
     "tableId": "",
     "version": "",
-    "primaryKey": "aur_email_recordid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "cr058_emailtemplates": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr058_emailtemplateid",
+    "primaryKey": "templateid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -180,10 +245,10 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "aur_quoteses": {
+  "aur_inquiries": {
     "tableId": "",
     "version": "",
-    "primaryKey": "aur_quotesid",
+    "primaryKey": "aur_inquiryid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -208,10 +273,10 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "cr058_policies": {
+  "aur_policies": {
     "tableId": "",
     "version": "",
-    "primaryKey": "cr058_policyid",
+    "primaryKey": "aur_policyid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -229,13 +294,6 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "cr058_productrulelink1s": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "cr058_productrulelink1id",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
   "aur_productses": {
     "tableId": "",
     "version": "",
@@ -247,13 +305,6 @@ export const dataSourcesInfo = {
     "tableId": "",
     "version": "",
     "primaryKey": "aur_quoteid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_quotes_detailses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_quotes_detailsid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },

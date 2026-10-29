@@ -3,15 +3,15 @@ import { ActivitymimeattachmentsService } from '../generated/services/Activitymi
 import { Aur_business_rulesesService } from '../generated/services/Aur_business_rulesesService'
 import { Aur_consequences_resultsService } from '../generated/services/Aur_consequences_resultsService'
 import { Aur_consequencesesService } from '../generated/services/Aur_consequencesesService'
-import { Aur_customdocumenttemplatesesService } from '../generated/services/Aur_customdocumenttemplatesesService'
+import { Aur_custom_document_templatesesService } from '../generated/services/Aur_custom_document_templatesesService'
 import { Aur_plansService } from '../generated/services/Aur_plansService'
 import { Aur_productsesService } from '../generated/services/Aur_productsesService'
-import { Aur_quotes_detailsesService } from '../generated/services/Aur_quotes_detailsesService'
+import { Aur_ai_extracted_responsesService } from '../generated/services/Aur_ai_extracted_responsesService'
 import { Aur_quotesService } from '../generated/services/Aur_quotesService'
-import { Aur_quotesesService } from '../generated/services/Aur_quotesesService'
+import { Aur_inquiriesService } from '../generated/services/Aur_inquiriesService'
 import { Aur_ri_capacity_checksService } from '../generated/services/Aur_ri_capacity_checksService'
 import { ContactsService } from '../generated/services/ContactsService'
-import { Cr058_emailtemplatesService } from '../generated/services/Cr058_emailtemplatesService'
+import { TemplatesService } from '../generated/services/TemplatesService'
 import { EmailsService } from '../generated/services/EmailsService'
 import { OnDemand_RecalculationofRI_CapacityChecksService } from '../generated/services/OnDemand_RecalculationofRI_CapacityChecksService'
 import { Aur_business_rulesesaur_categories } from '../generated/models/Aur_business_rulesesModel'
@@ -36,7 +36,6 @@ import {
 import { INQUIRY_TYPE_OPTIONS } from './inquiryTypeOptions'
 import { INQUIRY_STATUS_OPTIONS } from './inquiryStatusOptions'
 import { quoteWholeNumber } from '../lib/quoteNumbers'
-import { preferReceivedInquiryEmails } from '../lib/inquiryEmailDuplicates'
 
 type InquiryReferenceData = {
   products: Awaited<ReturnType<typeof Aur_productsesService.getAll>>['data']
@@ -49,7 +48,7 @@ let inquiryEditorOptionsPromise: Promise<Awaited<ReturnType<typeof getInquiryEdi
 
 export async function listInquiries(scope?: string): Promise<InquirySummary[]> {
   const [result, referenceData] = await Promise.all([
-    Aur_quotesesService.getAll({
+    Aur_inquiriesService.getAll({
       orderBy: ['createdon desc'],
     }),
     getInquiryReferenceData(),
@@ -99,13 +98,12 @@ export async function getInquiryDetail(id: string): Promise<InquiryDetail> {
 
 export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
   const normalizedRouteId = normalizeDataverseId(id)
-  const [inquiryResult, inquiryChoiceFieldsResult, referenceData, tpaResult] = await Promise.all([
-    Aur_quotesesService.get(id),
-    Aur_quotesesService.get(id, {
-      select: ['aur_inquiry_type', 'aur_inquiry_typename', 'aur_inquiry_status', 'aur_inquiry_statusname', 'aur_ai_evaluation_json_response'],
+  const [inquiryResult, inquiryChoiceFieldsResult, referenceData] = await Promise.all([
+    Aur_inquiriesService.get(id),
+    Aur_inquiriesService.get(id, {
+      select: ['aur_inquiry_type', 'aur_inquiry_typename', 'statecode', 'statecodename', 'statuscode', 'statuscodename', 'aur_underwriter_action', 'aur_underwriter_actionname', 'aur_ai_evaluation_json_response'],
     }).catch(() => ({ data: undefined })),
     getInquiryReferenceData(),
-    Aur_quotesesService.get(id, { select: ['aur_tpa', 'aur_tpa_network', 'aur_tpa_networkname'] }).catch(() => ({ data: undefined })),
   ])
   const productMap = new Map((referenceData.products ?? []).map((product) => [normalizeDataverseId(product.aur_productsid), product.aur_name]))
   const planMap = new Map((referenceData.plans ?? []).map((plan) => [normalizeDataverseId(plan.aur_planid), plan.aur_name ?? 'Unnamed plan']))
@@ -123,27 +121,32 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
     inquiryResult.data
       ? {
           ...inquiryResult.data,
-          ...(tpaResult.data ?? {}),
           aur_ai_evaluation_json_response:
             (inquiryChoiceFieldsResult.data as { aur_ai_evaluation_json_response?: string | null } | undefined)?.aur_ai_evaluation_json_response ??
-            (inquiryResult.data as { aur_ai_evaluation_json_response?: string | null }).aur_ai_evaluation_json_response,
+            (inquiryResult.data as { aur_ai_evaluation_json_response?: string | null }).aur_ai_evaluation_json_response ??
+            undefined,
           aur_inquiry_type:
             inquiryChoiceFieldsResult.data?.aur_inquiry_type ??
             inquiryResult.data.aur_inquiry_type,
           aur_inquiry_typename:
             inquiryChoiceFieldsResult.data?.aur_inquiry_typename ??
             inquiryResult.data.aur_inquiry_typename,
-          aur_inquiry_status:
-            inquiryChoiceFieldsResult.data?.aur_inquiry_status ??
-            inquiryResult.data.aur_inquiry_status,
-          aur_inquiry_statusname:
-            inquiryChoiceFieldsResult.data?.aur_inquiry_statusname ??
-            inquiryResult.data.aur_inquiry_statusname,
+          statuscode: inquiryChoiceFieldsResult.data?.statuscode ?? inquiryResult.data.statuscode,
+          statuscodename: inquiryChoiceFieldsResult.data?.statuscodename ?? inquiryResult.data.statuscodename,
+          'statuscode@OData.Community.Display.V1.FormattedValue':
+            (inquiryChoiceFieldsResult.data as Record<string, unknown> | undefined)?.['statuscode@OData.Community.Display.V1.FormattedValue'] ??
+            (inquiryResult.data as unknown as Record<string, unknown>)['statuscode@OData.Community.Display.V1.FormattedValue'],
+          statecode: inquiryChoiceFieldsResult.data?.statecode ?? inquiryResult.data.statecode,
+          statecodename: inquiryChoiceFieldsResult.data?.statecodename ?? inquiryResult.data.statecodename,
+          aur_underwriter_action:
+            inquiryChoiceFieldsResult.data?.aur_underwriter_action ?? inquiryResult.data.aur_underwriter_action,
+          aur_underwriter_actionname:
+            inquiryChoiceFieldsResult.data?.aur_underwriter_actionname ?? inquiryResult.data.aur_underwriter_actionname,
         }
       : inquiryResult.data
   const inquiry = inquiryRecord ? resolveInquiryRelations(inquiryRecord, productMap, planMap, accountMap) : undefined
   if (!inquiry) throw new Error('Inquiry not found.')
-  const inquiryId = normalizeDataverseId(inquiry.aur_quotesid) || normalizedRouteId
+  const inquiryId = normalizeDataverseId(inquiry.aur_inquiryid) || normalizedRouteId
   const [coreAccount, coreContact] = await Promise.all([
     inquiry._aur_account_value
       ? AccountsService.get(inquiry._aur_account_value).then((result) => result.data).catch(() => undefined)
@@ -157,8 +160,14 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
     inquiryId,
     aur_inquiry_type: inquiry.aur_inquiry_type,
     aur_inquiry_typename: inquiry.aur_inquiry_typename,
-    aur_inquiry_status: inquiry.aur_inquiry_status,
-    aur_inquiry_statusname: inquiry.aur_inquiry_statusname,
+    statuscode: inquiry.statuscode,
+    statuscodename: inquiry.statuscodename,
+    statuscodeFormattedValue:
+      (inquiry as unknown as Record<string, unknown>)['statuscode@OData.Community.Display.V1.FormattedValue'],
+    statecode: inquiry.statecode,
+    statecodename: inquiry.statecodename,
+    aur_underwriter_action: inquiry.aur_underwriter_action,
+    aur_underwriter_actionname: inquiry.aur_underwriter_actionname,
     aur_account_lookup: inquiry._aur_account_value,
     aur_account_name: inquiry.aur_accountname,
     coreAccountName: coreAccount?.name,
@@ -186,7 +195,7 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
 export async function getInquiryDetailSupplementary(id: string): Promise<Partial<InquiryDetail>> {
   const normalizedRouteId = normalizeDataverseId(id)
   const [inquiryResult, referenceData] = await Promise.all([
-    Aur_quotesesService.get(id),
+    Aur_inquiriesService.get(id),
     getInquiryReferenceData(),
   ])
   const productMap = new Map((referenceData.products ?? []).map((product) => [product.aur_productsid, product.aur_name]))
@@ -203,17 +212,13 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
   )
   const inquiry = inquiryResult.data ? resolveInquiryRelations(inquiryResult.data, productMap, planMap, accountMap) : undefined
   if (!inquiry) throw new Error('Inquiry not found.')
-  const inquiryId = normalizeDataverseId(inquiry.aur_quotesid) || normalizedRouteId
+  const inquiryId = normalizeDataverseId(inquiry.aur_inquiryid) || normalizedRouteId
 
-  const [quotesResult, rawQuoteDetails, consequenceResultsResult, emailsResult] = await Promise.all([
+  const [quotesResult, rawAiResponses, consequenceResultsResult] = await Promise.all([
     listQuotesForInquiry(inquiryId),
-    listQuoteDetailsForInquiry(inquiryId),
+    listAiExtractedResponsesForInquiry(inquiryId),
     Aur_consequences_resultsService.getAll({
       filter: `_aur_inquiry_value eq ${inquiryId}`,
-    }),
-    EmailsService.getAll({
-      filter: `_regardingobjectid_value eq ${inquiryId}`,
-      orderBy: ['createdon desc'],
     }),
   ])
   const riCapacityChecks = await listRiCapacityChecksForInquiry(inquiryId)
@@ -222,13 +227,13 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
     .filter((quote) => normalizeDataverseId(quote._aur_quotes_value) === inquiryId)
     .map((quote) => resolveQuoteRelations(quote, productMap, planMap))
 
-  console.info('[Inquiry Debug] aur_quotes_details paged lookup', {
+  console.info('[Inquiry Debug] aur_ai_extracted_response paged lookup', {
     inquiryId,
-    matchedCount: rawQuoteDetails.length,
-    matchedIds: rawQuoteDetails.map((detail) => detail.aur_quotes_detailsid),
+    matchedCount: rawAiResponses.length,
+    matchedIds: rawAiResponses.map((response) => response.aur_ai_extracted_responseid),
   })
 
-  const businessRuleIds = [...new Set(rawQuoteDetails.map((detail) => normalizeDataverseId(detail._aur_business_rules_value)).filter(Boolean))]
+  const businessRuleIds = [...new Set(rawAiResponses.map((response) => normalizeDataverseId(response._aur_business_rule_value)).filter(Boolean))]
   const consequenceLookupIds = [
     ...new Set(
       (consequenceResultsResult.data ?? [])
@@ -267,7 +272,7 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
     ]),
   )
 
-  const quoteDetails: QuoteResponse[] = rawQuoteDetails.map((detail) => {
+  const quoteDetails: QuoteResponse[] = rawAiResponses.map((detail) => {
     const mapped = mapQuoteResponse(detail)
     const metadata = mapped.businessRuleId
       ? businessRuleCatalog.get(normalizeDataverseId(mapped.businessRuleId))
@@ -283,14 +288,6 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
     quoteDetails,
     businessRulesResult.data ?? [],
   )
-  const emailIds = (emailsResult.data ?? []).map((email) => normalizeDataverseId(email.activityid)).filter(Boolean)
-  const attachmentsResult = emailIds.length
-    ? await ActivitymimeattachmentsService.getAll({
-        filter: buildGuidOrFilter('_objectid_value', emailIds),
-      })
-    : { data: [] }
-  const emailTimeline = buildInquiryEmails(inquiryId, emailsResult.data ?? [], attachmentsResult.data ?? [])
-
   const consequences = buildConsequences(consequencesResult.data ?? [])
   const consequenceDefinitionMap = new Map(
     consequences.map((consequence) => [
@@ -395,8 +392,48 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
           messages: uniqueNotificationMessages,
         }
       : undefined,
-    emailTimeline,
     riCapacityChecks,
+  }
+}
+
+export async function getInquiryEmailTimeline(inquiryId: string): Promise<InquiryEmailSummary[]> {
+  const normalizedInquiryId = normalizeDataverseId(inquiryId)
+  if (!normalizedInquiryId) return []
+
+  const emails = await listEmailsForInquiry(normalizedInquiryId)
+  const emailIds = emails.map((email) => normalizeDataverseId(email.activityid)).filter(Boolean)
+  const attachmentsResult = emailIds.length
+    ? await ActivitymimeattachmentsService.getAll({
+        filter: buildGuidOrFilter('_objectid_value', emailIds),
+        select: [
+          'activitymimeattachmentid',
+          '_objectid_value',
+          '_activityid_value',
+          'filename',
+          'subject',
+          'mimetype',
+          'filesize',
+        ],
+      })
+    : { data: [] }
+
+  return buildInquiryEmails(normalizedInquiryId, emails, attachmentsResult.data ?? [])
+}
+
+export async function getInquiryEmailAttachmentContent(attachmentId: string) {
+  const normalizedAttachmentId = normalizeDataverseId(attachmentId)
+  if (!normalizedAttachmentId) throw new Error('A valid attachment ID is required.')
+
+  const result = await ActivitymimeattachmentsService.get(normalizedAttachmentId, {
+    select: ['activitymimeattachmentid', 'body', 'filename', 'mimetype'],
+  })
+  if (!result.success) throw result.error ?? new Error('Unable to load the email attachment.')
+  if (!result.data?.body) throw new Error('This attachment has no downloadable content.')
+
+  return {
+    body: result.data.body,
+    name: result.data.filename ?? result.data.subject ?? 'attachment',
+    mimeType: result.data.mimetype ?? 'application/octet-stream',
   }
 }
 
@@ -461,7 +498,7 @@ export async function createInquiry(payload: {
   planId?: string
   brokerId?: string
 }) {
-  const result = await Aur_quotesesService.create({
+  const result = await Aur_inquiriesService.create({
     aur_name: payload.name,
     ...(payload.inquiryType !== undefined ? { aur_inquiry_type: payload.inquiryType as never } : {}),
     ...(payload.statusCode !== undefined ? { statuscode: payload.statusCode as never } : {}),
@@ -470,7 +507,7 @@ export async function createInquiry(payload: {
     ...(payload.brokerId ? { 'aur_account@odata.bind': `/accounts(${payload.brokerId})` } : {}),
   } as never)
 
-  return result.data?.aur_quotesid ?? ''
+  return result.data?.aur_inquiryid ?? ''
 }
 
 export interface ConsequenceTemplatePreview {
@@ -489,34 +526,34 @@ export async function getConsequenceTemplatePreview(
   id: string,
 ): Promise<ConsequenceTemplatePreview> {
   if (kind === 'document') {
-    const record = (await Aur_customdocumenttemplatesesService.get(id)).data
+    const record = (await Aur_custom_document_templatesesService.get(id)).data
     if (!record) {
       throw new Error('Document template not found.')
     }
 
     return {
-      id: record.aur_customdocumenttemplatesid,
+      id: record.aur_custom_document_templatesid,
       kind,
-      name: record.aur_name,
+      name: record.aur_name ?? 'Untitled template',
       status: record.statuscodename ?? (Number(record.statuscode) === 2 ? 'Inactive' : 'Active'),
-      content: record.aur_templatecontent ?? '',
+      content: record.aur_template_content ?? '',
     }
   }
 
-  const record = (await Cr058_emailtemplatesService.get(id)).data
+  const record = (await TemplatesService.get(id)).data
   if (!record) {
     throw new Error('Email template not found.')
   }
 
   return {
-    id: record.cr058_emailtemplateid,
+    id: record.templateid,
     kind,
-    name: record.cr058_templatename,
-    subject: record.cr058_subject,
-    description: record.cr058_description ?? '',
-    category: record.cr058_categoryname ?? 'General',
-    status: record.statuscodename ?? (record.cr058_isactive ? 'Active' : 'Inactive'),
-    content: record.cr058_body ?? '',
+    name: record.title,
+    subject: record.subject ?? '',
+    description: record.description ?? '',
+    category: record.templatetypecodename ?? 'Email',
+    status: record.componentstate === 0 ? 'Published' : 'Unpublished',
+    content: record.body ?? '',
   }
 }
 
@@ -645,14 +682,14 @@ export async function saveInquiryDetail(
     aur_territorial_scope: payload.territorialScope,
     aur_no_of_items: payload.noOfItems,
     aur_base_premium: payload.basePremium,
-    ...(payload.underwriterActionStatus !== undefined ? { aur_underwriter_action_status: payload.underwriterActionStatus } : {}),
+    ...(payload.underwriterActionStatus !== undefined ? { aur_underwriter_action: payload.underwriterActionStatus as never } : {}),
     ...(payload.underwriterSubAction !== undefined ? { aur_underwriter_sub_action: payload.underwriterSubAction } : {}),
-    aur_total_amount_charge: payload.premiumToBeCharged,
+    aur_total_premium_to_be_charged: payload.premiumToBeCharged,
     aur_brokerage_pct: payload.brokerage,
     aur_gross_premium: payload.grossPremium,
-    aur_fee: payload.fee,
+    aur_fees: payload.fee,
     aur_total_deduction_pct: payload.totalDeduction,
-    ...(payload.riskSummary !== undefined ? { aur_risksummary: payload.riskSummary } : {}),
+    ...(payload.riskSummary !== undefined ? { aur_risk_summary: payload.riskSummary } : {}),
   }
 
   console.info('[Inquiry Debug] saveInquiryDetail payload', {
@@ -661,11 +698,11 @@ export async function saveInquiryDetail(
     updatePayload,
   })
 
-  await Aur_quotesesService.update(recordId, updatePayload as never)
+  await Aur_inquiriesService.update(recordId, updatePayload as never)
 }
 
 function resolveInquiryRelations(
-  inquiry: Awaited<ReturnType<typeof Aur_quotesesService.get>>['data'] extends infer T ? NonNullable<T> : never,
+  inquiry: Awaited<ReturnType<typeof Aur_inquiriesService.get>>['data'] extends infer T ? NonNullable<T> : never,
   productMap: Map<string, string>,
   planMap: Map<string, string>,
   accountMap: Map<string, { name: string; type?: string; typeCode?: number }>,
@@ -675,10 +712,7 @@ function resolveInquiryRelations(
   const planLookupId = normalizeDataverseId(inquiry._aur_plan_value)
   const account = accountLookupId ? accountMap.get(accountLookupId) : undefined
   const brokerAccount = accountLookupId ? accountMap.get(accountLookupId) : undefined
-  const inferredBrokerName =
-    inquiry.aur_brokername ??
-    inquiry.aur_accountname ??
-    brokerAccount?.name
+  const inferredBrokerName = inquiry.aur_accountname ?? brokerAccount?.name
 
   return {
     ...inquiry,
@@ -727,8 +761,9 @@ export async function updateInquiryDisposition(
     PropertyorReinsuranceTeam: 751820014,
   } as const
 
-  await Aur_quotesesService.update(id, {
+  await Aur_inquiriesService.update(id, {
     statuscode: inquiryStatusMap[disposition] as never,
+    aur_underwriter_action: (disposition === 'Decline' ? 2 : 1) as never,
   })
 }
 
@@ -740,7 +775,7 @@ export async function applyInquiryConsequenceResult(input: {
   riskSummaryAppend?: string
   basePremium?: number
 }) {
-  const inquiryResult = await Aur_quotesesService.get(input.inquiryId)
+  const inquiryResult = await Aur_inquiriesService.get(input.inquiryId)
   const inquiry = inquiryResult.data
   if (!inquiry) {
     throw new Error('Inquiry not found.')
@@ -752,24 +787,29 @@ export async function applyInquiryConsequenceResult(input: {
       : inquiry.aur_risk_score ?? 0
   const nextRiskSummary =
     input.riskSummaryAppend !== undefined
-      ? appendRiskSummary(inquiry.aur_risksummary ?? '', input.riskSummaryAppend)
-      : inquiry.aur_risksummary ?? ''
+      ? appendRiskSummary(inquiry.aur_risk_summary ?? '', input.riskSummaryAppend)
+      : inquiry.aur_risk_summary ?? ''
 
   const inquiryPayload = {
-    ...(input.statusCode !== undefined ? { statuscode: input.statusCode as never } : {}),
+    ...(input.statusCode !== undefined
+      ? {
+          statuscode: input.statusCode as never,
+          aur_underwriter_action: dispositionStatusToUnderwriterAction(input.statusCode) as never,
+        }
+      : {}),
     ...(input.riskScoreIncrement !== undefined ? { aur_risk_score: nextRiskScore } : {}),
-    ...(input.riskSummaryAppend !== undefined ? { aur_risksummary: nextRiskSummary } : {}),
+    ...(input.riskSummaryAppend !== undefined ? { aur_risk_summary: nextRiskSummary } : {}),
     ...(input.basePremium !== undefined
       ? {
           aur_base_premium: input.basePremium,
-          aur_total_amount_charge: input.basePremium,
+          aur_total_premium_to_be_charged: input.basePremium,
         }
       : {}),
   }
 
   await Promise.all([
     Object.keys(inquiryPayload).length
-      ? Aur_quotesesService.update(input.inquiryId, inquiryPayload as never)
+      ? Aur_inquiriesService.update(input.inquiryId, inquiryPayload as never)
       : Promise.resolve(),
     Aur_consequences_resultsService.update(input.consequenceResultId, {
       aur_action_status: 751820001,
@@ -789,8 +829,8 @@ export async function applyInquiryRatingOrder(input: {
   inquiryId: string
   premiumToBeCharged: number
 }) {
-  await Aur_quotesesService.update(input.inquiryId, {
-    aur_total_amount_charge: input.premiumToBeCharged,
+  await Aur_inquiriesService.update(input.inquiryId, {
+    aur_total_premium_to_be_charged: input.premiumToBeCharged,
     aur_action_applied: true,
   } as never)
 
@@ -802,14 +842,13 @@ export async function applyInquiryRatingOrder(input: {
 
 export async function syncInquiryHealthFinalPremium(inquiryId: string, finalPremium: number) {
   if (!Number.isFinite(finalPremium) || finalPremium < 0) throw new Error('The evaluated policy premium is invalid.')
-  const premiumToBeCharged = Math.ceil(finalPremium)
-  if (premiumToBeCharged > 2147483647) throw new Error('The evaluated premium exceeds the Inquiry field limit.')
+  const premiumToBeCharged = Math.round(finalPremium * 100) / 100
   const recordId = normalizeDataverseId(inquiryId)
-  const result = await Aur_quotesesService.update(recordId, { aur_total_amount_charge: premiumToBeCharged })
+  const result = await Aur_inquiriesService.update(recordId, { aur_total_premium_to_be_charged: premiumToBeCharged })
   if (!result.success) throw result.error ?? new Error('Dataverse could not update Premium to be Charged.')
-  const saved = await Aur_quotesesService.get(recordId, { select: ['aur_total_amount_charge'] })
+  const saved = await Aur_inquiriesService.get(recordId, { select: ['aur_total_premium_to_be_charged'] })
   if (!saved.success) throw saved.error ?? new Error('Unable to verify the saved premium.')
-  if (Number(saved.data?.aur_total_amount_charge) !== premiumToBeCharged || saved.data?.aur_total_amount_charge == null) {
+  if (Number(saved.data?.aur_total_premium_to_be_charged) !== premiumToBeCharged || saved.data?.aur_total_premium_to_be_charged == null) {
     throw new Error('Dataverse did not retain the evaluated Premium to be Charged. Please refresh and retry.')
   }
   return premiumToBeCharged
@@ -824,14 +863,14 @@ export async function createQuoteFromInquiry(
   },
 ) {
   const recordId = normalizeDataverseId(inquiryId)
-  const inquiryResult = await Aur_quotesesService.get(recordId)
+  const inquiryResult = await Aur_inquiriesService.get(recordId)
   if (!inquiryResult.success) throw inquiryResult.error ?? new Error('Unable to load the inquiry for quote creation.')
   const inquiry = inquiryResult.data
   if (!inquiry) throw new Error('Inquiry not found.')
 
-  const referenceCode = inquiry.aur_quote_number?.trim() || inquiry.aur_name?.trim() || 'Inquiry'
+  const referenceCode = inquiry.aur_inquiry_number?.trim() || inquiry.aur_name?.trim() || 'Inquiry'
   const customerName = inquiry.aur_contactname?.trim() || inquiry.aur_name?.trim() || 'Customer'
-  const totalPremium = inquiry.aur_total_amount_charge ?? fallback?.premiumToBeCharged ?? 0
+  const totalPremium = inquiry.aur_total_premium_to_be_charged ?? fallback?.premiumToBeCharged ?? 0
   const grossPremium = inquiry.aur_gross_premium ?? 0
   const loadingPremium = grossPremium * 0.1
   const productId = inquiry._aur_product_value ?? fallback?.productId
@@ -846,13 +885,13 @@ export async function createQuoteFromInquiry(
     aur_name: `${referenceCode} - ${customerName}`,
     ...(productId ? { 'aur_product@odata.bind': `/aur_productses(${productId})` } : {}),
     ...(planId ? { 'aur_plan@odata.bind': `/aur_plans(${planId})` } : {}),
-    'aur_quotes@odata.bind': `/aur_quoteses(${recordId})`,
+    'aur_quotes@odata.bind': `/aur_inquiries(${recordId})`,
     aur_total_premium: quoteWholeNumber(totalPremium, 'Total Premium'),
     aur_gross_premium: quoteWholeNumber(grossPremium, 'Gross Premium'),
     aur_loading_premium: quoteWholeNumber(loadingPremium, 'Loading Premium'),
     aur_vat: quoteWholeNumber(vat, 'VAT'),
     aur_ai_generated_summary:
-      inquiry.aur_risksummary?.trim() || inquiry.aur_summary?.trim() || undefined,
+      inquiry.aur_risk_summary?.trim() || inquiry.aur_ai_generated_summary?.trim() || undefined,
     aur_reason: 'Created from inquiry detail workspace',
   }
 
@@ -916,12 +955,12 @@ export async function copyQuotesToInquiry(
     return []
   }
 
-  const targetInquiryResult = await Aur_quotesesService.get(inquiryId)
+  const targetInquiryResult = await Aur_inquiriesService.get(inquiryId)
   const targetInquiry = targetInquiryResult.data
   if (!targetInquiry) {
     throw new Error('Target inquiry not found.')
   }
-  const targetInquiryNumber = targetInquiry.aur_quote_number?.trim()
+  const targetInquiryNumber = targetInquiry.aur_inquiry_number?.trim()
   const targetInquiryName = targetInquiry.aur_name?.trim() || 'Inquiry'
   const targetQuoteName = targetInquiryNumber
     ? `${targetInquiryNumber} - ${targetInquiryName}`
@@ -964,7 +1003,7 @@ export async function copyQuotesToInquiry(
           ...(quote._aur_warranties_value
             ? { 'aur_warranties@odata.bind': `/aur_warrantieses(${quote._aur_warranties_value})` }
             : {}),
-          'aur_quotes@odata.bind': `/aur_quoteses(${normalizeDataverseId(inquiryId)})`,
+          'aur_quotes@odata.bind': `/aur_inquiries(${normalizeDataverseId(inquiryId)})`,
           aur_total_premium: quote.aur_total_premium ?? 0,
           aur_gross_premium: quote.aur_gross_premium ?? 0,
           aur_loading_premium: quote.aur_loading_premium ?? 0,
@@ -1019,7 +1058,7 @@ export async function recordInquiryConsequenceResult(
     ...(input.consequenceId
       ? { 'aur_consequences@odata.bind': `/aur_consequenceses(${input.consequenceId})` }
       : {}),
-    'aur_inquiry@odata.bind': `/aur_quoteses(${inquiryId})`,
+    'aur_inquiry@odata.bind': `/aur_inquiries(${inquiryId})`,
   } as never)
 }
 
@@ -1032,6 +1071,11 @@ export async function createInquiryEmail(
     description: string
   },
 ) {
+  const regardingInquiryId = normalizeDataverseId(inquiryId)
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(regardingInquiryId)) {
+    throw new Error('A valid inquiry ID is required to set the email Regarding field.')
+  }
+
   const created = await EmailsService.create({
     sender: input.sender,
     torecipients: input.toRecipients,
@@ -1040,22 +1084,22 @@ export async function createInquiryEmail(
     directioncode: true,
     statecode: 0,
     statuscode: 1,
-    'regardingobjectid_aur_quotes@odata.bind': `/aur_quoteses(${inquiryId})`,
+    'RegardingObjectId@odata.bind': `/aur_inquiries(${regardingInquiryId})`,
   } as never)
 
   return created.data?.activityid
 }
 
-export async function updateInquiryQuoteDetailResponse(
-  quoteDetailId: string,
+export async function updateInquiryAiExtractedResponse(
+  responseId: string,
   response: string,
 ): Promise<QuoteResponse> {
-  const updated = await Aur_quotes_detailsesService.update(quoteDetailId, {
+  const updated = await Aur_ai_extracted_responsesService.update(responseId, {
     aur_response: response,
   } as never)
 
   return mapQuoteResponse(updated.data ?? {
-    aur_quotes_detailsid: quoteDetailId,
+    aur_ai_extracted_responseid: responseId,
     aur_response: response,
   } as never)
 }
@@ -1113,8 +1157,6 @@ export function mergeInquiryWorkspace(
     consequenceResults,
     aiRuleGroups,
     emailTimeline,
-    productRuleLinkNotice:
-      'Product-specific business-rule loading still depends on the unresolved product-to-rule junction datasource. The AI tab currently groups the matched rule responses category-wise from the extracted Dataverse rule context.',
   }
 }
 
@@ -1199,6 +1241,10 @@ function normalizeDataverseId(value?: string) {
   return (value ?? '').replace(/[{}]/g, '').toLowerCase()
 }
 
+function dispositionStatusToUnderwriterAction(statusCode: number) {
+  return statusCode === 2 || statusCode === 751820011 ? 2 : 1
+}
+
 function appendRiskSummary(current: string, addition: string) {
   const normalizedCurrent = current.trim()
   const normalizedAddition = addition.trim()
@@ -1281,7 +1327,7 @@ function buildInquiryEmails(
   attachments: Awaited<ReturnType<typeof ActivitymimeattachmentsService.getAll>>['data'],
 ): InquiryEmailSummary[] {
   const attachmentsByEmail = (attachments ?? []).reduce((map, attachment) => {
-    const emailId = attachment._objectid_value ?? attachment._activityid_value
+    const emailId = normalizeDataverseId(attachment._objectid_value ?? attachment._activityid_value)
     if (!emailId) return map
     const current = map.get(emailId) ?? []
     current.push({
@@ -1305,32 +1351,79 @@ function buildInquiryEmails(
         body: email.description ?? 'No email body captured.',
         sender: firstNonEmpty(email.sender, email.from, parsed.sender, email.owneridname, 'Unknown sender'),
         toRecipients: firstNonEmpty(email.torecipients, email.to, parsed.toRecipients, 'No recipients'),
-        regardingId: email._regardingobjectid_value,
+        regardingId: normalizeDataverseId(email._regardingobjectid_value),
         status,
         direction: (email.directioncode ? 'sent' : 'received') as 'sent' | 'received',
         createdOn: email.senton ?? email.createdon ?? email.actualend,
-        attachments: attachmentsByEmail.get(email.activityid) ?? [],
+        attachments: attachmentsByEmail.get(normalizeDataverseId(email.activityid)) ?? [],
       }
     })
     .sort((left, right) => new Date(right.createdOn ?? 0).getTime() - new Date(left.createdOn ?? 0).getTime())
-  return preferReceivedInquiryEmails(timeline)
+  return timeline
 }
 
-async function listQuoteDetailsForInquiry(inquiryId: string) {
+type InquiryEmailRecord = NonNullable<Awaited<ReturnType<typeof EmailsService.getAll>>['data']>[number]
+
+async function listEmailsForInquiry(inquiryId: string): Promise<InquiryEmailRecord[]> {
+  const normalizedInquiryId = normalizeDataverseId(inquiryId)
+  if (!normalizedInquiryId) return []
+
+  const emails = await listEmailPages(`_regardingobjectid_value eq ${normalizedInquiryId}`)
+  return emails.filter(
+    (email) => normalizeDataverseId(email._regardingobjectid_value) === normalizedInquiryId,
+  )
+}
+
+async function listEmailPages(filter?: string): Promise<InquiryEmailRecord[]> {
+  const records: InquiryEmailRecord[] = []
+  let skipToken: string | undefined
+  const select = [
+    'activityid',
+    'description',
+    'sender',
+    '_regardingobjectid_value',
+    'subject',
+    'torecipients',
+    'statuscode',
+    'directioncode',
+    'createdon',
+    'senton',
+    'actualend',
+  ]
+
+  do {
+    const result = await EmailsService.getAll({
+      ...(filter ? { filter } : {}),
+      select,
+      orderBy: ['createdon desc'],
+      ...(skipToken ? { skipToken } : {}),
+    })
+    if (!result.success) {
+      console.error('[Inquiry Emails] Dataverse query failed', { filter, error: result.error })
+      throw result.error ?? new Error('Unable to load inquiry emails.')
+    }
+    records.push(...(result.data ?? []))
+    skipToken = result.skipToken
+  } while (skipToken)
+
+  return records
+}
+
+async function listAiExtractedResponsesForInquiry(inquiryId: string) {
   const records = []
   let skipToken: string | undefined
 
   do {
-    const result = await Aur_quotes_detailsesService.getAll({
-      filter: `_aur_quotes_value eq ${inquiryId}`,
+    const result = await Aur_ai_extracted_responsesService.getAll({
+      filter: `_aur_inquiry_value eq ${inquiryId}`,
       select: [
-        'aur_quotes_detailsid',
-        '_aur_business_rules_value',
+        'aur_ai_extracted_responseid',
+        '_aur_business_rule_value',
         'aur_condition_met',
         'aur_confidence_score',
         'aur_evidence',
         'aur_name',
-        '_aur_quotes_value',
+        '_aur_inquiry_value',
         'aur_response',
         'statuscode',
       ],

@@ -1,21 +1,21 @@
 {
-  "name": "aur_customdocumenttemplates",
+  "name": "aur_custom_document_templates",
   "title": "Custom Document Templates",
   "schema": {
     "type": "array",
     "items": {
       "type": "object",
       "x-ms-dataverse-entity": true,
-      "x-ms-dataverse-entityset": "aur_customdocumenttemplateses",
-      "x-ms-dataverse-primary-id": "aur_customdocumenttemplatesid",
+      "x-ms-dataverse-entityset": "aur_custom_document_templateses",
+      "x-ms-dataverse-primary-id": "aur_custom_document_templatesid",
       "x-ms-dataverse-primary-name": "aur_name",
       "properties": {
-        "aur_customdocumenttemplatesid": {
+        "aur_custom_document_templatesid": {
           "type": "string",
           "title": "Custom Document Templates",
-          "x-ms-dataverse-attribute": "aur_customdocumenttemplatesid",
+          "x-ms-dataverse-attribute": "aur_custom_document_templatesid",
           "x-ms-dataverse-type": "UniqueidentifierType",
-          "x-ms-schema-name": "aur_CustomDocumentTemplatesId",
+          "x-ms-schema-name": "aur_custom_document_templatesId",
           "x-ms-dataverse-primary-id": true,
           "required": true,
           "x-ms-keyType": "primary"
@@ -25,18 +25,17 @@
           "title": "Name",
           "x-ms-dataverse-attribute": "aur_name",
           "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_Name",
+          "x-ms-schema-name": "aur_name",
           "x-ms-dataverse-primary-name": true,
-          "required": true,
           "maxLength": 850
         },
-        "aur_templatecontent": {
+        "aur_template_content": {
           "type": "string",
           "title": "Template Content",
-          "x-ms-dataverse-attribute": "aur_templatecontent",
+          "x-ms-dataverse-attribute": "aur_template_content",
           "x-ms-dataverse-type": "MemoType",
-          "x-ms-schema-name": "aur_TemplateContent",
-          "maxLength": 2000
+          "x-ms-schema-name": "aur_template_content",
+          "maxLength": 1048576
         },
         "createdby": {
           "type": "string",
@@ -265,7 +264,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "566078f0-7063-f111-ab0c-70a8a554926f",
+          "x-ms-optionsetmetadataid": "2718431d-bc72-4daf-b738-1e3c6067fd23",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -296,7 +295,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "606078f0-7063-f111-ab0c-70a8a554926f",
+          "x-ms-optionsetmetadataid": "5d5e9744-9583-4088-9b07-79916c7c74f3",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"
@@ -333,8 +332,7 @@
         }
       },
       "required": [
-        "aur_customdocumenttemplatesid",
-        "aur_name",
+        "aur_custom_document_templatesid",
         "createdbyyominame",
         "createdonbehalfbyyominame",
         "modifiedbyyominame",
