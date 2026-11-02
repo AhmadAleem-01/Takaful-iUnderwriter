@@ -20,6 +20,7 @@ import {
   createInquiryEmail,
   getConsequenceLinkedTemplatePreview,
   getInquiryDetailCore,
+  getInquiryAiExtractedResponses,
   getInquiryEmailAttachmentContent,
   getInquiryEmailTimeline,
   getInquiryDetailSupplementary,
@@ -39,6 +40,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
+import { getAiResponseFilters, filterAiResponses } from '../../lib/aiResponsePresentation'
 import { vehicleValueAverage } from '../../lib/inquiryUnderwriting'
 import { parsePlanDetails } from '../../lib/planDetails'
 import { formatAmount, formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
@@ -112,8 +114,7 @@ export function InquiryWorkspacePage() {
   const [attachmentBusyId, setAttachmentBusyId] = useState<string | null>(null)
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('details')
-  const [aiView, setAiView] = useState<'card' | 'table'>('card')
-  const [aiCategory, setAiCategory] = useState('All')
+  const [aiFilter, setAiFilter] = useState('All')
   const [quoteView, setQuoteView] = useState<'card' | 'table'>('table')
   const [isCopyQuotesOpen, setIsCopyQuotesOpen] = useState(false)
   const [selectedWonQuoteIds, setSelectedWonQuoteIds] = useState<string[]>([])
@@ -142,6 +143,10 @@ export function InquiryWorkspacePage() {
   const optionsLoad = useAsyncData(async () => getInquiryEditorOptions(), [])
   const sharePointSiteLoad = useAsyncData(getSharePointSiteUrl, [])
   const supplementaryLoad = useAsyncData(async () => getInquiryDetailSupplementary(id), [id, supplementaryRefreshKey])
+  const aiResponsesLoad = useAsyncData(async () => ({
+    inquiryId: id.replace(/[{}]/g, '').toLowerCase(),
+    records: await getInquiryAiExtractedResponses(id),
+  }), [id, supplementaryRefreshKey])
   const inquiryEmailLoad = useAsyncData(async () => getInquiryEmailTimeline(id), [id, supplementaryRefreshKey])
   const copySourceProductId = form?.productId || inquiryState?.productId || coreLoad.data?.productId || ''
   const productWonQuotesLoad = useAsyncData(
@@ -181,7 +186,7 @@ export function InquiryWorkspacePage() {
     setIsComposerOpen(false)
     setComposerEditorVersion((value) => value + 1)
     setEmailSearch('')
-    setAiCategory('All')
+    setAiFilter('All')
     setIsCopyQuotesOpen(false)
     setSelectedWonQuoteIds([])
     setCopyQuotesError(null)
@@ -206,10 +211,18 @@ export function InquiryWorkspacePage() {
       const merged = {
         ...current,
         ...supplementaryLoad.data,
+        quoteDetails: current.quoteDetails,
       }
       return merged
     })
   }, [supplementaryLoad.data])
+
+  useEffect(() => {
+    const response = aiResponsesLoad.data
+    if (!response || response.inquiryId !== id.replace(/[{}]/g, '').toLowerCase()) return
+    setInquiryState((current) => current && current.id.replace(/[{}]/g, '').toLowerCase() === response.inquiryId
+      ? { ...current, quoteDetails: response.records } : current)
+  }, [aiResponsesLoad.data, coreLoad.data, id, user.email])
 
   useEffect(() => {
     if (!inquiryState || isEditing) return
@@ -304,7 +317,7 @@ export function InquiryWorkspacePage() {
   }, [isNotificationMenuOpen])
 
   const detailSource = inquiryState ?? coreLoad.data
-  const quoteDetails = detailSource?.quoteDetails ?? []
+  const quoteDetails = useMemo(() => detailSource?.quoteDetails ?? [], [detailSource?.quoteDetails])
   const emailTimeline = inquiryEmailLoad.data ?? []
 
   const filteredEmails = useMemo(() => {
@@ -319,40 +332,9 @@ export function InquiryWorkspacePage() {
     )
   }, [emailSearch, emailTimeline])
 
-  const groupedQuoteDetails = useMemo(() => {
-    const grouped = new Map<string, typeof quoteDetails>()
-    for (const detail of quoteDetails) {
-      const category = detail.businessRuleCategory || 'Uncategorized'
-      const bucket = grouped.get(category) ?? []
-      bucket.push(detail)
-      grouped.set(category, bucket)
-    }
-    return Array.from(grouped.entries()).map(([category, items]) => ({
-      category,
-      items,
-    }))
-  }, [quoteDetails])
-
-  const aiCategoryFilters = useMemo(
-    () => [
-      { label: 'All', count: quoteDetails.length },
-      ...groupedQuoteDetails.map((group) => ({
-        label: group.category,
-        count: group.items.length,
-      })),
-    ],
-    [groupedQuoteDetails, quoteDetails.length],
-  )
-
-  const visibleQuoteDetailGroups = useMemo(() => {
-    if (aiCategory === 'All') return groupedQuoteDetails
-    return groupedQuoteDetails.filter((group) => group.category === aiCategory)
-  }, [aiCategory, groupedQuoteDetails])
-
-  const visibleQuoteDetails = useMemo(() => {
-    if (aiCategory === 'All') return quoteDetails
-    return visibleQuoteDetailGroups.flatMap((group) => group.items)
-  }, [aiCategory, quoteDetails, visibleQuoteDetailGroups])
+  const aiResultFilters = useMemo(() => getAiResponseFilters(quoteDetails), [quoteDetails])
+  const activeAiFilter = aiResultFilters.some((filter) => filter.value === aiFilter) ? aiFilter : 'All'
+  const visibleQuoteDetails = useMemo(() => filterAiResponses(quoteDetails, activeAiFilter), [activeAiFilter, quoteDetails])
   const consequenceResults = detailSource?.consequenceResults ?? []
   const groupedConsequenceResults = useMemo(() => {
     const groups = new Map<
@@ -1530,18 +1512,19 @@ export function InquiryWorkspacePage() {
                     onReevaluate={() => setIsAiReevaluateOpen(true)}
                     renderEvidence={(evidence) => <EvidenceTooltip evidence={evidence} compact />}
                   /> : <InquiryAiPanel
+                    key={inquiry.id}
                     records={visibleQuoteDetails}
                     allRecords={inquiry.quoteDetails}
                     summary={inquiry.aiSummary || inquiry.summary}
-                    loading={isHydratingSupplementary}
-                    category={aiCategory} categories={aiCategoryFilters} onCategory={setAiCategory}
-                    view={aiView} onView={setAiView}
+                    loading={aiResponsesLoad.loading}
+                    error={aiResponsesLoad.error}
+                    onRetry={() => setSupplementaryRefreshKey((value) => value + 1)}
+                    category={activeAiFilter} categories={aiResultFilters} onCategory={setAiFilter}
                     drafts={quoteDetailDrafts} saveStates={quoteDetailSaveState}
                     onDraft={handleQuoteDetailDraftChange}
                     onSave={(recordId) => void handleSaveQuoteDetailResponse(recordId)}
                     onReevaluate={() => setIsAiReevaluateOpen(true)}
                     onRequestDraft={handleMakeDraft} showRequestDraft={missingQuoteDetails.length > 0}
-                    renderEvidence={(evidence) => <EvidenceTooltip evidence={evidence} compact />}
                   />}
               </div>
               <InquiryDecisionRail inquiry={inquiry} hideCompleteness={isHealthInsurance || isMotorInsurance}

@@ -335,6 +335,8 @@ export interface PolicyConversionDetail extends PolicyConversionSummary {
 }
 
 export interface QuoteResponse {
+  businessRulePropertyName?: string
+  isConditionalRule?: boolean
   id: string
   businessRuleId?: string
   businessRuleName: string

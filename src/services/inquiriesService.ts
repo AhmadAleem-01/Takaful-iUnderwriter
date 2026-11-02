@@ -35,6 +35,7 @@ import {
 } from './dataMappers'
 import { INQUIRY_TYPE_OPTIONS } from './inquiryTypeOptions'
 import { INQUIRY_STATUS_OPTIONS } from './inquiryStatusOptions'
+import { isConditionalPropertyRule } from '../lib/aiResponsePresentation'
 import { quoteWholeNumber } from '../lib/quoteNumbers'
 
 type InquiryReferenceData = {
@@ -214,13 +215,14 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
   if (!inquiry) throw new Error('Inquiry not found.')
   const inquiryId = normalizeDataverseId(inquiry.aur_inquiryid) || normalizedRouteId
 
-  const [quotesResult, rawAiResponses, consequenceResultsResult] = await Promise.all([
+  const [quotesResult, aiData, consequenceResultsResult] = await Promise.all([
     listQuotesForInquiry(inquiryId),
-    listAiExtractedResponsesForInquiry(inquiryId),
+    getInquiryAiData(inquiryId),
     Aur_consequences_resultsService.getAll({
       filter: `_aur_inquiry_value eq ${inquiryId}`,
     }),
   ])
+  const { rawAiResponses, businessRules, quoteDetails } = aiData
   const riCapacityChecks = await listRiCapacityChecksForInquiry(inquiryId)
 
   const quotes = quotesResult
@@ -249,41 +251,11 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
       ? buildGuidOrFilter('_aur_business_rule_value', businessRuleIds)
       : '',
   ].filter(Boolean)
-  const [businessRulesResult, consequencesResult] = await Promise.all([
-    businessRuleIds.length
-      ? Aur_business_rulesesService.getAll({
-          filter: buildGuidOrFilter('aur_business_rulesid', businessRuleIds),
-        })
-      : Promise.resolve({ data: [] }),
-    consequenceFilterParts.length
-      ? Aur_consequencesesService.getAll({
-          filter: consequenceFilterParts.join(' or '),
-        })
-      : Promise.resolve({ data: [] }),
-  ])
+  const businessRulesResult = { data: businessRules }
+  const consequencesResult = consequenceFilterParts.length
+    ? await Aur_consequencesesService.getAll({ filter: consequenceFilterParts.join(' or ') })
+    : { data: [] }
 
-  const businessRuleCatalog = new Map(
-    (businessRulesResult.data ?? []).map((rule) => [
-      normalizeDataverseId(rule.aur_business_rulesid),
-      {
-        name: rule.aur_name,
-        category: resolveBusinessRuleCategory(rule.aur_categoriesname, rule.aur_categories),
-      },
-    ]),
-  )
-
-  const quoteDetails: QuoteResponse[] = rawAiResponses.map((detail) => {
-    const mapped = mapQuoteResponse(detail)
-    const metadata = mapped.businessRuleId
-      ? businessRuleCatalog.get(normalizeDataverseId(mapped.businessRuleId))
-      : undefined
-
-    return {
-      ...mapped,
-      businessRuleName: metadata?.name ?? mapped.businessRuleName,
-      businessRuleCategory: metadata?.category ?? 'Uncategorized',
-    }
-  })
   const aiRuleGroups = buildAiRuleGroups(
     quoteDetails,
     businessRulesResult.data ?? [],
@@ -1098,6 +1070,7 @@ export async function updateInquiryAiExtractedResponse(
     aur_response: response,
   } as never)
 
+  if (!updated.success || updated.error) throw new Error(updated.error?.message || 'Unable to save the AI response.')
   return mapQuoteResponse(updated.data ?? {
     aur_ai_extracted_responseid: responseId,
     aur_response: response,
@@ -1409,13 +1382,70 @@ async function listEmailPages(filter?: string): Promise<InquiryEmailRecord[]> {
   return records
 }
 
+const inquiryAiLoads = new Map<string, Promise<Awaited<ReturnType<typeof loadInquiryAiData>>>>()
+
+function getInquiryAiData(inquiryId: string) {
+  const id = normalizeDataverseId(inquiryId)
+  const existing = inquiryAiLoads.get(id)
+  if (existing) return existing
+  const request = loadInquiryAiData(id).finally(() => inquiryAiLoads.delete(id))
+  inquiryAiLoads.set(id, request)
+  return request
+}
+
+export async function getInquiryAiExtractedResponses(inquiryId: string): Promise<QuoteResponse[]> {
+  return (await getInquiryAiData(inquiryId)).quoteDetails
+}
+
+async function loadInquiryAiData(inquiryId: string) {
+  const rawAiResponses = await listAiExtractedResponsesForInquiry(inquiryId)
+  const ids = [...new Set(rawAiResponses.map((row) => normalizeDataverseId(row._aur_business_rule_value)).filter(Boolean))]
+  const readRules = async (ids: string[]) => {
+    const rules: Awaited<ReturnType<typeof Aur_business_rulesesService.getAll>>['data'] = []
+    // Keep lookup filters bounded and retrieve every page of matching rule metadata.
+    for (let offset = 0; offset < ids.length; offset += 100) {
+      let skipToken: string | undefined
+      do {
+        const result = await Aur_business_rulesesService.getAll({
+          filter: buildGuidOrFilter('aur_business_rulesid', ids.slice(offset, offset + 100)),
+          maxPageSize: 500,
+          skipToken,
+        })
+        if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to load AI response business rules.')
+        rules.push(...(result.data ?? []))
+        skipToken = result.skipToken
+      } while (skipToken)
+    }
+    return rules
+  }
+  const businessRules = await readRules(ids)
+  const catalog = new Map(businessRules.map((rule) => [normalizeDataverseId(rule.aur_business_rulesid), rule]))
+  const parentIds = [...new Set(businessRules.map((rule) => normalizeDataverseId(rule._aur_properties_value)).filter((id) => id && !catalog.has(id)))]
+  const propertyRules = await readRules(parentIds)
+  const propertyNames = new Map([...businessRules, ...propertyRules].map((rule) => [normalizeDataverseId(rule.aur_business_rulesid), rule.aur_name]))
+  const quoteDetails = rawAiResponses.map((record): QuoteResponse => {
+    const mapped = mapQuoteResponse(record)
+    const rule = catalog.get(normalizeDataverseId(mapped.businessRuleId))
+    const businessRulePropertyName = (rule?._aur_properties_value ? propertyNames.get(normalizeDataverseId(rule._aur_properties_value)) : undefined)
+      || rule?.aur_propertiesname
+      || (rule as unknown as Record<string, string> | undefined)?.['_aur_properties_value@OData.Community.Display.V1.FormattedValue']
+    return { ...mapped, businessRuleName: rule?.aur_name ?? mapped.businessRuleName,
+      businessRulePropertyName,
+      isConditionalRule: isConditionalPropertyRule(businessRulePropertyName),
+      businessRuleCategory: rule ? resolveBusinessRuleCategory(rule.aur_categoriesname, rule.aur_categories) : 'Uncategorized' }
+  })
+  return { rawAiResponses, businessRules, quoteDetails }
+}
+
 async function listAiExtractedResponsesForInquiry(inquiryId: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(inquiryId)) throw new Error('A valid inquiry ID is required to load AI responses.')
   const records = []
   let skipToken: string | undefined
 
   do {
     const result = await Aur_ai_extracted_responsesService.getAll({
       filter: `_aur_inquiry_value eq ${inquiryId}`,
+      maxPageSize: 500,
       select: [
         'aur_ai_extracted_responseid',
         '_aur_business_rule_value',
@@ -1430,6 +1460,7 @@ async function listAiExtractedResponsesForInquiry(inquiryId: string) {
       ...(skipToken ? { skipToken } : {}),
     })
 
+    if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to load AI extracted responses.')
     records.push(
       ...(result.data ?? []),
     )

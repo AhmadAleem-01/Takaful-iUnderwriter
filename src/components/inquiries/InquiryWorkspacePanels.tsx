@@ -1,6 +1,8 @@
-import { useId, useState, type ReactNode } from 'react'
-import { ChevronDown, Download, ExternalLink, FileText, List, LoaderCircle, Mail, Paperclip, RefreshCw, Save, ShieldCheck, Sparkles, Table2, type LucideIcon } from 'lucide-react'
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, Download, ExternalLink, FileText, LoaderCircle, Mail, Paperclip, Pencil, RefreshCw, Save, Search, ShieldCheck, Sparkles, X, type LucideIcon } from 'lucide-react'
 import type { InquiryDetail, InquiryEmailAttachment, InquiryEmailSummary, QuoteResponse } from '../../domain/app'
+import { aiConditionResult, aiConfidence, isNoEvidenceFound, searchAiResponses } from '../../lib/aiResponsePresentation'
 import { formatDate, formatPercent } from '../../lib/formatters'
 import { getUnderwriterSubActions, underwriterActions } from '../../lib/inquiryUnderwriting'
 import { Button } from '../ui/Button'
@@ -66,40 +68,137 @@ export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premium
 }
 
 type SaveState = { saving?: boolean; error?: string | null; success?: string | null }
-export function InquiryAiPanel({ records, allRecords, summary, loading, category, categories, onCategory, view, onView, drafts, saveStates, onDraft, onSave, onReevaluate, onRequestDraft, showRequestDraft, renderEvidence }: {
-  records: QuoteResponse[]; allRecords: QuoteResponse[]; summary: string; loading: boolean;
-  category: string; categories: Array<{ label: string; count: number }>; onCategory: (value: string) => void;
-  view: 'card' | 'table'; onView: (value: 'card' | 'table') => void;
+export function InquiryAiPanel({ records, allRecords, summary, loading, error, onRetry, category, categories, onCategory, drafts, saveStates, onDraft, onSave, onReevaluate, onRequestDraft, showRequestDraft }: {
+  records: QuoteResponse[]; allRecords: QuoteResponse[]; summary: string; loading: boolean; error?: string | null; onRetry?: () => void;
+  category: string; categories: Array<{ value: string; label: string; count: number }>; onCategory: (value: string) => void;
   drafts: Record<string, string>; saveStates: Record<string, SaveState>;
   onDraft: (id: string, value: string) => void; onSave: (id: string) => void;
-  onReevaluate: () => void; onRequestDraft: () => void; showRequestDraft: boolean; renderEvidence: (value: string) => ReactNode
+  onReevaluate: () => void; onRequestDraft: () => void; showRequestDraft: boolean
 }) {
-  const scores = allRecords.flatMap((item) => item.confidenceScore == null ? [] : [item.confidenceScore])
+  const [search, setSearch] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const openerRef = useRef<HTMLButtonElement | null>(null)
+  const searchRef = useRef<HTMLInputElement | null>(null)
+  const searchId = useId()
+  const visible = useMemo(() => searchAiResponses(records, search, drafts), [records, search, drafts])
+  // Keep an edited response open even when its draft no longer matches the search.
+  const selected = allRecords.find((item) => item.id === selectedId)
+  const selectedIndex = visible.findIndex((item) => item.id === selectedId)
+
+  const scores = allRecords.flatMap((item) => {
+    const score = aiConfidence(item.confidenceScore)
+    return score === null ? [] : [score]
+  })
+  const missingEvidenceCount = allRecords.filter((item) => isNoEvidenceFound(item.evidence)).length
   const average = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null
   return (
+    <Dialog.Root open={Boolean(selected) && !loading && !error} onOpenChange={(open) => { if (!open) setSelectedId(null) }}>
     <InquirySection title="AI Extracted Response" icon={Sparkles} tone="ai" defaultOpen>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">{allRecords.length} underwriting checks · Editable before underwriting</p>
         <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="rounded-lg bg-secondary text-white shadow-none hover:bg-secondary/90 focus-visible:ring-secondary/30" onClick={onReevaluate}><RefreshCw className="h-3.5 w-3.5" />Re-evaluate AI Extraction</Button>{showRequestDraft ? <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={onRequestDraft}>Request a Draft</Button> : null}</div>
       </div>
-      <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_150px]">
-        <div><p className="text-xs font-semibold">AI Summary</p><p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground">{summary || 'No summary is available yet.'}</p></div>
-        <div className="space-y-2"><div className="rounded-xl border border-border-soft p-3"><p className="text-[11px] text-muted-foreground">Checks Extracted</p><p className="mt-1 text-lg font-semibold">{allRecords.length}</p></div><div className="rounded-xl border border-border-soft p-3"><p className="text-[11px] text-muted-foreground">Average Confidence</p><p className="mt-1 text-lg font-semibold">{average == null ? '—' : `${average}%`}</p></div></div>
+      <div className="mt-5 space-y-4">
+        {summary ? <div><p className="text-xs font-semibold">AI Summary</p><p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground">{summary}</p></div> : null}
+        <dl className="grid grid-cols-3 divide-x divide-border-soft rounded-xl border border-border-soft bg-surface-soft/40 py-3">
+          <div className="px-3"><dt className="text-[11px] text-muted-foreground">Checks extracted</dt><dd className="mt-1 text-lg font-semibold">{allRecords.length}</dd></div>
+          <div className="px-3"><dt className="text-[11px] text-muted-foreground">Evidence Not Found</dt><dd className="mt-1 text-lg font-semibold">{missingEvidenceCount}</dd></div>
+          <div className="px-3"><dt className="text-[11px] text-muted-foreground">Average confidence</dt><dd className="mt-1 text-lg font-semibold">{average == null ? 'Not available' : average + '%'}</dd></div>
+        </dl>
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-y border-border-soft py-3">
-        <div className="flex flex-wrap gap-1.5">{categories.map((item) => <button key={item.label} type="button" onClick={() => onCategory(item.label)} aria-pressed={category === item.label} className={cn('rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition', category === item.label ? 'border-secondary bg-secondary text-white' : 'border-secondary/15 text-secondary hover:bg-secondary/5')}>{item.label} <span className="ml-1 opacity-75">{item.count}</span></button>)}</div>
-        <div className="flex gap-1"><Button type="button" variant={view === 'card' ? 'secondary' : 'ghost'} size="icon" aria-label="Accordion view" onClick={() => onView('card')}><List className="h-4 w-4" /></Button><Button type="button" variant={view === 'table' ? 'secondary' : 'ghost'} size="icon" aria-label="Table view" onClick={() => onView('table')}><Table2 className="h-4 w-4" /></Button></div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div role="group" aria-label="Response filters"><div className="flex flex-wrap gap-1.5">{categories.map((item) => <button key={item.value} type="button" onClick={() => onCategory(item.value)} aria-pressed={category === item.value} className={cn('rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition', category === item.value ? 'border-secondary bg-secondary text-white' : 'border-secondary/15 text-secondary hover:bg-secondary/5')}>{item.label} <span className="ml-1 opacity-75">{item.count}</span></button>)}</div></div>
+        </div>
       </div>
-      {loading ? <p role="status" className="py-6 text-sm text-muted-foreground">Loading AI responses...</p> : !records.length ? <p className="py-6 text-sm text-muted-foreground">No extracted responses in this category.</p> : view === 'table' ? (
-        <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-xs"><thead><tr className="border-b border-border-soft"><th className="py-3 pr-3">Check</th><th className="pr-3">Confidence</th><th>Response</th><th>Evidence</th><th /></tr></thead><tbody>{records.map((item) => <tr key={item.id} className="border-b border-border-soft"><td className="max-w-[220px] py-4 pr-3 font-medium">{item.name}</td><td className="pr-3">{item.confidenceScore == null ? '—' : `${item.confidenceScore}%`}</td><td className="py-3 pr-3"><AiResponseEditor item={item} draft={drafts[item.id] ?? item.response} saveState={saveStates[item.id]} onDraft={onDraft} onSave={onSave} /></td><td>{item.evidence ? renderEvidence(item.evidence) : null}</td><td /></tr>)}</tbody></table></div>
-      ) : <div className="divide-y divide-border-soft">{records.map((item) => <AiResponseRow key={item.id} item={item} draft={drafts[item.id] ?? item.response} saveState={saveStates[item.id]} onDraft={onDraft} onSave={onSave} renderEvidence={renderEvidence} />)}</div>}
+      {loading ? <p role="status" className="py-6 text-sm text-muted-foreground">Loading AI responses...</p> : error ? <div role="alert" className="space-y-3 rounded-xl border border-danger/20 bg-danger/5 p-4"><p className="text-sm text-danger">{error}</p>{onRetry ? <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try Again</Button> : null}</div> : !allRecords.length ? <p className="py-6 text-sm text-muted-foreground">No extracted responses linked to this inquiry.</p> : (
+        <div className="mt-4 space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="w-full space-y-2 sm:max-w-sm">
+              <label htmlFor={searchId} className="text-xs font-semibold">Find a response</label>
+              <div className="relative"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><input ref={searchRef} id={searchId} type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search items and responses" className="form-field-surface h-10 w-full min-w-0 rounded-lg border border-border-soft pl-9 pr-3 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/15" /></div>
+            </div>
+            <p role="status" className="text-[11px] text-muted-foreground">{visible.length} of {allRecords.length} responses</p>
+          </div>
+          {visible.length ? <div aria-label="AI response cards" className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {visible.map((item) => <AiResponseRow key={item.id} item={item} draft={drafts[item.id] ?? item.response} saveState={saveStates[item.id]} onView={(button) => { openerRef.current = button; setSelectedId(item.id) }} />)}
+          </div> : <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground"><p className="font-medium text-foreground">No matching items</p><p className="mt-1">Try another search or change the response filter.</p>{search ? <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>Clear search</Button> : null}</div>}
+        </div>
+      )}
+
     </InquirySection>
+    {selected ? <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-[90] bg-slate-950/50 backdrop-blur-sm" />
+      <Dialog.Content onCloseAutoFocus={(event) => { event.preventDefault(); (openerRef.current?.isConnected ? openerRef.current : searchRef.current)?.focus() }} className="fixed left-1/2 top-1/2 z-[91] flex max-h-[90dvh] w-[min(720px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-surface text-foreground shadow-2xl outline-none">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-soft px-5 py-4">
+          <div className="flex items-center gap-2.5"><span className="rounded-lg bg-secondary/10 p-2 text-secondary"><Sparkles aria-hidden="true" className="h-4 w-4" /></span><Dialog.Title className="text-sm font-semibold">AI response details</Dialog.Title></div>
+          <Dialog.Close asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" aria-label="Close response details"><X aria-hidden="true" className="h-4 w-4" /></Button></Dialog.Close>
+        </header>
+        <Dialog.Description className="sr-only">Full underwriting check and AI response. Copy or edit the response, or navigate through the current results.</Dialog.Description>
+        <div key={selected.id} role="region" aria-label="Full AI response" tabIndex={0} className="scrollbar-sleek min-h-0 overflow-y-auto overscroll-contain p-5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary [overflow-wrap:anywhere]">
+          <h3 className="whitespace-pre-wrap break-words text-base font-semibold leading-7">{selected.name || selected.businessRuleName || 'Untitled check'}</h3>
+          {selected.businessRuleCategory && selected.businessRuleCategory !== 'Uncategorized' ? <p className="mt-1 text-xs text-muted-foreground">{selected.businessRuleCategory}</p> : null}
+          <div className="mb-5 mt-3 flex flex-wrap items-center gap-3"><AiConditionBadge value={selected.conditionMet} /><AiConfidence value={selected.confidenceScore} /></div>
+          <AiResponseContent item={selected} draft={drafts[selected.id] ?? selected.response} saveState={saveStates[selected.id]} onDraft={onDraft} onSave={onSave} />
+        </div>
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border-soft bg-surface-soft/40 px-5 py-3">
+          <p role="status" className="text-[11px] text-muted-foreground">{selectedIndex >= 0 ? `Check ${selectedIndex + 1} of ${visible.length}` : 'This check is outside the current search results'}</p>
+          <div className="flex gap-2"><Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={selectedIndex <= 0} onClick={() => setSelectedId(visible[selectedIndex - 1].id)}><ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />Previous</Button><Button type="button" variant="outline" size="sm" className="rounded-lg" disabled={selectedIndex < 0 || selectedIndex >= visible.length - 1} onClick={() => setSelectedId(visible[selectedIndex + 1].id)}>Next<ChevronRight aria-hidden="true" className="h-3.5 w-3.5" /></Button></div>
+        </footer>
+      </Dialog.Content>
+    </Dialog.Portal> : null}
+    </Dialog.Root>
   )
 }
 
-function AiResponseRow({ item, draft, saveState, onDraft, onSave, renderEvidence }: { item: QuoteResponse; draft: string; saveState?: SaveState; onDraft: (id: string, value: string) => void; onSave: (id: string) => void; renderEvidence: (value: string) => ReactNode }) {
-  const [open, setOpen] = useState(false)
-  return <div className={open ? 'bg-surface-soft/50' : ''}><div className="flex items-center gap-2 py-4"><button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/30"><div className="min-w-[160px] flex-1"><p className="text-[13px] font-semibold leading-5">{item.name}</p><p className="mt-1 text-[11px] text-muted-foreground">{item.businessRuleCategory}</p></div><span className="rounded-md bg-surface-soft px-2 py-1 text-[10px] text-muted-foreground">{item.conditionMet || item.status}</span><span className="flex items-center gap-2"><span className="hidden h-1 w-12 overflow-hidden rounded-full bg-border-soft sm:block"><span className="block h-full bg-secondary" style={{ width: `${Math.min(100, Math.max(0, item.confidenceScore ?? 0))}%` }} /></span><span className="min-w-8 text-right text-[11px] font-medium">{item.confidenceScore == null ? '—' : `${item.confidenceScore}%`}</span></span><ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', open && 'rotate-180')} /></button>{item.evidence ? renderEvidence(item.evidence) : null}</div><div hidden={!open} className="pb-4"><AiResponseEditor item={item} draft={draft} saveState={saveState} onDraft={onDraft} onSave={onSave} /></div></div>
+function AiConditionBadge({ value }: { value: string }) {
+  const result = aiConditionResult(value)
+  return <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium', result.tone === 'met' ? 'text-success' : result.tone === 'unmet' ? 'text-warning' : 'text-muted-foreground')}><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />{result.label}</span>
+}
+
+function AiConfidence({ value }: { value?: number }) {
+  const score = aiConfidence(value)
+  return <p className="text-[11px] tabular-nums text-muted-foreground">{score === null ? 'Confidence unavailable' : Number(score.toFixed(1)) + '% confidence'}</p>
+}
+
+function AiResponseRow({ item, draft, saveState, onView }: { item: QuoteResponse; draft: string; saveState?: SaveState; onView: (button: HTMLButtonElement) => void }) {
+  const title = item.name || item.businessRuleName || 'Untitled check'
+  const property = item.businessRulePropertyName?.trim().replace(/\s+/g, ' ')
+  const missingEvidence = isNoEvidenceFound(item.evidence)
+  return <article className="flex min-w-0 flex-col gap-3 rounded-xl border border-border-soft bg-surface p-4 transition-colors hover:border-primary/25 [overflow-wrap:anywhere]" aria-label={title}>
+    <header className="space-y-1.5">
+      <h3 title={title} className="line-clamp-2 break-words text-[13px] font-semibold leading-5">{title}</h3>
+      {property || missingEvidence ? <div className="flex flex-wrap gap-1.5">
+        {property ? <span className="rounded-md bg-secondary/10 px-2 py-1 text-[10px] font-medium leading-4 text-secondary">{property}</span> : null}
+        {missingEvidence ? <span className="rounded-md bg-warning/10 px-2 py-1 text-[10px] font-medium leading-4 text-amber-700 dark:text-amber-300">Evidence Not Found</span> : null}
+      </div> : null}
+    </header>
+    <div className="rounded-lg bg-surface-muted/60 px-3 py-2.5"><p className="line-clamp-3 whitespace-pre-wrap break-words text-[13px] leading-5 text-foreground">{draft.trim() ? draft : 'No response provided.'}</p></div>
+    <footer className="mt-auto flex flex-wrap items-center justify-between gap-2">
+      <AiConfidence value={item.confidenceScore} />
+      <Button type="button" variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-primary hover:bg-primary/5" aria-label={`View details for ${title}`} aria-haspopup="dialog" onClick={(event) => onView(event.currentTarget)}>View Details<ChevronRight aria-hidden="true" className="h-3.5 w-3.5" /></Button>
+    </footer>
+    {saveState?.error ? <p role="alert" className="text-[11px] text-danger">{saveState.error}</p> : saveState?.saving ? <p role="status" className="text-[11px] text-muted-foreground">Saving...</p> : draft !== item.response ? <p className="text-[11px] text-warning">Unsaved changes</p> : saveState?.success ? <p role="status" className="text-[11px] text-success">{saveState.success}</p> : null}
+  </article>
+}
+
+function AiResponseContent({ item, draft, saveState, onDraft, onSave }: { item: QuoteResponse; draft: string; saveState?: SaveState; onDraft: (id: string, value: string) => void; onSave: (id: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [copyStatus, setCopyStatus] = useState('')
+  const editorId = useId()
+  return <div className="flex flex-1 flex-col gap-4">
+    <div className="flex-1 space-y-2"><p className="text-[11px] font-medium text-muted-foreground">Response</p><div className="form-field-surface rounded-lg border border-border-soft px-4 py-3"><p className="whitespace-pre-wrap break-words text-[13px] leading-6 text-foreground">{draft.trim() ? draft : 'No response provided.'}</p></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4"><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" className="rounded-lg bg-surface text-muted-foreground" disabled={!draft.trim()} onClick={async () => {
+      try {
+        await navigator.clipboard.writeText(draft)
+        setCopyStatus('Response copied')
+      } catch {
+        setCopyStatus('Unable to copy. Select the response text and copy it manually.')
+      }
+    }}><Copy aria-hidden="true" className="h-3.5 w-3.5" />Copy Response</Button><Button type="button" variant="outline" size="sm" className="rounded-lg border-primary/20 bg-primary/5 text-primary hover:bg-primary/10" aria-expanded={editing} aria-controls={editorId} onClick={() => setEditing(!editing)}><Pencil aria-hidden="true" className="h-3.5 w-3.5" />{editing ? 'Hide editor' : 'Edit response'}</Button></div>{draft !== item.response ? <span className="text-[11px] text-warning">Unsaved changes</span> : saveState?.success && !editing ? <span role="status" className="text-[11px] text-success">{saveState.success}</span> : null}</div>
+    {copyStatus ? <p role="status" className="text-xs text-muted-foreground">{copyStatus}</p> : null}
+    {editing ? <div id={editorId} className="border-t border-border-soft pt-3"><AiResponseEditor item={item} draft={draft} saveState={saveState} onDraft={onDraft} onSave={onSave} /></div> : null}
+  </div>
 }
 
 function AiResponseEditor({ item, draft, saveState, onDraft, onSave }: { item: QuoteResponse; draft: string; saveState?: SaveState; onDraft: (id: string, value: string) => void; onSave: (id: string) => void }) {
