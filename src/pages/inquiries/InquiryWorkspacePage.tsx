@@ -6,6 +6,7 @@ import { InquirySection, InquiryInformationSection, InquiryAiPanel, InquiryDecis
 import { HealthInquirySections, HealthPremiumFields } from '../../components/inquiries/HealthInquirySections'
 import { HealthAiEvaluation } from '../../components/inquiries/HealthAiEvaluation'
 import { HealthInquiryStepper } from '../../components/inquiries/HealthInquiryStepper'
+import { InquiryDuplicateWarning } from '../../components/inquiries/InquiryDuplicateWarning'
 import { healthAnswer, inquiryProductKind, parseHealthCustomerData, tpaNetworkPremiumAdjustment } from '../../lib/healthInquiry'
 import { evaluationNumber, evaluationObject, parseHealthAiEvaluation } from '../../lib/healthAiEvaluation'
 import { ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
@@ -1196,6 +1197,8 @@ export function InquiryWorkspacePage() {
           Back to inquiries
         </Link>
       </Button>
+
+      <InquiryDuplicateWarning key={inquiryRecordId} inquiryId={inquiryRecordId} refreshKey={supplementaryRefreshKey} />
 
       <section className="rounded-2xl border border-border-soft bg-surface px-5 py-5 sm:px-6">
         <div className="flex flex-col justify-between gap-5 lg:flex-row">

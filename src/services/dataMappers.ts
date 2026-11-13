@@ -26,6 +26,7 @@ export function mapProductSummary(
 ): ProductSummary {
   return {
     id: product.aur_productsid,
+    lineOfBusinessId: product._aur_lob_value?.trim() || undefined,
     name: product.aur_name,
     shortDetails: product.aur_short_details ?? product.aur_details ?? 'Product admin workspace and form-builder source.',
     status: product.aur_product_statusname ?? product.statuscodename ?? 'Draft',

@@ -453,6 +453,30 @@
           "x-ms-dataverse-type": "BigIntType",
           "x-ms-schema-name": "VersionNumber",
           "x-ms-read-only": true
+        },
+        "aur_duplicate_inquiry_criteria": {
+          "type": "string",
+          "title": "Duplicate Inquiry Criteria",
+          "x-ms-dataverse-attribute": "aur_duplicate_inquiry_criteria",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_duplicate_inquiry_criteria",
+          "maxLength": 1048576
+        },
+        "aur_lob": {
+          "type": "string",
+          "title": "LOB",
+          "x-ms-dataverse-attribute": "aur_lob",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_lob"
+        },
+        "aur_lobname": {
+          "type": "string",
+          "title": "aur_lobname",
+          "x-ms-dataverse-attribute": "aur_lobname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_lobName",
+          "x-ms-read-only": true,
+          "maxLength": 850
         }
       },
       "required": [

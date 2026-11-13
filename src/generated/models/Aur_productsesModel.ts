@@ -22,6 +22,7 @@ export type Aur_productsesstatuscode = keyof typeof Aur_productsesstatuscode;
 export interface Aur_productsesBase {
   aur_buy_button?: string;
   aur_buy_heading?: string;
+  aur_duplicate_inquiry_criteria?: string;
   aur_details?: string;
   aur_heading?: string;
   aur_incomingemailaddress?: string;
@@ -63,6 +64,9 @@ export interface Aur_productses extends Aur_productsesBase {
   statecodename?: string;
   statuscodename?: string;
   versionnumber?: number;
+  aur_lobname?: string;
+  aur_lob?: object;
+  _aur_lob_value?: string;
   createdby?: object;
   _createdby_value?: string;
   createdonbehalfby?: object;

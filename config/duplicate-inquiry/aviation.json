@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "insured": {
+    "operator": "normalizedEqual",
+    "sources": ["inquiry.insuredName"]
+  },
+  "identifiers": {
+    "operator": "anyOverlap",
+    "groups": [
+      {
+        "key": "registration",
+        "label": "Aircraft registration",
+        "sources": [
+          "evidence:Fleet Schedule (Reg No, Pass/Crew Seat, Attachment date, Status)"
+        ]
+      },
+      {
+        "key": "serial",
+        "label": "Aircraft serial number",
+        "sources": [
+          "evidence:Fleet Schedule (Reg No, Pass/Crew Seat, Attachment date, Status)"
+        ]
+      }
+    ]
+  },
+  "period": {
+    "operator": "overlapOrRenewalEqual",
+    "startSources": [
+      "evidence:Policy Period"
+    ],
+    "endSources": [
+      "evidence:Policy Period"
+    ],
+    "renewalSources": []
+  }
+}

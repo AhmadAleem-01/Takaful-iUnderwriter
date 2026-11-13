@@ -30,6 +30,7 @@ export interface TableQueryState {
 
 export interface ProductSummary {
   id: string
+  lineOfBusinessId?: string
   name: string
   shortDetails: string
   status: string
@@ -108,6 +109,7 @@ export interface ProductWorkspace {
     order: string
     status: 'draft' | 'publish'
     applyActionAutomatically: boolean
+    duplicateCriteria: string
   }
   availablePlans: AdminCatalogItem[]
   availableRules: AdminCatalogItem[]

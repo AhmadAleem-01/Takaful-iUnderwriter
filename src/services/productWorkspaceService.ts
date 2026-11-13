@@ -5,6 +5,7 @@ import {
 } from '../generated'
 import type { AdminCatalogItem, ProductWorkspace } from '../domain/app'
 import { mapProductSummary } from './dataMappers'
+import { parseDuplicateCriteria } from '../lib/inquiryDuplicates'
 
 function parseOptionalNumber(value?: string) {
   if (!value?.trim()) return null
@@ -47,15 +48,28 @@ function mapRuleRecord(rule: Awaited<ReturnType<typeof Aur_business_rulesesServi
   }
 }
 
+async function getAllBusinessRules() {
+  const rules: Awaited<ReturnType<typeof Aur_business_rulesesService.getAll>>['data'] = []
+  let skipToken: string | undefined
+  do {
+    const result = await Aur_business_rulesesService.getAll({ maxPageSize: 500, skipToken })
+    if (!result.success || result.error) throw new Error('Unable to load business rules.')
+    rules.push(...(result.data ?? []))
+    skipToken = result.skipToken
+  } while (skipToken)
+  return rules
+}
+
 export async function getProductWorkspace(productId?: string): Promise<ProductWorkspace> {
-  const [productsResult, plansResult, rulesResult] = await Promise.all([
-    Aur_productsesService.getAll(),
+  const [productResult, plansResult, rulesResult] = await Promise.all([
+    productId ? Aur_productsesService.get(productId.replace(/[{}]/g, '').toLowerCase()) : Promise.resolve(undefined),
     Aur_plansService.getAll(),
-    Aur_business_rulesesService.getAll(),
+    getAllBusinessRules(),
   ])
 
-  const products = productsResult.data ?? []
-  const current = productId ? products.find((product) => product.aur_productsid === productId) : undefined
+  if (productResult && (!productResult.success || productResult.error)) throw new Error('Unable to load product.')
+  const current = productResult?.data
+  if (productId && !current) throw new Error('Product not found.')
 
   return {
     summary: current ? mapProductSummary(current) : undefined,
@@ -75,6 +89,7 @@ export async function getProductWorkspace(productId?: string): Promise<ProductWo
         order: current.aur_order ?? '',
         status: current.aur_product_statusname?.toLowerCase().includes('publish') ? 'publish' : 'draft',
         applyActionAutomatically: Boolean((current as typeof current & { aur_apply_action_automatically?: boolean | null }).aur_apply_action_automatically),
+        duplicateCriteria: current.aur_duplicate_inquiry_criteria ?? '',
       }
       : {
           arabicName: '',
@@ -91,11 +106,12 @@ export async function getProductWorkspace(productId?: string): Promise<ProductWo
           order: '',
           status: 'draft',
           applyActionAutomatically: false,
+          duplicateCriteria: '',
         },
     availablePlans: (plansResult.data ?? [])
       .filter((plan) => !productId || plan._aur_product_value === productId)
       .map(mapPlanRecord),
-    availableRules: (rulesResult.data ?? []).map(mapRuleRecord),
+    availableRules: rulesResult.map(mapRuleRecord),
     associatedRuleIds: [],
     relationshipNotice: productId
       ? 'Product-to-business-rule associations will load through the custom Web API once it is configured.'
@@ -120,7 +136,11 @@ export async function saveProductWorkspace(payload: {
   premiumPercentage?: string
   status?: 'draft' | 'publish'
   applyActionAutomatically?: boolean
+  duplicateCriteria?: string
 }) {
+  if (payload.duplicateCriteria !== undefined && parseDuplicateCriteria(payload.duplicateCriteria).state !== 'ready') {
+    throw new Error('Complete the duplicate inquiry rule before saving it.')
+  }
   const productStatus: 751820000 | 751820001 =
     payload.status === 'publish' ? 751820001 : 751820000
   const statusCode: 1 | 751820001 = payload.status === 'publish' ? 751820001 : 1
@@ -141,14 +161,17 @@ export async function saveProductWorkspace(payload: {
     aur_product_status: productStatus,
     statuscode: statusCode,
     aur_apply_action_automatically: payload.applyActionAutomatically ?? false,
+    ...(payload.duplicateCriteria !== undefined ? { aur_duplicate_inquiry_criteria: payload.duplicateCriteria } : {}),
   }
 
   if (payload.id) {
-    await Aur_productsesService.update(payload.id, record)
+    const result = await Aur_productsesService.update(payload.id.replace(/[{}]/g, '').toLowerCase(), record)
+    if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to save product.')
     return
   }
 
-  await Aur_productsesService.create(record as never)
+  const result = await Aur_productsesService.create(record as never)
+  if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to create product.')
 }
 
 export async function updateProductAutoActionSetting(productId: string, applyAutomatically: boolean) {

@@ -112,6 +112,8 @@ export interface Aur_inquiries extends Aur_inquiriesBase {
   aur_contactname?: string;
   aur_contactyominame?: string;
   aur_cover_typename?: string;
+  aur_broker_companyname?: string;
+  aur_insured_companyname?: string;
   aur_declared_value_base?: number;
   aur_fees_base?: number;
   aur_gross_premium_base?: number;
@@ -141,6 +143,9 @@ export interface Aur_inquiries extends Aur_inquiriesBase {
   statuscodename?: string;
   transactioncurrencyidname?: string;
   versionnumber?: number;
+  _aur_broker_company_value?: string;
+  _aur_insured_company_value?: string;
+  _aur_line_of_business_value?: string;
   aur_account?: object;
   _aur_account_value?: string;
   aur_contact?: object;

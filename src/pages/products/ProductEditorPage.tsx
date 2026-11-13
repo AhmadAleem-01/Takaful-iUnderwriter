@@ -21,6 +21,7 @@ import { Card } from '../../components/ui/Card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/Tabs'
 import { Input } from '../../components/ui/Input'
 import { Badge } from '../../components/ui/Badge'
+import { DuplicateCriteriaEditor } from '../../components/products/DuplicateCriteriaEditor'
 import { Select } from '../../components/ui/Select'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import {
@@ -35,6 +36,8 @@ import {
 } from '../../services/productWorkspaceService'
 import { formatCompactNumber } from '../../lib/formatters'
 import { RULE_GROUPS, categorizeRule, type RuleGroup } from '../../lib/productRuleGroups'
+import { parseDuplicateCriteria, type DuplicateCriteria } from '../../lib/inquiryDuplicates'
+import { serializeDuplicateCriteria } from '../../lib/duplicateCriteriaEditor'
 
 interface ProductFormState {
   name: string
@@ -83,6 +86,7 @@ export function ProductEditorPage() {
   const isCreate = !id || id === 'create'
   const [refreshKey, setRefreshKey] = useState(0)
   const [form, setForm] = useState<ProductFormState | null>(null)
+  const [duplicateDraft, setDuplicateDraft] = useState<DuplicateCriteria | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('details')
@@ -111,6 +115,8 @@ export function ProductEditorPage() {
 
   const { data, loading, error } = useAsyncData(async () => {
     const workspace = await getProductWorkspace(isCreate ? undefined : id)
+    const duplicateRule = parseDuplicateCriteria(workspace.metadata?.duplicateCriteria)
+    setDuplicateDraft(duplicateRule.state === 'ready' ? duplicateRule.criteria : null)
     setForm({
       name: workspace.summary?.name ?? '',
       arabicName: workspace.metadata?.arabicName ?? '',
@@ -184,6 +190,7 @@ export function ProductEditorPage() {
   }, [categorizedRules, ruleSearch])
 
   const associatedRuleIdSet = useMemo(() => new Set(data?.associatedRuleIds ?? []), [data?.associatedRuleIds])
+  const isParentProduct = !data?.summary?.lineOfBusinessId
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -191,7 +198,12 @@ export function ProductEditorPage() {
     setSaving(true)
     setSaveError(null)
     try {
-      await saveProductWorkspace({ id: isCreate ? undefined : id, ...form })
+      let duplicateCriteria: string | undefined
+      if (isParentProduct && duplicateDraft) {
+        try { duplicateCriteria = serializeDuplicateCriteria(duplicateDraft) }
+        catch (cause) { setActiveTab('duplicates'); throw cause }
+      }
+      await saveProductWorkspace({ id: isCreate ? undefined : id, ...form, ...(duplicateCriteria !== undefined ? { duplicateCriteria } : {}) })
       if (isCreate) {
         navigate('/admin/products')
       } else {
@@ -444,6 +456,7 @@ export function ProductEditorPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
             <TabsList>
               <TabsTrigger value="details" icon={FileText}>Product Details</TabsTrigger>
+              {isParentProduct && <TabsTrigger value="duplicates" icon={ShieldCheck}>Duplicate Inquiries</TabsTrigger>}
               <TabsTrigger value="plans" icon={Layers3}>Plans</TabsTrigger>
               <TabsTrigger value="rules" icon={GitBranch}>Business Rule</TabsTrigger>
             </TabsList>
@@ -530,6 +543,16 @@ export function ProductEditorPage() {
                 {saveError ? <p className="text-sm text-danger">{saveError}</p> : null}
               </Card>
             </TabsContent>
+
+            {isParentProduct && <TabsContent value="duplicates" className="space-y-6">
+              <DuplicateCriteriaEditor
+                value={duplicateDraft}
+                savedText={data?.metadata?.duplicateCriteria ?? ''}
+                isAviation={(data?.summary?.name ?? form.name).trim().toLowerCase() === 'aviation'}
+                rules={(data?.availableRules ?? []).map((rule) => ({ id: rule.id, name: rule.name }))}
+                onChange={setDuplicateDraft}
+              />
+            </TabsContent>}
 
             <TabsContent value="plans" className="space-y-6">
               <Card className="space-y-5">
