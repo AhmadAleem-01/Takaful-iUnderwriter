@@ -107,8 +107,35 @@
 }
 
 @layer components {
+  .page-part-editor,
+  .page-part-editor :not(.template-field-badge) {
+    color: #000 !important;
+  }
+
+  .page-part-editor:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
   .form-field-surface {
     background-color: #e5eefa73;
+  }
+
+  .template-field-badge {
+    display: inline-block;
+    max-width: 100%;
+    margin: 0 0.125rem;
+    border: 1px solid hsl(var(--primary) / 0.2);
+    border-radius: 9999px;
+    padding: 0.1rem 0.65rem;
+    background: hsl(var(--primary) / 0.1);
+    color: hsl(var(--primary));
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.6;
+    vertical-align: baseline;
+    user-select: all;
   }
 
   .dark .form-field-surface {
@@ -127,6 +154,86 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+.ai-decision-field {
+  position: relative;
+  isolation: isolate;
+  border-radius: 0.85rem;
+  padding: 1px;
+  background: linear-gradient(110deg, #a78bfa, #c4b5fd, #60a5fa, #a78bfa);
+  background-size: 300% 100%;
+  animation: ai-decision-glow 6s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgb(167 139 250 / 0.06), 0 3px 14px rgb(139 92 246 / 0.08);
+  transition: box-shadow 250ms ease;
+}
+
+.ai-decision-field::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: hsl(var(--surface));
+}
+
+.ai-decision-field .form-field-surface { border-color: transparent; border-radius: 0.8rem; }
+.ai-decision-field:hover, .ai-decision[data-open='true'] .ai-decision-field {
+  box-shadow: 0 0 0 3px rgb(167 139 250 / 0.12), 0 4px 18px rgb(139 92 246 / 0.12);
+}
+.ai-decision-chevron { transition: transform 300ms ease; }
+.ai-decision[data-open='true'] .ai-decision-chevron { transform: rotate(180deg); }
+.ai-decision-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1), visibility 320ms;
+}
+.ai-decision[data-open='true'] .ai-decision-reveal { grid-template-rows: 1fr; visibility: visible; }
+.ai-decision-reveal[data-open='true'] { grid-template-rows: 1fr; visibility: visible; }
+.ai-decision-content {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 240ms ease, transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ai-decision[data-open='true'] .ai-decision-content { opacity: 1; transform: translateY(0); }
+.ai-decision-reveal[data-open='true'] .ai-decision-content { opacity: 1; transform: translateY(0); }
+.ai-decision-row { display: grid; grid-column: 1 / -1; column-gap: 1rem; align-items: start; }
+.ai-decision-row > .ai-decision-reveal { grid-column: 1 / -1; }
+.ai-decision-product-slot { margin-top: 1rem; }
+@media (min-width: 768px) {
+  .ai-decision-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ai-decision-product-slot { margin-top: 0; }
+}
+.ai-suggestion-card { background: linear-gradient(135deg, rgb(250 247 255), rgb(247 246 255)); }
+.dark .ai-suggestion-card { background: linear-gradient(135deg, rgb(139 92 246 / 0.08), rgb(96 165 250 / 0.05)); }
+.ai-suggestion-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+.ai-suggestion-action:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 3px; }
+.ai-suggestion-detail {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  margin-top: 0 !important;
+  opacity: 0;
+  transition: grid-template-rows 300ms ease, margin-top 300ms ease, opacity 250ms ease, visibility 300ms;
+}
+.ai-suggestion-detail[data-open='true'] { grid-template-rows: 1fr; margin-top: 1rem !important; visibility: visible; opacity: 1; }
+@keyframes ai-decision-glow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .inquiry-panel-body:not([hidden]) { animation: none; }
+  .ai-decision-field { animation: none; transition: none; }
+  .ai-decision-reveal, .ai-decision-content, .ai-decision-chevron { transition: none; }
+  .ai-suggestion-detail, .ai-suggestion-action { transition: none; }
 }

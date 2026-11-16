@@ -18,70 +18,6 @@
           "x-ms-schema-name": "aur_ai_generated_summary",
           "maxLength": 1048576
         },
-        "aur_benefits": {
-          "type": "string",
-          "title": "Benefits",
-          "x-ms-dataverse-attribute": "aur_benefits",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_benefits"
-        },
-        "aur_benefitsname": {
-          "type": "string",
-          "title": "aur_benefitsname",
-          "x-ms-dataverse-attribute": "aur_benefitsname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_benefitsName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
-        "aur_coverage": {
-          "type": "string",
-          "title": "Coverages",
-          "x-ms-dataverse-attribute": "aur_coverage",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_coverage"
-        },
-        "aur_coveragename": {
-          "type": "string",
-          "title": "aur_coveragename",
-          "x-ms-dataverse-attribute": "aur_coveragename",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_coverageName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
-        "aur_deductibles": {
-          "type": "string",
-          "title": "Deductibles",
-          "x-ms-dataverse-attribute": "aur_deductibles",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_deductibles"
-        },
-        "aur_deductiblesname": {
-          "type": "string",
-          "title": "aur_deductiblesname",
-          "x-ms-dataverse-attribute": "aur_deductiblesname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_deductiblesName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
-        "aur_exclusions": {
-          "type": "string",
-          "title": "Exclusions",
-          "x-ms-dataverse-attribute": "aur_exclusions",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_exclusions"
-        },
-        "aur_exclusionsname": {
-          "type": "string",
-          "title": "aur_exclusionsname",
-          "x-ms-dataverse-attribute": "aur_exclusionsname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_exclusionsName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
         "aur_gross_premium": {
           "type": "string",
           "title": "Gross Premium",
@@ -89,19 +25,19 @@
           "x-ms-dataverse-type": "IntegerType",
           "x-ms-schema-name": "aur_gross_premium"
         },
-        "aur_inclusions": {
+        "aur_inquiry": {
           "type": "string",
-          "title": "Inclusions",
-          "x-ms-dataverse-attribute": "aur_inclusions",
+          "title": "Inquiry",
+          "x-ms-dataverse-attribute": "aur_inquiry",
           "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_inclusions"
+          "x-ms-schema-name": "aur_inquiry"
         },
-        "aur_inclusionsname": {
+        "aur_inquiryname": {
           "type": "string",
-          "title": "aur_inclusionsname",
-          "x-ms-dataverse-attribute": "aur_inclusionsname",
+          "title": "aur_inquiryname",
+          "x-ms-dataverse-attribute": "aur_inquiryname",
           "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_inclusionsName",
+          "x-ms-schema-name": "aur_inquiryName",
           "x-ms-read-only": true,
           "maxLength": 850
         },
@@ -154,37 +90,6 @@
           "x-ms-read-only": true,
           "maxLength": 850
         },
-        "aur_quote_status": {
-          "type": "string",
-          "title": "Quote Status",
-          "x-ms-dataverse-attribute": "aur_quote_status",
-          "x-ms-dataverse-type": "PicklistType",
-          "x-ms-schema-name": "aur_quote_status",
-          "enum": [
-            "Quote Won",
-            "Quote Lost"
-          ],
-          "x-ms-enum-values": [
-            751820000,
-            751820001
-          ],
-          "Color": [
-            null,
-            null
-          ],
-          "x-ms-optionsetmetadataid": "b575594f-7444-f111-bec7-6045bde5fa9e",
-          "x-ms-isGlobal": false,
-          "x-ms-optionsetdisplayname": "Quote Status",
-          "x-ms-optionSetType": "Picklist"
-        },
-        "aur_quote_statusname": {
-          "type": "string",
-          "title": "aur_quote_statusname",
-          "x-ms-dataverse-attribute": "aur_quote_statusname",
-          "x-ms-dataverse-type": "VirtualType",
-          "x-ms-schema-name": "aur_quote_statusName",
-          "x-ms-read-only": true
-        },
         "aur_quoteid": {
           "type": "string",
           "title": "Quotes",
@@ -195,22 +100,6 @@
           "required": true,
           "x-ms-keyType": "primary"
         },
-        "aur_quotes": {
-          "type": "string",
-          "title": "Inquiry",
-          "x-ms-dataverse-attribute": "aur_quotes",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_quotes"
-        },
-        "aur_quotesname": {
-          "type": "string",
-          "title": "aur_quotesname",
-          "x-ms-dataverse-attribute": "aur_quotesname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_quotesName",
-          "x-ms-read-only": true,
-          "maxLength": 850
-        },
         "aur_reason": {
           "type": "string",
           "title": "Reason",
@@ -218,6 +107,14 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "aur_reason",
           "maxLength": 4000
+        },
+        "aur_sharepoint_url": {
+          "type": "string",
+          "title": "Sharepoint URL",
+          "x-ms-dataverse-attribute": "aur_sharepoint_url",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_sharepoint_url",
+          "maxLength": 100
         },
         "aur_total_premium": {
           "type": "string",
@@ -232,22 +129,6 @@
           "x-ms-dataverse-attribute": "aur_vat",
           "x-ms-dataverse-type": "IntegerType",
           "x-ms-schema-name": "aur_vat"
-        },
-        "aur_warranties": {
-          "type": "string",
-          "title": "Warranties",
-          "x-ms-dataverse-attribute": "aur_warranties",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_warranties"
-        },
-        "aur_warrantiesname": {
-          "type": "string",
-          "title": "aur_warrantiesname",
-          "x-ms-dataverse-attribute": "aur_warrantiesname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_warrantiesName",
-          "x-ms-read-only": true,
-          "maxLength": 850
         },
         "createdby": {
           "type": "string",
@@ -476,7 +357,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "8293301e-eeef-f011-8406-6045bdc2abdc",
+          "x-ms-optionsetmetadataid": "d32c16fe-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -497,17 +378,23 @@
           "x-ms-schema-name": "statuscode",
           "enum": [
             "Active",
-            "Inactive"
+            "Inactive",
+            "Quote Won",
+            "Quote Lost"
           ],
           "x-ms-enum-values": [
             1,
-            2
+            2,
+            751820001,
+            751820002
           ],
           "Color": [
             null,
+            null,
+            null,
             null
           ],
-          "x-ms-optionsetmetadataid": "8c93301e-eeef-f011-8406-6045bdc2abdc",
+          "x-ms-optionsetmetadataid": "dd2c16fe-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"

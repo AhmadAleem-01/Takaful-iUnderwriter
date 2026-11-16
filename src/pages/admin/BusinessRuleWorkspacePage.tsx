@@ -170,7 +170,7 @@ export function BusinessRuleWorkspacePage() {
     workspaceData?.rules.find((rule) => rule.id === formState.parentRuleId)?.name ??
     workspaceData?.parentRuleOptions.find((rule) => rule.value === formState.parentRuleId)?.label ??
     ''
-  const showConsequencesSection = Boolean(currentRuleId) && selectedPropertyRuleName === 'Conditional Rules'
+  const showConsequencesSection = Boolean(currentRuleId)
   const hideActionField =
     consequenceEditor.typeValue === '3' || consequenceEditor.typeValue === '5'
   const showRiskScoreField =

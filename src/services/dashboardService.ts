@@ -60,7 +60,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     ]),
   )
   const inquiryIds = new Set(inquiries.map((item) => normalizeDataverseId(item.aur_inquiryid)))
-  const wonQuotes = quotes.filter((quote) => quote.aur_quote_status === 751820000 || quote.aur_quote_statusname === 'QuoteWon' || quote.aur_quote_statusname === 'Quote Won')
+  const wonQuotes = quotes.filter((quote) => quote.statuscode === 751820001)
   const brokerEmails = emails.filter((email) =>
     inquiryIds.has(normalizeDataverseId(email._regardingobjectid_value)),
   )
@@ -87,7 +87,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 
   const inquiryByBrokers = Array.from(
     inquiries.reduce((map, inquiry) => {
-      const accountId = normalizeDataverseId(inquiry._aur_account_value)
+      const accountId = normalizeDataverseId(inquiry._aur_broker_company_value)
       const account = accountMap.get(accountId)
       const isBroker =
         account?.aur_account_type === 751820000 ||
@@ -97,7 +97,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
         return map
       }
 
-      const key = account?.name?.trim() || inquiry.aur_accountname?.trim() || 'Unnamed Broker'
+      const key = account?.name?.trim() || inquiry.aur_broker_companyname?.trim() || 'Unnamed Broker'
       map.set(key, (map.get(key) ?? 0) + 1)
       return map
     }, new Map<string, number>()),
@@ -246,7 +246,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
       },
       {
         label: 'Lost Quotes',
-        value: quotes.filter((item) => item.aur_quote_statusname === 'QuoteLost').length,
+        value: quotes.filter((item) => item.statuscode === 751820002).length,
         helper: 'Outcome reasons remain visible for review',
         tone: 'danger',
       },
@@ -274,7 +274,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     inquiryMix: countByType(inquiries),
     quoteStatusMix: Array.from(
       quotes.reduce((map, quote) => {
-        const key = quote.aur_quote_statusname ?? 'Open'
+        const key = quote.statuscode === 751820001 ? 'Quote Won' : quote.statuscode === 751820002 ? 'Quote Lost' : quote.statuscodename ?? 'Active'
         map.set(key, (map.get(key) ?? 0) + 1)
         return map
       }, new Map<string, number>()),

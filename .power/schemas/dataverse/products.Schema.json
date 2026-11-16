@@ -10,6 +10,37 @@
       "x-ms-dataverse-primary-id": "aur_productsid",
       "x-ms-dataverse-primary-name": "aur_name",
       "properties": {
+        "aur_apply_action_automatically": {
+          "type": "string",
+          "title": "Apply Action Automatically",
+          "x-ms-dataverse-attribute": "aur_apply_action_automatically",
+          "x-ms-dataverse-type": "BooleanType",
+          "x-ms-schema-name": "aur_apply_action_automatically",
+          "enum": [
+            "No",
+            "Yes"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "222c16fe-85cb-f111-a05c-6045bd6b6cd2",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Apply Action Automatically",
+          "x-ms-optionSetType": "Boolean"
+        },
+        "aur_apply_action_automaticallyname": {
+          "type": "string",
+          "title": "aur_apply_action_automaticallyname",
+          "x-ms-dataverse-attribute": "aur_apply_action_automaticallyname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "aur_apply_action_automaticallyName",
+          "x-ms-read-only": true
+        },
         "aur_buy_button": {
           "type": "string",
           "title": "Buy Button",
@@ -25,6 +56,38 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "aur_buy_heading",
           "maxLength": 100
+        },
+        "aur_criteria": {
+          "type": "string",
+          "title": "Criteria",
+          "x-ms-dataverse-attribute": "aur_criteria",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_criteria",
+          "maxLength": 1048576
+        },
+        "aur_criteria_for_inquiry_purpose": {
+          "type": "string",
+          "title": "Criteria for Inquiry Purpose",
+          "x-ms-dataverse-attribute": "aur_criteria_for_inquiry_purpose",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_criteria_for_inquiry_purpose",
+          "maxLength": 1048576
+        },
+        "aur_criteria_for_inquiry_type": {
+          "type": "string",
+          "title": "Criteria for Inquiry Type",
+          "x-ms-dataverse-attribute": "aur_criteria_for_inquiry_type",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_criteria_for_inquiry_type",
+          "maxLength": 1048576
+        },
+        "aur_duplicate_inquiry_criteria": {
+          "type": "string",
+          "title": "Duplicate Inquiry Criteria",
+          "x-ms-dataverse-attribute": "aur_duplicate_inquiry_criteria",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_duplicate_inquiry_criteria",
+          "maxLength": 1048576
         },
         "aur_details": {
           "type": "string",
@@ -49,6 +112,38 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "aur_IncomingEmailAddress",
           "maxLength": 100
+        },
+        "aur_line_of_business": {
+          "type": "string",
+          "title": "Line of Business",
+          "x-ms-dataverse-attribute": "aur_line_of_business",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_line_of_business"
+        },
+        "aur_line_of_businessname": {
+          "type": "string",
+          "title": "aur_line_of_businessname",
+          "x-ms-dataverse-attribute": "aur_line_of_businessname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_line_of_businessName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "aur_lob": {
+          "type": "string",
+          "title": "LOB",
+          "x-ms-dataverse-attribute": "aur_lob",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_lob"
+        },
+        "aur_lobname": {
+          "type": "string",
+          "title": "aur_lobname",
+          "x-ms-dataverse-attribute": "aur_lobname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_lobName",
+          "x-ms-read-only": true,
+          "maxLength": 850
         },
         "aur_name": {
           "type": "string",
@@ -102,7 +197,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "9d371503-a943-f111-bec7-7ced8da0b39a",
+          "x-ms-optionsetmetadataid": "252c16fe-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Product Status",
           "x-ms-optionSetType": "Picklist"
@@ -132,6 +227,14 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "aur_remarks",
           "maxLength": 100
+        },
+        "aur_scoring_configuration": {
+          "type": "string",
+          "title": "Scoring Configuration",
+          "x-ms-dataverse-attribute": "aur_scoring_configuration",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "aur_scoring_configuration",
+          "maxLength": 1048576
         },
         "aur_short_details": {
           "type": "string",
@@ -385,7 +488,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "79150c97-80d2-ef11-a730-00224811888f",
+          "x-ms-optionsetmetadataid": "e52b16fe-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -419,7 +522,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "83150c97-80d2-ef11-a730-00224811888f",
+          "x-ms-optionsetmetadataid": "ef2b16fe-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"
@@ -453,30 +556,6 @@
           "x-ms-dataverse-type": "BigIntType",
           "x-ms-schema-name": "VersionNumber",
           "x-ms-read-only": true
-        },
-        "aur_duplicate_inquiry_criteria": {
-          "type": "string",
-          "title": "Duplicate Inquiry Criteria",
-          "x-ms-dataverse-attribute": "aur_duplicate_inquiry_criteria",
-          "x-ms-dataverse-type": "MemoType",
-          "x-ms-schema-name": "aur_duplicate_inquiry_criteria",
-          "maxLength": 1048576
-        },
-        "aur_lob": {
-          "type": "string",
-          "title": "LOB",
-          "x-ms-dataverse-attribute": "aur_lob",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_lob"
-        },
-        "aur_lobname": {
-          "type": "string",
-          "title": "aur_lobname",
-          "x-ms-dataverse-attribute": "aur_lobname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_lobName",
-          "x-ms-read-only": true,
-          "maxLength": 850
         }
       },
       "required": [

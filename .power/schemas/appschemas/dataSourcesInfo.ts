@@ -12,6 +12,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "aur_ai_decision_responses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_ai_decision_responseid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "aur_ai_extracted_responses": {
     "tableId": "",
     "version": "",
@@ -252,6 +259,20 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "aur_inquiry_coverageses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_inquiry_coveragesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_line_of_businesses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_line_of_businessid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "aur_plan_details_extractions": {
     "tableId": "",
     "version": "",
@@ -383,6 +404,46 @@ export const dataSourcesInfo = {
     "apis": {}
   },
   "generatepaymentlink": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "",
+    "dataSourceType": "Connector",
+    "apis": {
+      "Run": {
+        "path": "/{connectionId}/triggers/manual/run",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "input",
+            "in": "body",
+            "required": true,
+            "type": "object"
+          },
+          {
+            "name": "api-version",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "getinquiryevidencedocument": {
     "tableId": "",
     "version": "",
     "primaryKey": "",

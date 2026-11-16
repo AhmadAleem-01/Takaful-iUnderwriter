@@ -8,7 +8,7 @@ import type { QuoteSummary } from '../../domain/app'
 import { PageHeader } from '../../components/layout/PageHeader'
 import { FilterBar } from '../../components/ui/FilterBar'
 import { DataTable } from '../../components/ui/DataTable'
-import { Badge } from '../../components/ui/Badge'
+import { QuoteStatusBadge } from '../../components/quotes/QuoteStatusBadge'
 import { formatCurrency, formatDate } from '../../lib/formatters'
 
 const columns: ColumnDef<QuoteSummary>[] = [
@@ -25,7 +25,7 @@ const columns: ColumnDef<QuoteSummary>[] = [
   },
   { header: 'Product', accessorKey: 'productName' },
   { header: 'Plan', accessorKey: 'planName' },
-  { header: 'Status', cell: ({ row }) => <Badge variant="approved">{row.original.status}</Badge> },
+  { header: 'Status', cell: ({ row }) => <QuoteStatusBadge status={row.original.status} statusCode={row.original.quoteStatusValue} /> },
   { header: 'Premium', cell: ({ row }) => formatCurrency(row.original.totalPremium) },
   { header: 'Created', cell: ({ row }) => formatDate(row.original.createdOn) },
 ]

@@ -2,12 +2,13 @@ import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { ChevronDown, ChevronLeft, ChevronRight, Copy, Download, ExternalLink, FileText, LoaderCircle, Mail, Paperclip, Pencil, RefreshCw, Save, Search, ShieldCheck, Sparkles, X, type LucideIcon } from 'lucide-react'
 import type { InquiryDetail, InquiryEmailAttachment, InquiryEmailSummary, QuoteResponse } from '../../domain/app'
-import { aiConditionResult, aiConfidence, isNoEvidenceFound, searchAiResponses } from '../../lib/aiResponsePresentation'
+import { aiConditionResult, aiConfidence, isNoEvidenceFound, parseAiSummary, searchAiResponses } from '../../lib/aiResponsePresentation'
 import { formatDate, formatPercent } from '../../lib/formatters'
 import { getUnderwriterSubActions, underwriterActions } from '../../lib/inquiryUnderwriting'
 import { Button } from '../ui/Button'
 import { Select } from '../ui/Select'
 import { cn } from '../../lib/cn'
+import { InquiryEvidenceButton, InquiryEvidenceFileNames } from './InquiryEvidence'
 
 export function InquirySection({ title, icon: Icon, defaultOpen = false, tone = 'default', children }: {
   title: string; icon: LucideIcon; defaultOpen?: boolean; tone?: 'default' | 'ai'; children: ReactNode
@@ -68,7 +69,8 @@ export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premium
 }
 
 type SaveState = { saving?: boolean; error?: string | null; success?: string | null }
-export function InquiryAiPanel({ records, allRecords, summary, loading, error, onRetry, category, categories, onCategory, drafts, saveStates, onDraft, onSave, onReevaluate, onRequestDraft, showRequestDraft }: {
+export function InquiryAiPanel({ inquiry, sharePointSiteUrl, records, allRecords, summary, loading, error, onRetry, category, categories, onCategory, drafts, saveStates, onDraft, onSave, onReevaluate, onRequestDraft, showRequestDraft }: {
+  inquiry: InquiryDetail; sharePointSiteUrl?: string;
   records: QuoteResponse[]; allRecords: QuoteResponse[]; summary: string; loading: boolean; error?: string | null; onRetry?: () => void;
   category: string; categories: Array<{ value: string; label: string; count: number }>; onCategory: (value: string) => void;
   drafts: Record<string, string>; saveStates: Record<string, SaveState>;
@@ -91,6 +93,7 @@ export function InquiryAiPanel({ records, allRecords, summary, loading, error, o
   })
   const missingEvidenceCount = allRecords.filter((item) => isNoEvidenceFound(item.evidence)).length
   const average = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null
+  const aiSummary = parseAiSummary(summary)
   return (
     <Dialog.Root open={Boolean(selected) && !loading && !error} onOpenChange={(open) => { if (!open) setSelectedId(null) }}>
     <InquirySection title="AI Extracted Response" icon={Sparkles} tone="ai" defaultOpen>
@@ -99,7 +102,7 @@ export function InquiryAiPanel({ records, allRecords, summary, loading, error, o
         <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="rounded-lg bg-secondary text-white shadow-none hover:bg-secondary/90 focus-visible:ring-secondary/30" onClick={onReevaluate}><RefreshCw className="h-3.5 w-3.5" />Re-evaluate AI Extraction</Button>{showRequestDraft ? <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={onRequestDraft}>Request a Draft</Button> : null}</div>
       </div>
       <div className="mt-5 space-y-4">
-        {summary ? <div><p className="text-xs font-semibold">AI Summary</p><p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground">{summary}</p></div> : null}
+        {summary ? <div className="space-y-3"><div><p className="text-xs font-semibold">AI Summary</p><p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground">{aiSummary.summary}</p></div>{aiSummary.factsUsed.length ? <div><p className="text-xs font-medium">Facts used</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-6 text-muted-foreground">{aiSummary.factsUsed.map((fact, index) => <li key={index}>{fact}</li>)}</ul></div> : null}{aiSummary.conflicts.length ? <div className="rounded-xl border border-warning/20 bg-warning/5 p-3"><p className="text-xs font-medium">Conflicts to review</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-6 text-muted-foreground">{aiSummary.conflicts.map((conflict, index) => <li key={index}>{conflict}</li>)}</ul></div> : null}</div> : null}
         <dl className="grid grid-cols-3 divide-x divide-border-soft rounded-xl border border-border-soft bg-surface-soft/40 py-3">
           <div className="px-3"><dt className="text-[11px] text-muted-foreground">Checks extracted</dt><dd className="mt-1 text-lg font-semibold">{allRecords.length}</dd></div>
           <div className="px-3"><dt className="text-[11px] text-muted-foreground">Evidence Not Found</dt><dd className="mt-1 text-lg font-semibold">{missingEvidenceCount}</dd></div>
@@ -121,7 +124,7 @@ export function InquiryAiPanel({ records, allRecords, summary, loading, error, o
             <p role="status" className="text-[11px] text-muted-foreground">{visible.length} of {allRecords.length} responses</p>
           </div>
           {visible.length ? <div aria-label="AI response cards" className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {visible.map((item) => <AiResponseRow key={item.id} item={item} draft={drafts[item.id] ?? item.response} saveState={saveStates[item.id]} onView={(button) => { openerRef.current = button; setSelectedId(item.id) }} />)}
+            {visible.map((item) => <AiResponseRow key={item.id} item={item} evidenceFiles={<InquiryEvidenceFileNames inquiry={inquiry} response={item} />} evidence={<InquiryEvidenceButton inquiry={inquiry} response={item} siteUrl={sharePointSiteUrl} />} draft={drafts[item.id] ?? item.response} saveState={saveStates[item.id]} onView={(button) => { openerRef.current = button; setSelectedId(item.id) }} />)}
           </div> : <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground"><p className="font-medium text-foreground">No matching items</p><p className="mt-1">Try another search or change the response filter.</p>{search ? <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>Clear search</Button> : null}</div>}
         </div>
       )}
@@ -139,6 +142,7 @@ export function InquiryAiPanel({ records, allRecords, summary, loading, error, o
           <h3 className="whitespace-pre-wrap break-words text-base font-semibold leading-7">{selected.name || selected.businessRuleName || 'Untitled check'}</h3>
           {selected.businessRuleCategory && selected.businessRuleCategory !== 'Uncategorized' ? <p className="mt-1 text-xs text-muted-foreground">{selected.businessRuleCategory}</p> : null}
           <div className="mb-5 mt-3 flex flex-wrap items-center gap-3"><AiConditionBadge value={selected.conditionMet} /><AiConfidence value={selected.confidenceScore} /></div>
+          <div className="mb-4 flex items-start justify-between gap-3"><p className="whitespace-pre-wrap text-xs leading-6 text-muted-foreground">{selected.evidence}</p><InquiryEvidenceButton inquiry={inquiry} response={selected} siteUrl={sharePointSiteUrl} /></div>
           <AiResponseContent item={selected} draft={drafts[selected.id] ?? selected.response} saveState={saveStates[selected.id]} onDraft={onDraft} onSave={onSave} />
         </div>
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border-soft bg-surface-soft/40 px-5 py-3">
@@ -161,7 +165,7 @@ function AiConfidence({ value }: { value?: number }) {
   return <p className="text-[11px] tabular-nums text-muted-foreground">{score === null ? 'Confidence unavailable' : Number(score.toFixed(1)) + '% confidence'}</p>
 }
 
-function AiResponseRow({ item, draft, saveState, onView }: { item: QuoteResponse; draft: string; saveState?: SaveState; onView: (button: HTMLButtonElement) => void }) {
+function AiResponseRow({ item, draft, evidence, evidenceFiles, saveState, onView }: { item: QuoteResponse; draft: string; evidence: ReactNode; evidenceFiles?: ReactNode; saveState?: SaveState; onView: (button: HTMLButtonElement) => void }) {
   const title = item.name || item.businessRuleName || 'Untitled check'
   const property = item.businessRulePropertyName?.trim().replace(/\s+/g, ' ')
   const missingEvidence = isNoEvidenceFound(item.evidence)
@@ -174,10 +178,14 @@ function AiResponseRow({ item, draft, saveState, onView }: { item: QuoteResponse
       </div> : null}
     </header>
     <div className="rounded-lg bg-surface-muted/60 px-3 py-2.5"><p className="line-clamp-3 whitespace-pre-wrap break-words text-[13px] leading-5 text-foreground">{draft.trim() ? draft : 'No response provided.'}</p></div>
-    <footer className="mt-auto flex flex-wrap items-center justify-between gap-2">
+    <div className="mt-auto min-w-0 space-y-3">
+    {evidenceFiles}
+    <footer className="flex flex-wrap items-center justify-between gap-2">
       <AiConfidence value={item.confidenceScore} />
+      {evidence}
       <Button type="button" variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-primary hover:bg-primary/5" aria-label={`View details for ${title}`} aria-haspopup="dialog" onClick={(event) => onView(event.currentTarget)}>View Details<ChevronRight aria-hidden="true" className="h-3.5 w-3.5" /></Button>
     </footer>
+    </div>
     {saveState?.error ? <p role="alert" className="text-[11px] text-danger">{saveState.error}</p> : saveState?.saving ? <p role="status" className="text-[11px] text-muted-foreground">Saving...</p> : draft !== item.response ? <p className="text-[11px] text-warning">Unsaved changes</p> : saveState?.success ? <p role="status" className="text-[11px] text-success">{saveState.success}</p> : null}
   </article>
 }

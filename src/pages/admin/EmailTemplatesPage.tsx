@@ -27,11 +27,14 @@ import {
 import {
   type FormEvent,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { TemplateDynamicFieldsPanel, type TemplateInsertionTarget } from '../../components/admin/TemplateDynamicFieldsPanel'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -41,13 +44,25 @@ import { Skeleton } from '../../components/ui/Skeleton'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import { cn } from '../../lib/cn'
 import { formatDate } from '../../lib/formatters'
+import { insertTemplateToken, type TemplateFieldTable } from '../../lib/emailTemplateFields'
+import {
+  createTemplateFieldBadge,
+  insertTemplateFieldBadgeAtRange,
+  decorateTemplateFields,
+  refreshTemplateFieldLabels,
+  serializeTemplateEditorBody,
+  templateFieldLabel,
+  templateFieldLabelMap,
+} from '../../lib/templateFieldBadges'
 import { TemplatesService } from '../../generated/services/TemplatesService'
 import {
-  Templatestemplatetypecode,
-  type Templates,
-} from '../../generated/models/TemplatesModel'
-
-type TemplateCategory = (typeof Templatestemplatetypecode)[keyof typeof Templatestemplatetypecode]
+  EMAIL_TEMPLATE_CATEGORY_OPTIONS as CATEGORY_OPTIONS,
+  emailTemplateCategory,
+  emailTemplateDescription,
+  saveEmailTemplate,
+  type TemplateCategory,
+} from '../../services/emailTemplatesService'
+import type { Templates } from '../../generated/models/TemplatesModel'
 type StatusFilter = 'all' | 'active' | 'inactive'
 type EditorMode = 'visual' | 'html'
 
@@ -72,28 +87,12 @@ interface TemplateDraft {
   categoryKey: TemplateCategory | ''
 }
 
-const CATEGORY_OPTIONS = Object.entries(Templatestemplatetypecode).map(([value, label]) => ({
-  value,
-  label,
-}))
-
-const PLACEHOLDERS = [
-  { label: 'Customer Name', token: '{{customer_name}}' },
-  { label: 'Policy Number', token: '{{policy_number}}' },
-  { label: 'Insurance Type', token: '{{insurance_type}}' },
-  { label: 'Premium Amount', token: '{{premium_amount}}' },
-  { label: 'Due Date', token: '{{due_date}}' },
-  { label: 'Agent Name', token: '{{agent_name}}' },
-  { label: 'Company Name', token: '{{company_name}}' },
-  { label: 'Quote Amount', token: '{{quote_amount}}' },
-]
-
 const EMPTY_DRAFT: TemplateDraft = {
   templateName: '',
   subject: '',
   description: '',
-  body: '<p>Write your email content here. Use the toolbar above for formatting and insert placeholders for dynamic content.</p>',
-  categoryKey: 'Quote',
+  body: '',
+  categoryKey: 'Global',
 }
 
 export function EmailTemplatesPage() {
@@ -115,18 +114,53 @@ export function EmailTemplatesPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [editorSyncKey, setEditorSyncKey] = useState(0)
   const editorRef = useRef<HTMLDivElement | null>(null)
+  const decoratedEditorRef = useRef<HTMLDivElement | null>(null)
+  const subjectRef = useRef<HTMLInputElement | null>(null)
+  const htmlRef = useRef<HTMLTextAreaElement | null>(null)
+  const visualSelectionRef = useRef<Range | null>(null)
+  const subjectSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const htmlSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const [insertionTarget, setInsertionTarget] = useState<TemplateInsertionTarget>('body')
+  const [fieldTables, setFieldTables] = useState<TemplateFieldTable[]>([])
+  const fieldLabels = useMemo(() => templateFieldLabelMap(fieldTables), [fieldTables])
+
+  const rememberVisualSelection = useCallback(() => {
+    const selection = window.getSelection()
+    if (selection?.rangeCount && editorRef.current?.contains(selection.anchorNode)
+      && editorRef.current.contains(selection.focusNode)) {
+      visualSelectionRef.current = selection.getRangeAt(0).cloneRange()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!editorOpen || editorMode !== 'visual') return
+    document.addEventListener('selectionchange', rememberVisualSelection)
+    return () => document.removeEventListener('selectionchange', rememberVisualSelection)
+  }, [editorOpen, editorMode, rememberVisualSelection])
 
   const { data, loading, error } = useAsyncData(async () => {
     const result = await TemplatesService.getAll({
       orderBy: ['modifiedon desc', 'createdon desc'],
     })
+    if (!result.success || result.error) {
+      throw new Error(result.error?.message || 'Unable to load email templates.')
+    }
     return (result.data ?? []).map(mapTemplateRecord)
   }, [refreshKey])
 
   useEffect(() => {
     if (editorMode !== 'visual' || !editorOpen || !editorRef.current) return
-    editorRef.current.innerHTML = draft.body
-  }, [editorMode, editorOpen, editorSyncKey])
+    const editor = editorRef.current
+    // Drafts keep the actual tokens; badges exist only in the visual editor.
+    // Compare canonical HTML so typing never rebuilds the DOM or resets the caret.
+    if (decoratedEditorRef.current !== editor || serializeTemplateEditorBody(editor) !== draft.body) {
+      editor.innerHTML = draft.body
+      decorateTemplateFields(editor, fieldLabels)
+      decoratedEditorRef.current = editor
+    } else {
+      refreshTemplateFieldLabels(editor, fieldLabels)
+    }
+  }, [draft.body, editorMode, editorOpen, editorSyncKey, fieldLabels])
 
   useEffect(() => {
     if (!openActionId) return
@@ -157,7 +191,15 @@ export function EmailTemplatesPage() {
   const generatedTemplateCount = 0
   const activeTemplateCount = templates.filter((template) => template.isActive).length
 
+  function resetEditorSelection() {
+    visualSelectionRef.current = null
+    subjectSelectionRef.current = null
+    htmlSelectionRef.current = null
+    setInsertionTarget('body')
+  }
+
   function openCreate() {
+    resetEditorSelection()
     setDraft(EMPTY_DRAFT)
     setEditorMode('visual')
     setSubmitError(null)
@@ -166,6 +208,7 @@ export function EmailTemplatesPage() {
   }
 
   function openEdit(template: TemplateRecord) {
+    resetEditorSelection()
     setDraft({
       id: template.id,
       templateName: template.templateName,
@@ -181,6 +224,7 @@ export function EmailTemplatesPage() {
   }
 
   function openDuplicate(template: TemplateRecord) {
+    resetEditorSelection()
     setDraft({
       id: undefined,
       templateName: `${template.templateName} (Copy)`,
@@ -198,7 +242,7 @@ export function EmailTemplatesPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const visualBody = editorMode === 'visual'
-      ? editorRef.current?.innerHTML?.trim() || draft.body.trim()
+      ? (editorRef.current ? serializeTemplateEditorBody(editorRef.current) : draft.body).trim()
       : draft.body.trim()
 
     if (!draft.templateName.trim() || !draft.subject.trim() || !visualBody || !draft.categoryKey) {
@@ -209,24 +253,8 @@ export function EmailTemplatesPage() {
     setSubmitBusy(true)
     setSubmitError(null)
 
-    const categoryValue = CATEGORY_OPTIONS.find((option) => option.label === draft.categoryKey)?.value
-
     try {
-      const payload = {
-        title: draft.templateName.trim(),
-        subject: draft.subject.trim(),
-        description: draft.description.trim() || undefined,
-        body: visualBody,
-        languagecode: 1033,
-        templatetypecode: Number(categoryValue) as keyof typeof Templatestemplatetypecode,
-        ispersonal: false,
-      }
-
-      if (draft.id) {
-        await TemplatesService.update(draft.id, payload)
-      } else {
-        await TemplatesService.create(payload as never)
-      }
+      await saveEmailTemplate({ ...draft, body: visualBody })
 
       setEditorOpen(false)
       setDraft(EMPTY_DRAFT)
@@ -254,25 +282,62 @@ export function EmailTemplatesPage() {
     }
   }
 
-  function applyEditorCommand(command: string, value?: string) {
-    if (!editorRef.current) return
-    editorRef.current.focus()
-    document.execCommand(command, false, value)
-    setDraft((current) => ({
-      ...current,
-      body: editorRef.current?.innerHTML ?? current.body,
-    }))
+  function restoreVisualSelection() {
+    const editor = editorRef.current
+    if (!editor) return
+    editor.focus()
+    const selection = window.getSelection()
+    if (!selection) return
+    const saved = visualSelectionRef.current
+    const range = saved && editor.contains(saved.commonAncestorContainer) ? saved.cloneRange() : document.createRange()
+    if (!saved || !editor.contains(saved.commonAncestorContainer)) {
+      range.selectNodeContents(editor)
+      range.collapse(false)
+    }
+    selection.removeAllRanges()
+    selection.addRange(range)
   }
 
-  function insertPlaceholder(token: string) {
-    if (editorMode === 'html') {
-      setDraft((current) => ({
-        ...current,
-        body: `${current.body}${current.body.endsWith(' ') ? '' : ' '}${token}`,
-      }))
+  function applyEditorCommand(command: string, value?: string) {
+    if (editorMode !== 'visual' || !editorRef.current) return
+    restoreVisualSelection()
+    document.execCommand(command, false, value)
+    const body = serializeTemplateEditorBody(editorRef.current)
+    setDraft((current) => ({ ...current, body }))
+    rememberVisualSelection()
+  }
+
+  function insertPlaceholder(token: string, label?: string) {
+    if (insertionTarget === 'subject') {
+      const saved = subjectSelectionRef.current
+      const next = insertTemplateToken(draft.subject, token, saved?.start, saved?.end)
+      setDraft((current) => ({ ...current, subject: next.value }))
+      subjectSelectionRef.current = { start: next.caret, end: next.caret }
+      requestAnimationFrame(() => {
+        subjectRef.current?.focus()
+        subjectRef.current?.setSelectionRange(next.caret, next.caret)
+      })
       return
     }
-    applyEditorCommand('insertText', token)
+    if (editorMode === 'html') {
+      const saved = htmlSelectionRef.current
+      const next = insertTemplateToken(draft.body, token, saved?.start, saved?.end)
+      setDraft((current) => ({ ...current, body: next.value }))
+      htmlSelectionRef.current = { start: next.caret, end: next.caret }
+      requestAnimationFrame(() => {
+        htmlRef.current?.focus()
+        htmlRef.current?.setSelectionRange(next.caret, next.caret)
+      })
+      return
+    }
+    const badge = createTemplateFieldBadge(token, label ?? templateFieldLabel(token, fieldLabels), document)
+    restoreVisualSelection()
+    const selection = window.getSelection()
+    if (!selection?.rangeCount || !editorRef.current) return
+    const range = insertTemplateFieldBadgeAtRange(badge, selection.getRangeAt(0), selection)
+    visualSelectionRef.current = range.cloneRange()
+    const body = serializeTemplateEditorBody(editorRef.current)
+    setDraft((current) => ({ ...current, body }))
   }
 
   function openPreview(template: TemplateRecord) {
@@ -477,7 +542,7 @@ export function EmailTemplatesPage() {
         <Card variant="premium" className="space-y-5 rounded-[28px]">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Database className="h-5 w-5" />
               </div>
               <div>
@@ -513,38 +578,44 @@ export function EmailTemplatesPage() {
         </Card>
       </div>
 
-      <ModalShell open={editorOpen} onClose={() => setEditorOpen(false)} widthClassName="max-w-[780px]">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-[28px] font-semibold tracking-[-0.02em]">
+      <ModalShell open={editorOpen} onClose={() => { if (!submitBusy) setEditorOpen(false) }} widthClassName="max-w-[1600px]" bodyClassName="overflow-hidden p-0" title={draft.id ? 'Edit Email Template' : 'Create Email Template'}>
+        <form onSubmit={handleSubmit} className="flex max-h-[92vh] flex-col">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border-soft bg-surface px-5 py-5 sm:px-7">
+            <div className="flex items-start gap-3">
+              <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary sm:flex"><Mail className="h-5 w-5" /></span>
+              <div>
+              <h2 className="text-2xl font-semibold tracking-[-0.02em]">
                 {draft.id ? 'Edit Email Template' : 'Create Email Template'}
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {draft.id
-                  ? 'Modify the email template details below.'
-                  : 'Create a reusable email template for customer communications.'}
+              <p className="mt-1 text-sm text-muted-foreground">
+                Compose your message, then personalize it with dynamic fields.
               </p>
+              </div>
             </div>
-            <Button type="button" variant="ghost" size="icon" onClick={() => setEditorOpen(false)}>
+            <Button type="button" variant="ghost" size="icon" aria-label="Close template editor" disabled={submitBusy} onClick={() => setEditorOpen(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-[1.15fr_0.85fr]">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-surface-soft/40 px-5 py-6 sm:px-7">
+          <section aria-label="Template details" className="space-y-4 rounded-[24px] border border-border-soft bg-surface p-5">
+          <div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">Template details</h3><span className="text-xs text-muted-foreground">* Required</span></div>
+          <div className="space-y-4">
             <Field label="Template Name *">
               <Input
+                aria-label="Template name"
+                autoFocus
                 value={draft.templateName}
                 onChange={(event) => setDraft((current) => ({ ...current, templateName: event.target.value }))}
                 placeholder="e.g., Welcome Email"
               />
             </Field>
-            <Field label="Category">
+            <Field label="Category *">
               <Select
+                aria-label="Template category"
                 value={draft.categoryKey}
                 onValueChange={(value) => setDraft((current) => ({ ...current, categoryKey: value as TemplateCategory | '' }))}
                 options={[
-                  { value: '', label: 'No Category' },
                   ...CATEGORY_OPTIONS.map((option) => ({ value: option.label, label: option.label })),
                 ]}
               />
@@ -553,7 +624,11 @@ export function EmailTemplatesPage() {
 
           <Field label="Subject Line *">
             <Input
+              aria-label="Email subject"
+              ref={subjectRef}
               value={draft.subject}
+              onFocus={() => setInsertionTarget('subject')}
+              onSelect={(event) => { subjectSelectionRef.current = { start: event.currentTarget.selectionStart ?? draft.subject.length, end: event.currentTarget.selectionEnd ?? draft.subject.length } }}
               onChange={(event) => setDraft((current) => ({ ...current, subject: event.target.value }))}
               placeholder="e.g., Your insurance quote is ready!"
             />
@@ -561,26 +636,32 @@ export function EmailTemplatesPage() {
 
           <Field label="Description">
             <Input
+              aria-label="Template description"
+              maxLength={2000}
               value={draft.description}
               onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
               placeholder="Brief description of when to use this template"
             />
           </Field>
+          </section>
 
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_250px] xl:grid-cols-[minmax(0,4fr)_minmax(0,1fr)]">
+          <div className="min-w-0">
           <Field label="Email Body *">
-            <div className="space-y-3 rounded-[24px] border border-border-soft bg-surface-soft/65 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap gap-2">
-                  <ToolbarButton onClick={() => applyEditorCommand('bold')} icon={<Bold className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('italic')} icon={<Italic className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('underline')} icon={<Underline className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('formatBlock', '<h1>')} icon={<Heading1 className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('formatBlock', '<h2>')} icon={<Heading2 className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('insertUnorderedList')} icon={<List className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('insertOrderedList')} icon={<ListOrdered className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('justifyLeft')} icon={<AlignLeft className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('justifyCenter')} icon={<AlignCenter className="h-4 w-4" />} />
+            <div className="overflow-hidden rounded-[24px] border border-border-soft bg-surface">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-soft bg-surface-soft/65 p-3">
+                <fieldset disabled={editorMode === 'html'} aria-label="Email formatting" className="flex min-w-0 flex-wrap gap-1 disabled:opacity-40">
+                  <ToolbarButton label="Bold" onClick={() => applyEditorCommand('bold')} icon={<Bold className="h-4 w-4" />} />
+                  <ToolbarButton label="Italic" onClick={() => applyEditorCommand('italic')} icon={<Italic className="h-4 w-4" />} />
+                  <ToolbarButton label="Underline" onClick={() => applyEditorCommand('underline')} icon={<Underline className="h-4 w-4" />} />
+                  <ToolbarButton label="Heading 1" onClick={() => applyEditorCommand('formatBlock', '<h1>')} icon={<Heading1 className="h-4 w-4" />} />
+                  <ToolbarButton label="Heading 2" onClick={() => applyEditorCommand('formatBlock', '<h2>')} icon={<Heading2 className="h-4 w-4" />} />
+                  <ToolbarButton label="Bullet list" onClick={() => applyEditorCommand('insertUnorderedList')} icon={<List className="h-4 w-4" />} />
+                  <ToolbarButton label="Numbered list" onClick={() => applyEditorCommand('insertOrderedList')} icon={<ListOrdered className="h-4 w-4" />} />
+                  <ToolbarButton label="Align left" onClick={() => applyEditorCommand('justifyLeft')} icon={<AlignLeft className="h-4 w-4" />} />
+                  <ToolbarButton label="Align center" onClick={() => applyEditorCommand('justifyCenter')} icon={<AlignCenter className="h-4 w-4" />} />
                   <ToolbarButton
+                    label="Insert link"
                     onClick={() => {
                       const url = window.prompt('Enter URL')
                       if (!url) return
@@ -588,9 +669,9 @@ export function EmailTemplatesPage() {
                     }}
                     icon={<Link2 className="h-4 w-4" />}
                   />
-                  <ToolbarButton onClick={() => applyEditorCommand('formatBlock', '<blockquote>')} icon={<Quote className="h-4 w-4" />} />
-                  <ToolbarButton onClick={() => applyEditorCommand('formatBlock', '<pre>')} icon={<Code2 className="h-4 w-4" />} />
-                </div>
+                  <ToolbarButton label="Quote" onClick={() => applyEditorCommand('formatBlock', '<blockquote>')} icon={<Quote className="h-4 w-4" />} />
+                  <ToolbarButton label="Code block" onClick={() => applyEditorCommand('formatBlock', '<pre>')} icon={<Code2 className="h-4 w-4" />} />
+                </fieldset>
 
                 <div className="inline-flex rounded-full border border-border-soft bg-white p-1 dark:bg-white/[0.04]">
                   <Button
@@ -599,6 +680,7 @@ export function EmailTemplatesPage() {
                     size="sm"
                     className="rounded-full"
                     onClick={() => {
+                      visualSelectionRef.current = null
                       setEditorMode('visual')
                       setEditorSyncKey((value) => value + 1)
                     }}
@@ -610,65 +692,73 @@ export function EmailTemplatesPage() {
                     variant={editorMode === 'html' ? 'primary' : 'ghost'}
                     size="sm"
                     className="rounded-full"
-                    onClick={() => setEditorMode('html')}
+                    onClick={() => { htmlSelectionRef.current = null; setEditorMode('html') }}
                   >
                     HTML
                   </Button>
                 </div>
               </div>
 
-              <div className="rounded-[22px] border border-border-soft bg-white p-4 dark:bg-slate-950/60">
+              <div className="bg-surface px-5 py-6 sm:px-7">
                 {editorMode === 'visual' ? (
                   <div
                     ref={editorRef}
                     contentEditable
+                    role="textbox"
+                    aria-label="Email body"
+                    aria-multiline="true"
+                    data-placeholder="Write your email here. Add dynamic fields from the sidebar to personalize your message."
                     dir="ltr"
                     suppressContentEditableWarning
-                    className="min-h-[210px] prose prose-sm max-w-none text-left text-sm outline-none [direction:ltr] [unicode-bidi:plaintext] dark:prose-invert"
-                    onInput={(event) =>
+                    className="prose prose-sm min-h-[340px] max-w-none break-words rounded-2xl border border-border-soft px-4 py-3 text-left text-sm leading-7 outline-none empty:before:pointer-events-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/20 sm:p-5 [direction:ltr] [unicode-bidi:plaintext] dark:prose-invert"
+                    onFocus={() => setInsertionTarget('body')}
+                    onMouseUp={rememberVisualSelection}
+                    onKeyUp={rememberVisualSelection}
+                    onBlur={rememberVisualSelection}
+                    onInput={(event) => {
+                      const body = serializeTemplateEditorBody(event.currentTarget)
                       setDraft((current) => ({
                         ...current,
-                        body: event.currentTarget.innerHTML,
+                        body,
                       }))
-                    }
+                    }}
                   />
                 ) : (
                   <textarea
+                    ref={htmlRef}
+                    aria-label="Email body HTML"
+                    placeholder="<p>Write your email here...</p>"
                     dir="ltr"
                     value={draft.body}
+                    onFocus={() => setInsertionTarget('body')}
+                    onSelect={(event) => { htmlSelectionRef.current = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd } }}
                     onChange={(event) => setDraft((current) => ({ ...current, body: event.target.value }))}
-                    className="min-h-[210px] w-full resize-y rounded-2xl border border-border-soft bg-transparent px-3 py-3 text-left text-sm outline-none [direction:ltr] [unicode-bidi:plaintext]"
+                    className="min-h-[340px] w-full resize-y rounded-2xl border border-border-soft bg-transparent px-4 py-3 text-left font-mono text-sm leading-7 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 [direction:ltr] [unicode-bidi:plaintext]"
                   />
                 )}
               </div>
 
-              <div className="rounded-[22px] border border-border-soft bg-white p-4 dark:bg-slate-950/40">
-                <p className="text-sm font-semibold">Insert Placeholder:</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {PLACEHOLDERS.map((placeholder) => (
-                    <button
-                      key={placeholder.token}
-                      type="button"
-                      className="rounded-full border border-border-soft bg-surface px-3 py-2 text-sm font-medium transition hover:border-primary/30 hover:text-primary"
-                      onClick={() => insertPlaceholder(placeholder.token)}
-                    >
-                      {placeholder.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft bg-surface-soft/50 px-5 py-3 text-xs text-muted-foreground"><span>{editorMode === 'visual' ? 'Rich text editor' : 'HTML source'}</span><span>Personalize with fields from the sidebar</span></div>
             </div>
           </Field>
+          </div>
+          <TemplateDynamicFieldsPanel target={insertionTarget} onTargetChange={setInsertionTarget} onInsert={insertPlaceholder} onTablesLoaded={setFieldTables} />
+          </div>
+          </div>
 
-          {submitError ? <p className="text-sm text-danger">{submitError}</p> : null}
-
-          <div className="flex flex-wrap justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setEditorOpen(false)}>
+          <div className="shrink-0 space-y-3 border-t border-border-soft bg-surface px-5 py-4 sm:px-7">
+          {submitError ? <p role="alert" className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">{submitError}</p> : null}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">{submitBusy ? 'Saving your template…' : 'Your template is saved when you select Save template.'}</p>
+            <div className="flex gap-3">
+            <Button type="button" variant="secondary" disabled={submitBusy} onClick={() => setEditorOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={submitBusy}>
-              {submitBusy ? 'Saving...' : draft.id ? 'Save Template' : 'Create Template'}
+              {submitBusy ? 'Saving...' : 'Save template'}
             </Button>
+            </div>
+          </div>
           </div>
         </form>
       </ModalShell>
@@ -766,12 +856,10 @@ function mapTemplateRecord(record: Templates): TemplateRecord {
   return {
     id: record.templateid,
     templateName: record.title,
-    subject: record.subject ?? '',
-    description: record.description ?? '',
-    body: record.body ?? '<p>No content captured.</p>',
-    categoryKey:
-      (record.templatetypecodename as TemplateCategory | undefined) ??
-      Templatestemplatetypecode[record.templatetypecode],
+    subject: record.subjectsafehtml ?? record.subject ?? '',
+    description: emailTemplateDescription(record),
+    body: record.safehtml ?? record.body ?? '<p>No content captured.</p>',
+    categoryKey: emailTemplateCategory(record),
     isActive: record.componentstate === 0,
     createdOn: record.createdon,
     updatedOn: record.modifiedon,
@@ -789,27 +877,32 @@ function ModalShell({
   open,
   onClose,
   widthClassName,
+  bodyClassName,
+  title = 'Email template',
   children,
 }: {
   open: boolean
   onClose: () => void
   widthClassName: string
+  bodyClassName?: string
+  title?: string
   children: ReactNode
 }) {
-  if (!open) return null
-
   return (
-    <div className="fixed inset-0 z-50 !mt-0 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onClose() }}>
+      <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
+      <Dialog.Content aria-describedby={undefined}
         className={cn(
-          'max-h-[92vh] w-full overflow-hidden rounded-[30px] border border-border-soft bg-surface shadow-[0_40px_90px_rgba(15,23,42,0.28)]',
+          'fixed left-1/2 top-1/2 z-50 max-h-[92vh] w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[30px] border border-border-soft bg-surface shadow-[0_40px_90px_rgba(15,23,42,0.28)] outline-none',
           widthClassName,
         )}
-        onClick={(event) => event.stopPropagation()}
       >
-        <div className="max-h-[92vh] overflow-y-auto p-6">{children}</div>
-      </div>
-    </div>
+        <Dialog.Title className="sr-only">{title}</Dialog.Title>
+        <div className={cn('max-h-[92vh] overflow-y-auto p-6', bodyClassName)}>{children}</div>
+      </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
 
@@ -822,9 +915,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function ToolbarButton({ onClick, icon }: { onClick: () => void; icon: ReactNode }) {
+function ToolbarButton({ onClick, icon, label }: { onClick: () => void; icon: ReactNode; label: string }) {
   return (
-    <Button type="button" variant="ghost" size="sm" className="rounded-xl" onClick={onClick}>
+    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" aria-label={label} title={label} onMouseDown={(event) => event.preventDefault()} onClick={onClick}>
       {icon}
     </Button>
   )
@@ -848,7 +941,7 @@ function SourceCard({
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">{icon}</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">{icon}</span>
             <p className="font-semibold">{title}</p>
           </div>
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>

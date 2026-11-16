@@ -20,12 +20,18 @@ export const Aur_productsesstatuscode = {
 export type Aur_productsesstatuscode = keyof typeof Aur_productsesstatuscode;
 
 export interface Aur_productsesBase {
+  aur_apply_action_automatically?: boolean;
   aur_buy_button?: string;
   aur_buy_heading?: string;
+  aur_criteria?: string;
+  aur_criteria_for_inquiry_purpose?: string;
+  aur_criteria_for_inquiry_type?: string;
   aur_duplicate_inquiry_criteria?: string;
   aur_details?: string;
   aur_heading?: string;
   aur_incomingemailaddress?: string;
+  "aur_line_of_business@odata.bind"?: string;
+  "aur_lob@odata.bind"?: string;
   aur_name: string;
   aur_order?: string;
   aur_premium?: string;
@@ -33,6 +39,7 @@ export interface Aur_productsesBase {
   aur_product_status?: Aur_productsesaur_product_status;
   aur_productsid: string;
   aur_remarks?: string;
+  aur_scoring_configuration?: string;
   aur_short_details?: string;
   aur_slogan?: string;
   aur_terms_conditions?: string;
@@ -47,6 +54,9 @@ export interface Aur_productsesBase {
 }
 
 export interface Aur_productses extends Aur_productsesBase {
+  aur_apply_action_automaticallyname?: string;
+  aur_line_of_businessname?: string;
+  aur_lobname?: string;
   aur_product_statusname?: string;
   createdbyname?: string;
   createdbyyominame: string;
@@ -64,7 +74,8 @@ export interface Aur_productses extends Aur_productsesBase {
   statecodename?: string;
   statuscodename?: string;
   versionnumber?: number;
-  aur_lobname?: string;
+  aur_line_of_business?: object;
+  _aur_line_of_business_value?: string;
   aur_lob?: object;
   _aur_lob_value?: string;
   createdby?: object;

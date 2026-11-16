@@ -1,6 +1,18 @@
 # Dataverse many-to-many debugger
 
-The navbar button opens a generic debugger for the Dataverse custom action `aur_TakafulManageManyToMany`. Enter the target table logical name and relationship schema name. `TargetId` is optional for Retrieve: leave it blank to ask the updated API for all rows and their relationships. Associate and Disassociate still require a target row GUID, review, and confirmation.
+The generic debugger for the Dataverse custom action `aur_TakafulManageManyToMany` is retained for development but hidden from the navbar. When enabled, enter the target table logical name and relationship schema name. `TargetId` is optional for Retrieve: leave it blank to ask the updated API for all rows and their relationships. Associate and Disassociate still require a target row GUID, review, and confirmation.
+
+## Product business-rule integration
+
+The Product editor and the Plan's inherited Business Rules view retrieve product associations through `src/services/productRuleAssociations.ts`, using:
+
+- Target table: `aur_products`
+- Relationship schema: `aur_products_aur_business_rules_aur_business_rules`
+- Intersect table: `aur_products_aur_business_rules` (discovered by the API; do not pass it as the relationship schema)
+
+Retrieval includes the product GUID, follows all pages, and preserves the returned paging cookie. Save Associations adds only newly selected rules in batches of at most 100. Removing a rule uses Disassociate for that single link. Existing rules and their definitions are preserved. The Product editor reloads associations after successful changes; Plan inherits the same retrieval without exposing product mutation actions.
+
+Run the mocked API integration checks with `node tests/productRuleAssociations.test.cjs`.
 
 ## API call
 

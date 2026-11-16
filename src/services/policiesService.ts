@@ -20,7 +20,7 @@ export async function getPolicyWorkspace(id: string): Promise<PolicyWorkspace> {
   const inquiryId = normalizeDataverseId(policy._aur_inquiry_value)
   const customerId = normalizeDataverseId(policy._aur_customer_id_value)
   const inquiry = (inquiryResult.data ?? []).find((item) => normalizeDataverseId(item.aur_inquiryid) === inquiryId)
-  const quote = (quotesResult.data ?? []).find((item) => normalizeDataverseId(item._aur_quotes_value) === inquiryId)
+  const quote = (quotesResult.data ?? []).find((item) => normalizeDataverseId(item._aur_inquiry_value) === inquiryId)
   const customer = (accountsResult.data ?? []).find((item) => normalizeDataverseId(item.accountid) === customerId)
   const reminderCount = inquiryId
     ? (consequenceResults.data ?? []).filter(
@@ -34,7 +34,7 @@ export async function getPolicyWorkspace(id: string): Promise<PolicyWorkspace> {
   return {
     id: policy.aur_policyid,
     policyNumber: policy.aur_policy_number ?? `POL-${policy.aur_policyid.slice(0, 8).toUpperCase()}`,
-    customerName: policy.aur_customer_idname ?? customer?.name ?? inquiry?.aur_accountname ?? 'No customer linked',
+    customerName: policy.aur_customer_idname ?? customer?.name ?? inquiry?.aur_insured_companyname ?? 'No customer linked',
     customerEmail: customer?.emailaddress1 ?? '',
     customerPhone: customer?.telephone1 ?? customer?.telephone2 ?? '',
     productName: policy.aur_productname ?? quote?.aur_productname ?? inquiry?.aur_productname ?? 'No Product Linked',

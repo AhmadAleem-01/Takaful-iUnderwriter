@@ -27,6 +27,30 @@ function load(responses, rules) {
   })
 }
 
+test('loads customer information explicitly when the default inquiry response omits it', async () => {
+  const queries = []
+  const customerInformation = 'CUSTOMER EMAIL SUBJECT: Neos renewal\nCUSTOMER EMAIL BODY:\nOriginal email text.'
+  const service = compile('services/inquiriesService.ts', (name) => {
+    if (name === './dataMappers') return {
+      mapInquiryDetail: (record) => ({ id: record.aur_inquiryid, customerData: record.aur_customer_information }),
+      buildWorkflow: () => [], mapRelatedParty: () => undefined,
+    }
+    if (name.endsWith('/Aur_inquiriesService')) return { Aur_inquiriesService: { get: async (_id, options) => {
+      queries.push(options)
+      return { data: options?.select?.includes('aur_customer_information')
+        ? { aur_customer_information: customerInformation }
+        : { aur_inquiryid: inquiryId } }
+    } } }
+    for (const key of ['Aur_productsesService', 'Aur_plansService', 'AccountsService']) {
+      if (name.endsWith(`/${key}`)) return { [key]: { getAll: async () => ({ data: [] }) } }
+    }
+    return {}
+  })
+  const inquiry = await service.getInquiryDetailCore(inquiryId)
+  assert.equal(inquiry.customerData, customerInformation)
+  assert.equal(queries.some((query) => query?.select?.includes('aur_customer_information')), true)
+})
+
 test('loads the new table by Inquiry lookup across every page independently of other workspace services', async () => {
   const queries = []
   const service = load({ getAll: async (options) => {

@@ -46,13 +46,15 @@ type InquiryRecord = Aur_inquiries & {
   aur_tpa_networkname?: string | null
   'aur_tpa_network@OData.Community.Display.V1.FormattedValue'?: string
   'statuscode@OData.Community.Display.V1.FormattedValue'?: string
+  '_aur_line_of_business_value@OData.Community.Display.V1.FormattedValue'?: string
+  'aur_line_of_business@OData.Community.Display.V1.FormattedValue'?: string
 }
 
 export function mapInquirySummary(record: InquiryRecord): InquirySummary {
-  const accountName = record.aur_accountname?.trim() || 'No account linked'
+  const accountName = record.aur_insured_companyname?.trim() || 'No account linked'
   const brokerName =
     record.aur_brokername?.trim() ||
-    record.aur_accountname?.trim() ||
+    record.aur_broker_companyname?.trim() ||
     'No broker linked'
 
   return {
@@ -69,10 +71,10 @@ export function mapInquirySummary(record: InquiryRecord): InquirySummary {
       record.statecode,
     ) ?? 'Status unavailable',
     inquiryStatusValue: inquiryLifecycleStatusValue(record.statuscode, record.statecode),
-    accountId: record._aur_account_value,
+    accountId: record._aur_insured_company_value,
     accountName,
-    contactName: record.aur_contactname ?? 'No contact linked',
-    brokerId: record._aur_account_value,
+    contactName: record.aur_broker_contactname ?? 'No contact linked',
+    brokerId: record._aur_broker_company_value,
     brokerName,
     productId: record._aur_product_value,
     productName: record.aur_productname ?? 'No Product Linked',
@@ -102,7 +104,6 @@ export function mapInquiryDetail(
   const resolvedContactName = contact?.name?.trim() || summary.contactName
   const resolvedBrokerName =
     broker?.name?.trim() ||
-    account?.name?.trim() ||
     summary.brokerName
   const readiness = [
     {
@@ -112,7 +113,7 @@ export function mapInquiryDetail(
     },
     {
       label: 'Information Capture',
-      value: record.aur_contactname ? 82 : 48,
+      value: record.aur_broker_contactname ? 82 : 48,
       description: 'Based on client, product, plan, and financial context fields.',
     },
     {
@@ -132,6 +133,19 @@ export function mapInquiryDetail(
     accountName: resolvedAccountName,
     contactName: resolvedContactName,
     brokerName: resolvedBrokerName,
+    parentProductId: record._aur_line_of_business_value?.replace(/[{}]/g, '').toLowerCase(),
+    parentProductName: record.aur_line_of_businessname?.trim()
+      || record['_aur_line_of_business_value@OData.Community.Display.V1.FormattedValue']
+      || record['aur_line_of_business@OData.Community.Display.V1.FormattedValue']
+      || '',
+    inquiryPurposeValue: record.aur_inquiry_purpose,
+    inquiryPurpose: record.aur_inquiry_purposename ?? (record.aur_inquiry_purpose === 1 ? 'For Inward Business' : record.aur_inquiry_purpose === 2 ? 'For Quotation' : ''),
+    brokerContactId: record._aur_broker_contact_value,
+    brokerContactName: record.aur_broker_contactname ?? contact?.name ?? '',
+    brokerCompanyId: record._aur_broker_company_value,
+    brokerCompanyName: record.aur_broker_companyname ?? broker?.name ?? '',
+    insuredCompanyId: record._aur_insured_company_value,
+    insuredCompanyName: record.aur_insured_companyname ?? account?.name ?? '',
     riskDescription: record.aur_risk_description ?? '',
     paymentTerm: record.aur_payment_termname ?? 'Annual',
     territorialScope: record.aur_territorial_scope ?? 'Not specified',
@@ -143,6 +157,7 @@ export function mapInquiryDetail(
     vehicleValue: inquiryRecord.aur_vehicle_value ?? '',
     customerData: inquiryRecord.aur_customer_information ?? '',
     aiEvaluationJsonResponse: inquiryRecord.aur_ai_evaluation_json_response ?? '',
+    documentsUrl: inquiryRecord.aur_documents_url ?? '',
     tpa: inquiryRecord.aur_tpa ?? '',
     tpaNetworkValue: inquiryRecord.aur_tpa_network,
     tpaNetworkLabel: inquiryRecord.aur_tpa_networkname || inquiryRecord['aur_tpa_network@OData.Community.Display.V1.FormattedValue'] || '',
@@ -169,10 +184,10 @@ export function mapInquiryDetail(
 export function mapQuoteSummary(record: Aur_quotes): QuoteSummary {
   return {
     id: record.aur_quoteid,
-    inquiryId: record._aur_quotes_value ?? '',
+    inquiryId: record._aur_inquiry_value ?? '',
     name: record.aur_name,
-    status: record.aur_quote_statusname ?? quoteStatusLabel(record.aur_quote_status) ?? record.statuscodename ?? 'Active',
-    quoteStatusValue: record.aur_quote_status ? Number(record.aur_quote_status) : undefined,
+    status: quoteStatusLabel(record.statuscode) ?? record.statuscodename ?? 'Active',
+    quoteStatusValue: record.statuscode !== undefined ? Number(record.statuscode) : undefined,
     productName: record.aur_productname ?? 'No Product Linked',
     planName: record.aur_planname ?? 'No plan linked',
     totalPremium: record.aur_total_premium ?? 0,
@@ -195,12 +210,6 @@ export function mapQuoteDetail(
   return {
     ...summary,
     loadingPremium: record.aur_loading_premium ?? 0,
-    benefitsName: record.aur_benefitsname ?? 'No benefits linked',
-    coverageName: record.aur_coveragename ?? 'No coverages linked',
-    deductibleName: record.aur_deductiblesname ?? 'No deductibles linked',
-    exclusionName: record.aur_exclusionsname ?? 'No exclusions linked',
-    inclusionName: record.aur_inclusionsname ?? 'No inclusions linked',
-    warrantyName: record.aur_warrantiesname ?? 'No warranties linked',
     inquiry,
     responses,
     emailTemplates,
@@ -272,7 +281,7 @@ export function mapRenewalSummary(
     inquiryId: inquiry.aur_inquiryid,
     quoteId: linkedQuote?.aur_quoteid,
     policyNumber: linkedQuote?.aur_name ?? inquiry.aur_inquiry_number ?? `POL-${inquiry.aur_inquiryid.slice(0, 6).toUpperCase()}`,
-    client: inquiry.aur_accountname ?? inquiry.aur_contactname ?? inquiry.aur_name,
+    client: inquiry.aur_insured_companyname ?? inquiry.aur_broker_contactname ?? inquiry.aur_name,
     product: inquiry.aur_productname ?? 'No Product Linked',
     expiryDate: expiryDate.toISOString(),
     daysRemaining: Math.ceil((expiryDate.getTime() - Date.now()) / 86400000),
@@ -369,17 +378,18 @@ function inquiryLifecycleStatusValue(rawStatusReason?: number | string, rawState
 }
 
 function quoteStatusLabel(value?: number) {
-  if (value === 751820000) return 'Quote Won'
-  if (value === 751820001) return 'Quote Lost'
-  if (value === 751820002) return 'Deactivated'
+  if (value === 1) return 'Active'
+  if (value === 2) return 'Inactive'
+  if (value === 751820001) return 'Quote Won'
+  if (value === 751820002) return 'Quote Lost'
   return undefined
 }
 
 function buildCompletenessScore(record: InquiryRecord) {
   let score = 40
   if (record.aur_brokername) score += 10
-  if (record._aur_contact_value) score += 10
-  if (record._aur_account_value) score += 10
+  if (record._aur_broker_contact_value) score += 10
+  if (record._aur_insured_company_value) score += 10
   if (record._aur_product_value) score += 10
   if (record.aur_sharepoint_url) score += 10
   if (record.aur_risk_summary || record.aur_ai_generated_summary) score += 10

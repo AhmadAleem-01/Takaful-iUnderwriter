@@ -1,5 +1,6 @@
 import { Aur_benefitsesService } from '../generated/services/Aur_benefitsesService'
 import { quoteWholeNumber } from '../lib/quoteNumbers'
+import { isQuotationDocumentTemplate } from '../lib/documentTemplate'
 import { WhenQuoteGenerated_SendEmailtoCustomerService } from '../generated/services/WhenQuoteGenerated_SendEmailtoCustomerService'
 
 export async function sendGeneratedQuoteToCustomer(inquiryId: string, pdf: { fileName: string; contentBytes: string }) {
@@ -96,9 +97,9 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail> {
   const quote = quoteResult.data ? resolveQuoteRelations(quoteResult.data, productMap, planMap) : undefined
   if (!quote) throw new Error('Quote not found.')
 
-  const inquiry = (inquiriesResult.data ?? []).find((item) => item.aur_inquiryid === quote._aur_quotes_value)
+  const inquiry = (inquiriesResult.data ?? []).find((item) => item.aur_inquiryid === quote._aur_inquiry_value)
   const responses = (detailResult.data ?? [])
-    .filter((item) => normalizeDataverseId(item._aur_inquiry_value) === normalizeDataverseId(quote._aur_quotes_value))
+    .filter((item) => normalizeDataverseId(item._aur_inquiry_value) === normalizeDataverseId(quote._aur_inquiry_value))
     .map(mapQuoteResponse)
   const emailTemplates = (emailTemplatesResult.data ?? [])
     .filter((template) => {
@@ -107,12 +108,12 @@ export async function getQuoteDetail(id: string): Promise<QuoteDetail> {
     .map<EmailTemplateSummary>((template) => ({
       id: template.templateid,
       name: template.title,
-      subject: template.subject ?? '',
-      body: template.body ?? '',
+      subject: template.subjectsafehtml ?? template.subject ?? '',
+      body: template.safehtml ?? template.body ?? '',
       category: template.templatetypecodename ?? 'Quote',
       isActive: template.componentstate === 0,
     }))
-  const documentTemplates = (documentTemplatesResult.data ?? []).map<DocumentTemplateSummary>((template) => ({
+  const documentTemplates = (documentTemplatesResult.data ?? []).filter((template) => Number(template.statecode ?? 0) === 0 && Number(template.statuscode ?? 1) === 1 && isQuotationDocumentTemplate(template.aur_template_content ?? '')).map<DocumentTemplateSummary>((template) => ({
     id: template.aur_custom_document_templatesid,
     name: template.aur_name ?? 'Untitled template',
     content: template.aur_template_content ?? '',
@@ -165,35 +166,14 @@ export async function analyzeQuotePlanComparison(
 }
 
 export async function getQuoteEditorOptions() {
-  const [
-    productsResult,
-    plansResult,
-    coveragesResult,
-    benefitsResult,
-    inclusionsResult,
-    exclusionsResult,
-    deductiblesResult,
-    warrantiesResult,
-  ] = await Promise.all([
+  const [productsResult, plansResult] = await Promise.all([
     Aur_productsesService.getAll(),
     Aur_plansService.getAll(),
-    Aur_coveragesesService.getAll(),
-    Aur_benefitsesService.getAll(),
-    Aur_inclusionsesService.getAll(),
-    Aur_exclusionsesService.getAll(),
-    Aur_deductiblesesService.getAll(),
-    Aur_warrantiesesService.getAll(),
   ])
 
   return {
     products: (productsResult.data ?? []).map((record) => ({ id: record.aur_productsid, name: record.aur_name })),
     plans: (plansResult.data ?? []).map((record) => ({ id: record.aur_planid, name: record.aur_name ?? 'Unnamed plan' })),
-    coverages: (coveragesResult.data ?? []).map((record) => ({ id: record.aur_coveragesid, name: record.aur_name })),
-    benefits: (benefitsResult.data ?? []).map((record) => ({ id: record.aur_benefitsid, name: record.aur_name })),
-    inclusions: (inclusionsResult.data ?? []).map((record) => ({ id: record.aur_inclusionsid, name: record.aur_name })),
-    exclusions: (exclusionsResult.data ?? []).map((record) => ({ id: record.aur_exclusionsid, name: record.aur_name })),
-    deductibles: (deductiblesResult.data ?? []).map((record) => ({ id: record.aur_deductiblesid, name: record.aur_name })),
-    warranties: (warrantiesResult.data ?? []).map((record) => ({ id: record.aur_warrantiesid, name: record.aur_name })),
   }
 }
 
@@ -209,17 +189,13 @@ export async function saveQuoteDetail(
     aiSummary: string
     productId?: string
     planId?: string
-    coverageId?: string
-    benefitsId?: string
-    inclusionsId?: string
-    exclusionsId?: string
-    deductiblesId?: string
-    warrantiesId?: string
     quoteStatus?: 'QuoteWon' | 'QuoteLost'
   },
 ) {
-  const previousQuote = payload.quoteStatus === 'QuoteWon' ? (await Aur_quotesService.get(id)).data : undefined
-  await Aur_quotesService.update(id, {
+  const previousResult = payload.quoteStatus === 'QuoteWon' ? await Aur_quotesService.get(id) : undefined
+  if (previousResult && !previousResult.success) throw previousResult.error ?? new Error('Unable to load the quote status.')
+  const previousQuote = previousResult?.data
+  const saved = await Aur_quotesService.update(id, {
     aur_name: payload.name,
     aur_total_premium: quoteWholeNumber(payload.totalPremium, 'Total Premium'),
     aur_gross_premium: quoteWholeNumber(payload.grossPremium, 'Gross Premium'),
@@ -229,17 +205,12 @@ export async function saveQuoteDetail(
     aur_ai_generated_summary: payload.aiSummary,
     ...(payload.productId ? { 'aur_product@odata.bind': `/aur_productses(${payload.productId})` } : {}),
     ...(payload.planId ? { 'aur_plan@odata.bind': `/aur_plans(${payload.planId})` } : {}),
-    ...(payload.coverageId ? { 'aur_coverage@odata.bind': `/aur_coverageses(${payload.coverageId})` } : {}),
-    ...(payload.benefitsId ? { 'aur_benefits@odata.bind': `/aur_benefitses(${payload.benefitsId})` } : {}),
-    ...(payload.inclusionsId ? { 'aur_inclusions@odata.bind': `/aur_inclusionses(${payload.inclusionsId})` } : {}),
-    ...(payload.exclusionsId ? { 'aur_exclusions@odata.bind': `/aur_exclusionses(${payload.exclusionsId})` } : {}),
-    ...(payload.deductiblesId ? { 'aur_deductibles@odata.bind': `/aur_deductibleses(${payload.deductiblesId})` } : {}),
-    ...(payload.warrantiesId ? { 'aur_warranties@odata.bind': `/aur_warrantieses(${payload.warrantiesId})` } : {}),
     ...(payload.quoteStatus
-      ? { aur_quote_status: payload.quoteStatus === 'QuoteWon' ? 751820000 : 751820001 }
+      ? { statuscode: payload.quoteStatus === 'QuoteWon' ? 751820001 : 751820002 }
       : {}),
   })
-  if (payload.quoteStatus === 'QuoteWon' && previousQuote?.aur_quote_status !== 751820000) {
+  if (!saved.success) throw saved.error ?? new Error('Unable to save the quote.')
+  if (payload.quoteStatus === 'QuoteWon' && previousQuote?.statuscode !== 751820001) {
     await ensurePolicyConversionForWonQuote(id, {
       name: payload.name,
       totalPremium: payload.totalPremium,
@@ -249,15 +220,16 @@ export async function saveQuoteDetail(
 
 export async function updateQuoteStatus(
   id: string,
-  quoteStatus?: 'QuoteWon' | 'QuoteLost',
+  quoteStatus: 'QuoteWon' | 'QuoteLost',
 ) {
-  const previousQuote = quoteStatus === 'QuoteWon' ? (await Aur_quotesService.get(id)).data : undefined
-  await Aur_quotesService.update(id, {
-    ...(quoteStatus
-      ? { aur_quote_status: quoteStatus === 'QuoteWon' ? 751820000 : 751820001 }
-      : { aur_quote_status: undefined }),
+  const previousResult = quoteStatus === 'QuoteWon' ? await Aur_quotesService.get(id) : undefined
+  if (previousResult && !previousResult.success) throw previousResult.error ?? new Error('Unable to load the quote status.')
+  const previousQuote = previousResult?.data
+  const saved = await Aur_quotesService.update(id, {
+    statuscode: quoteStatus === 'QuoteWon' ? 751820001 : 751820002,
   })
-  if (quoteStatus === 'QuoteWon' && previousQuote?.aur_quote_status !== 751820000) {
+  if (!saved.success) throw saved.error ?? new Error('Unable to update the quote status.')
+  if (quoteStatus === 'QuoteWon' && previousQuote?.statuscode !== 751820001) {
     await ensurePolicyConversionForWonQuote(id, {
       name: previousQuote?.aur_name,
       totalPremium: previousQuote?.aur_total_premium,

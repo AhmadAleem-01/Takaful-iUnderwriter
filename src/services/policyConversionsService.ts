@@ -390,14 +390,14 @@ export async function getPolicyConversionEmailTemplate(): Promise<ConversionTemp
   const template = (result.data ?? []).find(
     (record) =>
       record.title.trim().toLowerCase() === 'policy conversion template' ||
-      record.subject?.trim().toLowerCase() === 'policy conversion template',
+      (record.subjectsafehtml ?? record.subject)?.trim().toLowerCase() === 'policy conversion template',
   )
   if (!template) throw new Error('Policy Conversion email template was not found.')
   return {
     id: template.templateid,
-    title: template.title || template.subject || 'Policy Conversion Template',
-    subject: template.subject ?? '',
-    content: template.body || '',
+    title: template.title || template.subjectsafehtml || template.subject || 'Policy Conversion Template',
+    subject: template.subjectsafehtml ?? template.subject ?? '',
+    content: template.safehtml ?? template.body ?? '',
   }
 }
 

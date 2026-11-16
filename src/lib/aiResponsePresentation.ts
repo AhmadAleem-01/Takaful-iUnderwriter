@@ -15,6 +15,29 @@ export function aiConfidence(value: number | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100 ? value : null
 }
 
+export function parseAiSummary(value: string) {
+  const plain = { summary: value, factsUsed: [] as string[], conflicts: [] as string[] }
+  let parsed: unknown
+  try { parsed = JSON.parse(value) } catch { return plain }
+  if (typeof parsed === 'string') return { ...plain, summary: parsed }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return plain
+  const record = parsed as Record<string, unknown>
+  if (typeof record.summary !== 'string') return plain
+  const readable = (entry: unknown): string => {
+    if (typeof entry === 'string') return entry.trim()
+    if (typeof entry === 'number') return String(entry)
+    if (typeof entry === 'boolean') return entry ? 'Yes' : 'No'
+    if (Array.isArray(entry)) return entry.map(readable).filter(Boolean).join('; ')
+    if (entry && typeof entry === 'object') return Object.entries(entry).flatMap(([key, child]) => {
+      const text = readable(child)
+      return text ? [`${key.replace(/_/g, ' ')}: ${text}`] : []
+    }).join('; ')
+    return ''
+  }
+  const details = (entries: unknown) => Array.isArray(entries) ? entries.map(readable).filter(Boolean) : []
+  return { summary: record.summary, factsUsed: details(record.facts_used), conflicts: details(record.conflicts) }
+}
+
 export function isNoEvidenceFound(evidence: unknown) {
   return typeof evidence === 'string' && ['no evidence found', 'evidence not found'].includes(evidence.trim().replace(/\s+/g, ' ').toLowerCase())
 }

@@ -59,7 +59,7 @@ export function InquiryDuplicateWarning({ inquiryId, refreshKey = 0 }: { inquiry
   if (loading) return <p role="status" className="text-xs text-muted-foreground">Checking for possible duplicate inquiries...</p>
   if (error) return <p role="status" className="text-sm text-amber-800">Duplicate check unavailable. {error}</p>
   if (!data || data.inquiryId !== inquiryId.replace(/[{}]/g, '').toLowerCase()) return null
-  if (data.state !== 'ready') return <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">{data.message}</p>
+  if (data.state !== 'ready') return null
   const findings = data.findings
   if (!findings.length) return null
   const potential = findings.some((finding) => finding.status === 'potentialDuplicate')

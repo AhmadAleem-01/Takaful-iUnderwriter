@@ -6,6 +6,18 @@ import {
 import type { AdminCatalogItem, ProductWorkspace } from '../domain/app'
 import { mapProductSummary } from './dataMappers'
 import { parseDuplicateCriteria } from '../lib/inquiryDuplicates'
+import { associateProductRules, disassociateProductRule, getProductRuleIds } from './productRuleAssociations'
+
+function assertProductOperation(result: { success: boolean; error?: unknown }, fallback: string) {
+  if (result.success && !result.error) return
+  const error = result.error
+  if (error instanceof Error) throw error
+  if (typeof error === 'string') throw new Error(error)
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    throw new Error(error.message)
+  }
+  throw new Error(fallback)
+}
 
 function parseOptionalNumber(value?: string) {
   if (!value?.trim()) return null
@@ -37,23 +49,28 @@ function mapPlanRecord(plan: Awaited<ReturnType<typeof Aur_plansService.getAll>>
   }
 }
 
-function mapRuleRecord(rule: Awaited<ReturnType<typeof Aur_business_rulesesService.getAll>>['data'][number]): AdminCatalogItem {
+function mapRuleRecord(rule: Awaited<ReturnType<typeof Aur_business_rulesesService.getAll>>['data'][number], ruleNames: Map<string, string>): AdminCatalogItem {
+  const parentId = rule._aur_properties_value?.replace(/[{}]/g, '').trim().toLowerCase()
+  const propertyName = (parentId ? ruleNames.get(parentId) : undefined)
+    || rule.aur_propertiesname
+    || (rule as unknown as Record<string, string>)['_aur_properties_value@OData.Community.Display.V1.FormattedValue']
   return {
-    id: rule.aur_business_rulesid,
+    id: rule.aur_business_rulesid.replace(/[{}]/g, '').trim().toLowerCase(),
     name: rule.aur_name,
-    description: rule.aur_propertiesname ?? 'No linked property rule yet.',
+    description: propertyName || 'No linked property rule yet.',
+    propertyRuleName: propertyName || '',
     status: rule.statuscodename ?? 'Active',
     context: rule.aur_categoriesname ?? 'Rule Library',
     detail: 'Underwriting rule',
   }
 }
 
-async function getAllBusinessRules() {
+async function getAllProductBusinessRules() {
   const rules: Awaited<ReturnType<typeof Aur_business_rulesesService.getAll>>['data'] = []
   let skipToken: string | undefined
   do {
     const result = await Aur_business_rulesesService.getAll({ maxPageSize: 500, skipToken })
-    if (!result.success || result.error) throw new Error('Unable to load business rules.')
+    assertProductOperation(result, 'Unable to load business rules.')
     rules.push(...(result.data ?? []))
     skipToken = result.skipToken
   } while (skipToken)
@@ -61,15 +78,17 @@ async function getAllBusinessRules() {
 }
 
 export async function getProductWorkspace(productId?: string): Promise<ProductWorkspace> {
-  const [productResult, plansResult, rulesResult] = await Promise.all([
-    productId ? Aur_productsesService.get(productId.replace(/[{}]/g, '').toLowerCase()) : Promise.resolve(undefined),
+  const [productResult, plansResult, rulesResult, associatedRuleIds] = await Promise.all([
+    productId ? Aur_productsesService.get(productId.replace(/[{}]/g, '').trim().toLowerCase()) : Promise.resolve(undefined),
     Aur_plansService.getAll(),
-    getAllBusinessRules(),
+    getAllProductBusinessRules(),
+    productId ? getProductRuleIds(productId) : Promise.resolve([]),
   ])
 
-  if (productResult && (!productResult.success || productResult.error)) throw new Error('Unable to load product.')
+  if (productResult) assertProductOperation(productResult, 'Unable to load product.')
   const current = productResult?.data
   if (productId && !current) throw new Error('Product not found.')
+  const ruleNames = new Map(rulesResult.map((rule) => [rule.aur_business_rulesid.replace(/[{}]/g, '').trim().toLowerCase(), rule.aur_name]))
 
   return {
     summary: current ? mapProductSummary(current) : undefined,
@@ -87,7 +106,7 @@ export async function getProductWorkspace(productId?: string): Promise<ProductWo
         terms: current.aur_terms_conditions ?? '',
         emailAddress: current.aur_incomingemailaddress ?? '',
         order: current.aur_order ?? '',
-        status: current.aur_product_statusname?.toLowerCase().includes('publish') ? 'publish' : 'draft',
+        status: current.aur_product_status === 751820001 ? 'publish' : 'draft',
         applyActionAutomatically: Boolean((current as typeof current & { aur_apply_action_automatically?: boolean | null }).aur_apply_action_automatically),
         duplicateCriteria: current.aur_duplicate_inquiry_criteria ?? '',
       }
@@ -111,11 +130,8 @@ export async function getProductWorkspace(productId?: string): Promise<ProductWo
     availablePlans: (plansResult.data ?? [])
       .filter((plan) => !productId || plan._aur_product_value === productId)
       .map(mapPlanRecord),
-    availableRules: rulesResult.map(mapRuleRecord),
-    associatedRuleIds: [],
-    relationshipNotice: productId
-      ? 'Product-to-business-rule associations will load through the custom Web API once it is configured.'
-      : undefined,
+    availableRules: rulesResult.map((rule) => mapRuleRecord(rule, ruleNames)),
+    associatedRuleIds,
   }
 }
 
@@ -160,27 +176,27 @@ export async function saveProductWorkspace(payload: {
     aur_premium: payload.premiumPercentage,
     aur_product_status: productStatus,
     statuscode: statusCode,
-    aur_apply_action_automatically: payload.applyActionAutomatically ?? false,
     ...(payload.duplicateCriteria !== undefined ? { aur_duplicate_inquiry_criteria: payload.duplicateCriteria } : {}),
   }
 
   if (payload.id) {
-    const result = await Aur_productsesService.update(payload.id.replace(/[{}]/g, '').toLowerCase(), record)
-    if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to save product.')
+    const result = await Aur_productsesService.update(payload.id.replace(/[{}]/g, '').trim().toLowerCase(), record)
+    assertProductOperation(result, 'Unable to save product.')
     return
   }
 
   const result = await Aur_productsesService.create(record as never)
-  if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to create product.')
+  assertProductOperation(result, 'Unable to create product.')
 }
 
 export async function updateProductAutoActionSetting(productId: string, applyAutomatically: boolean) {
-  await Aur_productsesService.update(
+  const result = await Aur_productsesService.update(
     productId,
     {
       aur_apply_action_automatically: applyAutomatically,
     } as never,
   )
+  assertProductOperation(result, 'Unable to update the auto-action setting.')
 }
 
 interface SaveProductPlanInput {
@@ -225,14 +241,12 @@ export async function saveProductRuleAssociations(input: {
   productName: string
   selectedRuleIds: string[]
 }) {
-  void input
-  throw new Error('The product-to-business-rule custom Web API has not been configured in this app yet.')
+  await associateProductRules(input.productId, input.selectedRuleIds)
 }
 
 export async function removeProductRuleAssociation(input: {
   productId: string
   businessRuleId: string
 }) {
-  void input
-  throw new Error('The product-to-business-rule custom Web API has not been configured in this app yet.')
+  await disassociateProductRule(input.productId, input.businessRuleId)
 }

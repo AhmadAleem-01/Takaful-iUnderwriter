@@ -82,7 +82,6 @@ export function DuplicateCriteriaEditor({ value, savedText, isAviation, rules, o
         <p className="mt-1">This product currently stores plain text or unsupported JSON. Starting guided setup will replace it when you save the product.</p>
         <details className="mt-3"><summary className="cursor-pointer font-medium">View existing criteria</summary><pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs">{savedText}</pre></details>
       </div>}
-      {saved.state === 'notConfigured' && <p className="text-sm text-muted-foreground">No duplication rule is configured yet. Until one is saved, inquiries show “not configured.”</p>}
       <div className="flex flex-wrap gap-3">
         {isAviation && <Button type="button" onClick={() => onChange(createAviationCriteria())}>Use Aviation starting rule</Button>}
         <Button type="button" variant={isAviation ? 'secondary' : 'primary'} onClick={() => onChange(createBlankCriteria())}>Build a custom rule</Button>

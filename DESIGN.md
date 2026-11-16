@@ -1,5 +1,43 @@
 # App Design Context
 
+Inquiry AI Extracted Response defaults to table view, with All responses selected. Users can switch to card view.
+
+AI response summary shows Checks extracted, Evidence Not Found, and Average confidence. Count missing evidence across all inquiry AI records using aur_evidence; recognize both Evidence Not Found and No Evidence Found, ignoring case and extra whitespace. The filter uses the same matching logic.
+
+AI Extracted Response toolbar contains only All and No Evidence Found filters, plus card/table view controls. No rule-type dropdown or hidden rule-type filtering.
+
+AI response table uses compact fixed-layout Query, Response, and Confidence columns. Confidence appears only for conditional rules, determined by resolving the response's Business Rule and its Properties self-lookup to Conditional Rules; other rows show a dash. Show plain response text, two-line previews with Show more for long responses, and a small accessible edit icon. Avoid per-row cards, repeated labels, confidence bars, and a forced wide table. Card view remains unchanged.
+
+AI Extracted Response filters are All and No Evidence Found, with counts. Match No Evidence Found against aur_evidence, ignoring case and extra whitespace; do not use aur_response or aur_condition_met. Evidence remains hidden in the display. All is selected initially; card and table views share the filtered records.
+
+AI Extracted Response cards show the check name, readable condition result, confidence, response immediately. True/False map to Condition met/Condition not met, never approval; missing confidence stays unavailable. Show the response in the tinted content block; omit supporting evidence and its action from AI response cards and tables. Edit response reveals the existing editor/save flow and marks unsaved drafts. Table view retains the same essentials. Omit Dataverse IDs and operational metadata from the cards.
+
+Non-health Inquiry AI Extracted Response reads aur_ai_extracted_response via its aur_inquiry lookup independently of supplementary quotes, RI capacity, and consequence data. Concurrent consumers share in-flight reads without caching results across refreshes. Check SDK read/update failures, show errors with Retry instead of an empty state, and retain response drafts. Health AI continues using the inquiry evaluation JSON.
+
+Inquiry has a Coverages tab immediately after Details. Retrieve all aur_inquiry_coverages links scoped to the opened inquiry, then read distinct referenced Coverage records for names and aur_coverage_type labels. Reuse Product's CoverageGroups component for populated category accordions/counts and name cards. Loading/error/retry/refresh/empty states are independent of inquiry editing. Never substitute the product's catalog for inquiry-specific links.
+
+Product Coverages uses the Business Rules category/card pattern: populated aur_coverage_type labels are collapsible group headings with counts, and each group shows coverage names in a responsive card grid. Use the field's display label, never aur_type or numeric option values. Resolve numeric choices from the synced aur_coverage_type enum when display labels are absent; render RI Conditions with its display spacing. Unset or unknown values appear as Uncategorized. Preserve product scoping and independent loading/retry/refresh behavior.
+
+Business Rule group labels are dynamic Properties lookup values. Known singular/plural labels share their standard headings; other populated Properties labels form their own groups rather than becoming Uncategorized. Only missing Properties values are Uncategorized. Product and Plan views and the association picker use the same grouping helper.
+
+Business-rule grouping uses only the explicit Properties lookup (aur_properties), resolved into propertyRuleName. Names, descriptions, and the separate category choice never determine the group. Only missing Properties values are Uncategorized; other values retain their own group labels.
+
+Product and inherited Plan Business Rules group by the linked Property Rule label (Mandatory Fields, Conditional Rules, etc.), using exact label matches rather than keywords in rule names. Resolve property names via lookup IDs across the complete paged rule library. Render only nonempty categories of persisted product links; association-modal drafts do not affect linked lists or counts. Missing Properties values appear as Uncategorized; other values retain their own group labels.
+
+Product workspace replaces Plans with a Coverages tab and Linked Coverages metric. Retrieve all coverage pages scoped to the direct Product lookup; do not include unrelated products or infer links through a plan. Show name, description, type, applicability, and status, with independent loading/error/retry/empty states and a Manage Coverages link. Refreshing coverages preserves product drafts. Plan creation/deletion controls are absent from this workspace.
+
+Product editor checks Power Apps SDK success/error results before treating create/update as saved. General Save Product writes synced product fields; auto-action uses its separate update flow. Reload existing products directly by GUID, derive publish status from the numeric choice, and show save errors/success above the editor tabs. Failed saves retain drafts.
+
+The sidebar's Product Management group contains only Products, Coverages, and Business Rules, in that order. Other catalog pages remain available through existing workspace links and routes.
+
+Product Business Rules retrieves and manages persisted links through aur_TakafulManageManyToMany using target aur_products and relationship schema aur_products_aur_business_rules_aur_business_rules. Retrieval follows all pages. Save Associations adds missing selections in batches of up to 100; the remove action disassociates only the selected rule. Refresh after writes, surface API errors inside the association modal, and discard unsaved selections on Cancel. Plan's read-only Business Rules view inherits the same product links.
+
+Inquiry Details desktop rows are Name / Inquiry Type, Inquiry Purpose / Insured Company, Line of Business / Product, and Broker Contact / Broker Company. Line of Business resolves its label from the lookup name, formatted Dataverse annotations, or the linked record; the editor normalizes lookup IDs to match the available options.
+
+Inquiry Quotes tab and its content appear only for Inquiry Purpose For Quotation (2). Visibility follows the draft purpose during editing and the saved value otherwise. If Quotes becomes unavailable while selected, return to Details. Other and unset purposes hide the tab without changing linked quotes.
+
+Inquiry Details uses Name, Product, Inquiry Type, Line of Business, Inquiry Purpose, Broker Contact, Broker Company, and Insured Company for every product. Inquiry Status, Plan, Insured Member, and Plan Details are hidden in this section. Line of Business, Inquiry Purpose, and the contact/company lookups use the normal Edit/Save flow; clearing persists null. Line of Business options come from aur_line_of_businesses. Broker Company and Insured Company use separate account lookups, and Broker Contact uses the synced contact lookup.
+
 Health inquiry grid uses workflow filters rather than vehicle types: Intake (Draft/Created/Product Match/Emirates ID), Verification (ICP/DOH), KYC Required, AI Processing (including Determined), Awaiting Review and Quote Sent. Status codes drive membership, with shared-label fallback for missing numeric codes. Health uses the stage URL parameter and ignores vehicle-type scopes; Motor retains existing type chips. All Inquiries always includes every record in the selected product view.
 
 Inquiry toolbar row one is Inquiry View label on the left and Motor/Health buttons on the right. Row two groups inquiry-type chips on the left with search and Clear Filters on the right, stacking responsively when needed. Search belongs to the type-filter row, not the product-view row.
@@ -50,7 +88,7 @@ Health/Medical inquiries temporarily hide the Details Risk & Capacity section. M
 
 The maintained visual reference is INSURANCE_APP_DESIGN_GUIDE.md. Runtime theme tokens in src/styles/globals.css and shared controls in src/components/ui remain authoritative.
 
-The many-to-many debugger is always visible in the top header. Opening it runs a read-only Retrieve. Associate and Disassociate require a reviewed ID list and explicit confirmation, then refresh the visible links. The modal shows the request parameters and parsed response. The current test target is Products to Business Rules; do not label it as a Plan relationship.
+The many-to-many debugger is hidden from the top header. Its component remains available for development. Product business-rule associations continue to use the custom API through the normal product workspace.
 
 Inquiry uses a compact action header with a five-metric strip and a 70/30 desktop Details layout. Inquiry Details is expanded initially; other form sections collapse independently. AI Extracted Response is expanded at the bottom, with individual response accordions initially collapsed, neutral surfaces, confidence bars, and the existing evidence popup. The decision, submitted-risk, and completeness cards use existing data and save paths. Email has its own tab with a conversation list, selected-message reader, filters, search, and the original rich-text composer. Actions, Quotes, RI Capacity Checks, Documents, and History remain separate tabs. Fields retain 11px title-case labels and 13px values. Layouts stack on small screens. The sidebar header toggles between 280px navigation and an 80px icon rail; AppShell owns shared state and page padding.
 
@@ -66,7 +104,7 @@ Inquiry product visibility follows the selected product lookup. Vehicle Value, d
 
 Health Insurance and Medical Insurance share the health presentation. Base Premium Percentage and the header base-rate percentage are hidden for both; stored base premium is preserved.
 
-Motor Insurance retains the editable Broker lookup and read-only Broker Agent field. Other products omit Broker and label the linked contact as Insured Member. Existing account relationships remain intact. Health coverage does not repeat the product and plan already shown in Inquiry Details.
+All products use the shared Broker Contact, Broker Company, and Insured Company fields in Inquiry Details. Health coverage does not repeat the product shown in Inquiry Details.
 
 Premium monetary fields use comma-grouped amount displays. The shared AmountInput shows the raw decimal value during editing and formatted grouping on blur; form state and backend payloads retain numeric values. Percentage fields keep their existing controls.
 

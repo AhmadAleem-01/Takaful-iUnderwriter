@@ -58,6 +58,25 @@
         "workflowDisplayName": "When Quote Generated - Send Email to Customer",
         "workflowName": "a5e6bde4-839e-804c-42dd-4985a1532328"
       }
+    },
+    "f5c3c206-b375-4d70-ba37-c12d164f664f": {
+      "id": "/providers/microsoft.powerapps/apis/shared_sharepointonline",
+      "displayName": "SharePoint"
+    },
+    "17b691db-42f7-45ff-b7a6-cfa402b204e8": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+      "displayName": "Logic flows",
+      "dataSources": [
+        "getinquiryevidencedocument"
+      ],
+      "workflowDetails": {
+        "workflowEntityId": "8ad30773-a2d6-f111-84e8-7ced8dab9a28",
+        "workflowDisplayName": "Get Inquiry Evidence Document",
+        "workflowName": "0ed53859-5d28-0992-c647-e0c0c40f14fb",
+        "dependencies": {
+          "shared_sharepointonline_2": "f5c3c206-b375-4d70-ba37-c12d164f664f"
+        }
+      }
     }
   },
   "databaseReferences": {
@@ -261,6 +280,21 @@
         "aiextractedresponses": {
           "entitySetName": "aur_ai_extracted_responses",
           "logicalName": "aur_ai_extracted_response",
+          "isHidden": false
+        },
+        "lineofbusinesses": {
+          "entitySetName": "aur_line_of_businesses",
+          "logicalName": "aur_line_of_business",
+          "isHidden": false
+        },
+        "inquirycoverages": {
+          "entitySetName": "aur_inquiry_coverageses",
+          "logicalName": "aur_inquiry_coverages",
+          "isHidden": false
+        },
+        "aidecisionresponses": {
+          "entitySetName": "aur_ai_decision_responses",
+          "logicalName": "aur_ai_decision_response",
           "isHidden": false
         }
       },

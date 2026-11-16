@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode, type FormEvent } from 'react'
 import { useParams, Link, useLocation } from 'react-router-dom'
-import { ArrowLeft, BadgeCheck, Bot, BrainCircuit, CheckCircle2, ChevronDown, ChevronUp, Download, FileSearch, FileText, FileWarning, Gem, History, Layers3, Pencil, RefreshCw, Save, ShieldAlert, ShieldCheck, Sparkles, TicketSlash, Trash2, UploadCloud, XCircle } from 'lucide-react'
+import { ArrowLeft, Bot, BrainCircuit, CheckCircle2, Download, FileSearch, FileText, FileWarning, History, Layers3, RefreshCw, Save, Sparkles, UploadCloud, XCircle } from 'lucide-react'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import {
-  deleteQuotePlanLinkedRecord,
   getQuoteDetail,
   getQuoteEditorOptions,
   getQuotePlanLinkedSections,
@@ -12,7 +11,6 @@ import {
   sendGeneratedQuoteToCustomer,
   analyzeQuotePlanComparison,
   updateQuotePlanLinkedDescription,
-  updateQuotePlanLinkedRecordDetails,
   updateQuoteStatus,
   type QuotePlanLinkedEntityKey,
   type QuotePlanLinkedSection,
@@ -33,6 +31,9 @@ import healthHeaderSrc from '../../assets/insureAIHealthLogo.png.png?inline'
 import alBuhairaHeaderSrc from '../../assets/al-buhaira-logo.png?inline'
 import { inquiryProductKind } from '../../lib/healthInquiry'
 import type { QuotePlanComparison } from '../../domain/app'
+import { QuotationTemplateDialog } from '../../components/quotes/QuotationTemplateDialog'
+import { QuoteStatusBadge } from '../../components/quotes/QuoteStatusBadge'
+import { quoteSummaryText, saveQuoteSummaryText } from '../../lib/quoteSummaryEdit'
 
 interface QuoteFormState {
   name: string
@@ -44,12 +45,6 @@ interface QuoteFormState {
   aiSummary: string
   productId: string
   planId: string
-  coverageId: string
-  benefitsId: string
-  inclusionsId: string
-  exclusionsId: string
-  deductiblesId: string
-  warrantiesId: string
   quoteStatus: 'QuoteWon' | 'QuoteLost' | ''
 }
 
@@ -69,23 +64,10 @@ export function QuoteWorkbenchPage() {
   const [exportPhase, setExportPhase] = useState<'generating' | 'sending'>('generating')
   const [exportMessage, setExportMessage] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  const [expandedPlanSections, setExpandedPlanSections] = useState<Record<string, boolean>>({
-    benefits: false,
-    inclusions: false,
-    exclusions: false,
-    deductibles: false,
-    warranties: false,
-    coverages: false,
-  })
-  const [editingPlanRecordKey, setEditingPlanRecordKey] = useState<string | null>(null)
-  const [editingPlanRecordName, setEditingPlanRecordName] = useState('')
-  const [editingPlanRecordDescription, setEditingPlanRecordDescription] = useState('')
-  const [planActionBusyKey, setPlanActionBusyKey] = useState<string | null>(null)
-  const [planActionError, setPlanActionError] = useState<string | null>(null)
   const [comparisonApplyBusyKey, setComparisonApplyBusyKey] = useState<string | null>(null)
   const [comparisonAppliedKeys, setComparisonAppliedKeys] = useState<Record<string, boolean>>({})
+  const [comparisonApplyError, setComparisonApplyError] = useState<string | null>(null)
   const [planSectionsLocal, setPlanSectionsLocal] = useState<QuotePlanLinkedSection[] | null>(null)
-  const [planSectionsRefreshKey, setPlanSectionsRefreshKey] = useState(0)
   const [comparisonRefreshKey, setComparisonRefreshKey] = useState(0)
   const [selectedComparisonId, setSelectedComparisonId] = useState<string | null>(null)
   const [comparisonUploadMode, setComparisonUploadMode] = useState(false)
@@ -101,19 +83,13 @@ export function QuoteWorkbenchPage() {
       vat: String(detail.vat || 0),
       loadingPremium: String(detail.loadingPremium || 0),
       reason: detail.reason,
-      aiSummary: detail.aiSummary,
+      aiSummary: quoteSummaryText(detail.aiSummary),
       productId: options.products.find((item) => item.name === detail.productName)?.id ?? '',
       planId: options.plans.find((item) => item.name === detail.planName)?.id ?? '',
-      coverageId: options.coverages.find((item) => item.name === detail.coverageName)?.id ?? '',
-      benefitsId: options.benefits.find((item) => item.name === detail.benefitsName)?.id ?? '',
-      inclusionsId: options.inclusions.find((item) => item.name === detail.inclusionName)?.id ?? '',
-      exclusionsId: options.exclusions.find((item) => item.name === detail.exclusionName)?.id ?? '',
-      deductiblesId: options.deductibles.find((item) => item.name === detail.deductibleName)?.id ?? '',
-      warrantiesId: options.warranties.find((item) => item.name === detail.warrantyName)?.id ?? '',
       quoteStatus:
-        detail.quoteStatusValue === 751820000
+        detail.quoteStatusValue === 751820001
           ? 'QuoteWon'
-          : detail.quoteStatusValue === 751820001
+          : detail.quoteStatusValue === 751820002
             ? 'QuoteLost'
             : normalizeQuoteStatus(detail.status),
     })
@@ -122,9 +98,10 @@ export function QuoteWorkbenchPage() {
   const {
     data: planSections,
     loading: planSectionsLoading,
+    error: planSectionsError,
   } = useAsyncData(
     () => getQuotePlanLinkedSections(form?.planId ?? ''),
-    [form?.planId, planSectionsRefreshKey],
+    [form?.planId],
   )
   const {
     data: planComparisons,
@@ -164,15 +141,9 @@ export function QuoteWorkbenchPage() {
         vat: Number(currentForm.vat) || 0,
         loadingPremium: Number(currentForm.loadingPremium) || 0,
         reason: currentForm.reason,
-        aiSummary: currentForm.aiSummary,
+        aiSummary: saveQuoteSummaryText(currentDetail.aiSummary, currentForm.aiSummary),
         productId: currentForm.productId || undefined,
         planId: currentForm.planId || undefined,
-        coverageId: currentForm.coverageId || undefined,
-        benefitsId: currentForm.benefitsId || undefined,
-        inclusionsId: currentForm.inclusionsId || undefined,
-        exclusionsId: currentForm.exclusionsId || undefined,
-        deductiblesId: currentForm.deductiblesId || undefined,
-        warrantiesId: currentForm.warrantiesId || undefined,
         quoteStatus: currentForm.quoteStatus || undefined,
       })
       setRefreshKey((value) => value + 1)
@@ -183,28 +154,8 @@ export function QuoteWorkbenchPage() {
     }
   }
 
-  async function handleRenamePlanRecord(entity: QuotePlanLinkedEntityKey, recordId: string) {
-    if (!editingPlanRecordName.trim()) return
-    const busyKey = `rename:${entity}:${recordId}`
-    try {
-      setPlanActionBusyKey(busyKey)
-      setPlanActionError(null)
-      await updateQuotePlanLinkedRecordDetails(entity, recordId, {
-        name: editingPlanRecordName.trim(),
-        description: editingPlanRecordDescription.trim(),
-      })
-      setEditingPlanRecordKey(null)
-      setEditingPlanRecordName('')
-      setEditingPlanRecordDescription('')
-      setPlanSectionsRefreshKey((value) => value + 1)
-    } catch (cause) {
-      setPlanActionError(cause instanceof Error ? cause.message : 'Unable to update the record details.')
-    } finally {
-      setPlanActionBusyKey(null)
-    }
-  }
-
   async function handleQuoteStatusChange(nextStatus: 'QuoteWon' | 'QuoteLost') {
+    const previousStatus = form?.quoteStatus ?? ''
     try {
       setStatusBusy(true)
       setSaveError(null)
@@ -212,23 +163,10 @@ export function QuoteWorkbenchPage() {
       await updateQuoteStatus(id, nextStatus)
       setRefreshKey((value) => value + 1)
     } catch (cause) {
+      setForm((current) => (current ? { ...current, quoteStatus: previousStatus } : current))
       setSaveError(cause instanceof Error ? cause.message : 'Unable to update quote status.')
     } finally {
       setStatusBusy(false)
-    }
-  }
-
-  async function handleDeletePlanRecord(entity: QuotePlanLinkedEntityKey, recordId: string) {
-    const busyKey = `delete:${entity}:${recordId}`
-    try {
-      setPlanActionBusyKey(busyKey)
-      setPlanActionError(null)
-      await deleteQuotePlanLinkedRecord(entity, recordId)
-      setPlanSectionsRefreshKey((value) => value + 1)
-    } catch (cause) {
-      setPlanActionError(cause instanceof Error ? cause.message : 'Unable to delete the record.')
-    } finally {
-      setPlanActionBusyKey(null)
     }
   }
 
@@ -282,7 +220,7 @@ export function QuoteWorkbenchPage() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Badge variant="approved">{data.detail.status}</Badge>
+              <QuoteStatusBadge status={data.detail.status} statusCode={data.detail.quoteStatusValue} prominent />
               <Badge variant="info">{currentDetail.productName}</Badge>
             </div>
             <h1 className="mt-2 text-[24px] font-bold tracking-[-0.02em]">{data.detail.name}</h1>
@@ -314,6 +252,7 @@ export function QuoteWorkbenchPage() {
             <Metric label="VAT" value={`${formatAmount(currentDetail.vat)}%`} />
             </div>
             <div className="flex flex-wrap justify-end gap-2">
+              <QuotationTemplateDialog quoteId={id} values={currentForm} sections={visiblePlanSections} sectionsLoading={planSectionsLoading} sectionsError={planSectionsError} templates={currentDetail.documentTemplates} />
               <Button type="button" variant="secondary" className="bg-white hover:bg-surface" disabled={isExporting} onClick={() => void handleExportPdf()}>
                 <Download className="h-4 w-4" />
                 {isExporting ? exportPhase === 'sending' ? 'Sending to customer...' : 'Generating...' : 'Generate Quote'}
@@ -328,226 +267,53 @@ export function QuoteWorkbenchPage() {
         <Tabs defaultValue="quote-details">
           <TabsList>
             <TabsTrigger value="quote-details" icon={FileText}>Quote Details</TabsTrigger>
-            <TabsTrigger value="plan-details" icon={Layers3}>Plan Details</TabsTrigger>
             <TabsTrigger value="compare-plans" icon={BrainCircuit}>Compare Plans</TabsTrigger>
           </TabsList>
           <TabsContent value="quote-details" className="mt-4">
-            <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-              <Card className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xl font-semibold">Quote Summary</h3>
-                  <Button type="submit" disabled={saving}>
-                    <Save className="h-4 w-4" />
-                    {saving ? 'Saving...' : 'Save Quote'}
-                  </Button>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Quote Name">
-                    <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-                  </Field>
-                  <Field label="Total Premium">
-                    <AmountInput value={form.totalPremium} onValueChange={(value) => setForm({ ...form, totalPremium: value })} />
-                  </Field>
-                  <Field label="Gross Premium">
-                    <AmountInput value={form.grossPremium} onValueChange={(value) => setForm({ ...form, grossPremium: value })} />
-                  </Field>
-                  <Field label="VAT">
-                    <AmountInput value={form.vat} suffix="%" suffixPlacement="after-value" onValueChange={(value) => setForm({ ...form, vat: value })} />
-                  </Field>
-                  <Field label="Loading Premium">
-                    <AmountInput value={form.loadingPremium} onValueChange={(value) => setForm({ ...form, loadingPremium: value })} />
-                  </Field>
-                </div>
-                <Field label="Outcome Reason">
-                  <textarea
-                    className="form-field-surface min-h-24 w-full rounded-[16px] border border-border px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-                    value={form.reason}
-                    onChange={(event) => setForm({ ...form, reason: event.target.value })}
-                  />
-                </Field>
-                <Field label="AI Summary">
-                  <textarea
-                    className="form-field-surface min-h-32 w-full rounded-[16px] border border-border px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-                    value={form.aiSummary}
-                    onChange={(event) => setForm({ ...form, aiSummary: event.target.value })}
-                  />
-                </Field>
-                {saveError ? <p className="text-sm text-danger">{saveError}</p> : null}
-              </Card>
-              <Card className="space-y-4">
-                <h3 className="text-xl font-semibold">Captured Responses</h3>
-                {data.detail.responses.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No quote rule responses are stored yet for this quote.
-                  </p>
-                ) : (
-                  data.detail.responses.map((response) => (
-                    <Card key={response.id} className="bg-surface-soft">
-                      <p className="font-semibold">{response.businessRuleName}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{response.response}</p>
-                      <Badge className="mt-3" variant="review">
-                        {response.conditionMet}
-                      </Badge>
-                    </Card>
-                  ))
-                )}
-              </Card>
-            </div>
-          </TabsContent>
-          <TabsContent value="plan-details" className="mt-4">
-            <div className="space-y-6">
-              <Card className="space-y-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold">Plan-linked Catalog</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Each accordion shows records whose `aur_plan` matches the plan selected on this quote.
-                    </p>
-                  </div>
-                  {form.planId ? <Badge variant="info">Plan linked</Badge> : <Badge variant="neutral">No plan selected</Badge>}
-                </div>
-                {planActionError ? <p className="text-sm text-danger">{planActionError}</p> : null}
-                {!form.planId ? (
-                  <p className="text-sm text-muted-foreground">Select a plan on the quote first to load related records.</p>
-                ) : planSectionsLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading plan-linked records...</p>
-                ) : (
-                  <div className="space-y-3">
-                    {visiblePlanSections.map((section) => {
-                      const isExpanded = expandedPlanSections[section.key] ?? false
-                      const SectionIcon = planSectionIcon(section.key)
-                      return (
-                        <div key={section.key} className="overflow-hidden rounded-[24px] border border-border-soft bg-white shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:bg-slate-950/95 dark:shadow-[0_12px_28px_rgba(2,6,23,0.22)]">
-                          <button
-                            type="button"
-                            className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-surface-soft/70"
-                            onClick={() =>
-                              setExpandedPlanSections((current) => ({
-                                ...current,
-                                [section.key]: !isExpanded,
-                              }))
-                            }
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <SectionIcon className="h-5 w-5" />
-                              </div>
-                              <div>
-                                <p className="text-base font-semibold">{section.title}</p>
-                                <p className="text-sm text-muted-foreground">Plan-linked records</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <Badge variant="review">{section.records.length}</Badge>
-                              {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                            </div>
-                          </button>
-                          {isExpanded ? (
-                            <div className="border-t border-border-soft px-5 py-5">
-                              {section.records.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No {section.title.toLowerCase()} records are linked to this plan yet.</p>
-                              ) : (
-                                <div className="grid gap-3 xl:grid-cols-4">
-                                  {section.records.map((record) => {
-                                    const recordKey = `${section.key}:${record.id}`
-                                    const isEditing = editingPlanRecordKey === recordKey
-                                    const renameBusy = planActionBusyKey === `rename:${section.key}:${record.id}`
-                                    const deleteBusy = planActionBusyKey === `delete:${section.key}:${record.id}`
-                                    return (
-                                      <Card key={record.id} variant="interactive" className="space-y-3 rounded-[20px] border border-border-soft bg-surface px-4 py-4 shadow-[0_8px_18px_rgba(15,23,42,0.05)]">
-                                        <div className="flex items-start justify-between gap-3">
-                                          <div className="min-w-0 flex-1">
-                                            {isEditing ? (
-                                              <div className="space-y-3">
-                                                <Input value={editingPlanRecordName} onChange={(event) => setEditingPlanRecordName(event.target.value)} />
-                                                <textarea
-                                                  className="form-field-surface min-h-[88px] w-full resize-y rounded-[16px] border border-border px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-                                                  value={editingPlanRecordDescription}
-                                                  placeholder="Description"
-                                                  onChange={(event) => setEditingPlanRecordDescription(event.target.value)}
-                                                />
-                                              </div>
-                                            ) : (
-                                              <div className="space-y-1.5">
-                                                <h4 className="truncate text-sm font-semibold leading-6">{record.name}</h4>
-                                                <p className="line-clamp-3 text-xs leading-5 text-muted-foreground">
-                                                  {record.description || 'No description captured yet.'}
-                                                </p>
-                                              </div>
-                                            )}
-                                          </div>
-                                          {!isEditing ? (
-                                            <div className="flex items-center gap-1">
-                                              <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 rounded-full bg-white text-muted-foreground hover:bg-surface-soft hover:text-primary"
-                                                onClick={() => {
-                                                  setEditingPlanRecordKey(recordKey)
-                                                  setEditingPlanRecordName(record.name)
-                                                  setEditingPlanRecordDescription(record.description)
-                                                }}
-                                              >
-                                                <Pencil className="h-4 w-4" />
-                                              </Button>
-                                              <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-8 w-8 rounded-full bg-white text-muted-foreground hover:bg-danger/10 hover:text-danger"
-                                                disabled={deleteBusy}
-                                                onClick={() => void handleDeletePlanRecord(section.key, record.id)}
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </Button>
-                                            </div>
-                                          ) : null}
-                                        </div>
-                                        <div className="flex flex-wrap justify-end gap-2">
-                                          {isEditing ? (
-                                            <>
-                                              <Button
-                                                type="button"
-                                                variant="secondary"
-                                                size="sm"
-                                                className="bg-white hover:bg-surface"
-                                                onClick={() => {
-                                                  setEditingPlanRecordKey(null)
-                                                  setEditingPlanRecordName('')
-                                                  setEditingPlanRecordDescription('')
-                                                }}
-                                              >
-                                                Cancel
-                                              </Button>
-                                              <Button
-                                                type="button"
-                                                size="sm"
-                                                disabled={renameBusy}
-                                                onClick={() => void handleRenamePlanRecord(section.key, record.id)}
-                                              >
-                                                <Save className="h-4 w-4" />
-                                                {renameBusy ? 'Saving...' : 'Save'}
-                                              </Button>
-                                            </>
-                                          ) : null}
-                                        </div>
-                                      </Card>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          ) : null}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </Card>
-            </div>
+        <Card className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xl font-semibold">Quote Summary</h3>
+            <Button type="submit" disabled={saving}>
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : 'Save Quote'}
+            </Button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Quote Name">
+              <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+            </Field>
+            <Field label="Total Premium">
+              <AmountInput value={form.totalPremium} onValueChange={(value) => setForm({ ...form, totalPremium: value })} />
+            </Field>
+            <Field label="Gross Premium">
+              <AmountInput value={form.grossPremium} onValueChange={(value) => setForm({ ...form, grossPremium: value })} />
+            </Field>
+            <Field label="VAT">
+              <AmountInput value={form.vat} suffix="%" suffixPlacement="after-value" onValueChange={(value) => setForm({ ...form, vat: value })} />
+            </Field>
+            <Field label="Loading Premium">
+              <AmountInput value={form.loadingPremium} onValueChange={(value) => setForm({ ...form, loadingPremium: value })} />
+            </Field>
+          </div>
+          <Field label="Outcome Reason">
+            <textarea
+              className="form-field-surface min-h-24 w-full rounded-[16px] border border-border px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              value={form.reason}
+              onChange={(event) => setForm({ ...form, reason: event.target.value })}
+            />
+          </Field>
+          <Field label="AI Summary">
+            <textarea
+              className="form-field-surface min-h-32 w-full rounded-[16px] border border-border px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+              value={form.aiSummary}
+              onChange={(event) => setForm({ ...form, aiSummary: event.target.value })}
+            />
+          </Field>
+          {saveError ? <p className="text-sm text-danger">{saveError}</p> : null}
+        </Card>
           </TabsContent>
           <TabsContent value="compare-plans" className="mt-4">
+            {comparisonApplyError ? <p role="alert" className="mb-4 rounded-xl border border-danger/20 bg-danger/5 p-4 text-sm text-danger">{comparisonApplyError}</p> : null}
             <ComparePlansWorkspace
               quoteName={currentDetail.name}
               comparisons={planComparisons ?? []}
@@ -562,7 +328,7 @@ export function QuoteWorkbenchPage() {
               appliedKeys={comparisonAppliedKeys}
               onApplyMatch={async (sectionKey, recordId, description, applyKey) => {
                 try {
-                  setPlanActionError(null)
+                  setComparisonApplyError(null)
                   setComparisonApplyBusyKey(applyKey)
                   await updateQuotePlanLinkedDescription(sectionKey, recordId, description)
                   setPlanSectionsLocal((current) =>
@@ -579,7 +345,7 @@ export function QuoteWorkbenchPage() {
                   )
                   setComparisonAppliedKeys((current) => ({ ...current, [applyKey]: true }))
                 } catch (cause) {
-                  setPlanActionError(cause instanceof Error ? cause.message : 'Unable to apply matched plan detail.')
+                  setComparisonApplyError(cause instanceof Error ? cause.message : 'Unable to apply matched plan detail.')
                 } finally {
                   setComparisonApplyBusyKey(null)
                 }
@@ -1246,15 +1012,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </div>
   )
-}
-
-function planSectionIcon(key: QuotePlanLinkedEntityKey) {
-  if (key === 'benefits') return Gem
-  if (key === 'inclusions') return BadgeCheck
-  if (key === 'exclusions') return TicketSlash
-  if (key === 'deductibles') return FileWarning
-  if (key === 'warranties') return ShieldCheck
-  return ShieldAlert
 }
 
 function QuoteStatusChip({

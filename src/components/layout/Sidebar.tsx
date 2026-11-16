@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { ChevronDown, Shield } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { APP_ROUTES } from '../../lib/constants'
 import { cn } from '../../lib/cn'
 import { useRole } from '../../hooks/useRole'
@@ -17,6 +17,7 @@ const GROUP_ORDER = [
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { hasAccess, user } = useRole()
   const location = useLocation()
+  const [logoFailed, setLogoFailed] = useState(false)
   const groupEntries = useMemo(() => {
     const grouped = APP_ROUTES.filter((route) => !route.disabled || hasAccess(route.bucket)).reduce<
       Record<string, typeof APP_ROUTES>
@@ -52,15 +53,14 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
   return (
     <aside className={cn('hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:flex-col lg:border-r lg:border-[#19324C] lg:bg-[#071827] lg:text-white transition-[width] duration-300 motion-reduce:transition-none', collapsed ? 'lg:w-[80px]' : 'lg:w-[280px]')}>
-      <button type="button" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className={cn('border-b border-white/10 py-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', collapsed ? 'px-[18px]' : 'px-5')}>
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-primary text-white shadow-[0_12px_24px_rgba(40,108,255,0.2)]">
-            <Shield className="h-5 w-5" />
-          </div>
-          <div className={cn('min-w-0', collapsed && 'hidden')}>
-            <h2 className="truncate text-[20px] font-bold leading-none tracking-[-0.03em]">InsureAI</h2>
-            <p className="mt-1 truncate text-[11px] font-medium text-slate-400">Executive Insurance Platform</p>
-          </div>
+      <button type="button" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className={cn('border-b border-white/10 py-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', collapsed ? 'px-[18px]' : 'px-3')}>
+        <div className={cn('flex items-center justify-center rounded-[12px]', collapsed ? 'h-11 w-11 p-2' : 'h-14 w-full py-1')}>
+          {logoFailed ? <span className="text-sm font-bold text-white">{collapsed ? 'T' : 'Takaful'}</span> : <img
+            src="/takaful-logo.png"
+            alt="Abu Dhabi National Takaful"
+            className="max-h-full max-w-full object-contain"
+            onError={() => setLogoFailed(true)}
+          />}
         </div>
       </button>
 

@@ -18,7 +18,7 @@ export async function listRenewals(): Promise<RenewalSummary[]> {
   return policies.map((policy) => {
     const linkedInquiryId = policy._aur_inquiry_value
     const linkedQuote = linkedInquiryId
-      ? quotes.find((quote) => quote._aur_quotes_value === linkedInquiryId)
+      ? quotes.find((quote) => quote._aur_inquiry_value === linkedInquiryId)
       : undefined
     const reminderCount = linkedInquiryId
       ? results.filter(

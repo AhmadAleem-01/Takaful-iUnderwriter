@@ -5,8 +5,10 @@ import { getInquiryDetail } from '../../services/inquiriesService'
 import { Card } from '../../components/ui/Card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/Tabs'
 import { Badge } from '../../components/ui/Badge'
+import { QuoteStatusBadge } from '../../components/quotes/QuoteStatusBadge'
 import { Button } from '../../components/ui/Button'
 import { formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
+import { parseAiSummary } from '../../lib/aiResponsePresentation'
 import { Link } from 'react-router-dom'
 
 export function InquiryDetailPage() {
@@ -116,7 +118,7 @@ export function InquiryDetailPage() {
                 </p>
               </div>
             </div>
-            <p className="text-sm leading-7 text-muted-foreground">{data.aiSummary}</p>
+            <p className="text-sm leading-7 text-muted-foreground">{parseAiSummary(data.aiSummary).summary}</p>
             <div className="space-y-3">
               {data.quoteDetails.map((item) => (
                 <Card key={item.id} className="bg-surface-soft">
@@ -138,9 +140,9 @@ export function InquiryDetailPage() {
               <Card key={quote.id} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold">{quote.name}</h3>
-                  <Badge variant="approved">{quote.status}</Badge>
+                  <QuoteStatusBadge status={quote.status} statusCode={quote.quoteStatusValue} />
                 </div>
-                <p className="text-sm text-muted-foreground">{quote.aiSummary}</p>
+                <p className="text-sm text-muted-foreground">{parseAiSummary(quote.aiSummary).summary}</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <MetricCard label="Plan" value={quote.planName} />
                   <MetricCard label="Premium" value={formatCurrency(quote.totalPremium)} />

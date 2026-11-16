@@ -28,7 +28,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "61351c20-b243-f111-bec7-6045bde5fa9e",
+          "x-ms-optionsetmetadataid": "ed5f0ad3-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Applicable",
           "x-ms-optionSetType": "Picklist"
@@ -59,7 +59,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "03fc92bf-b143-f111-bec7-7ced8da0b39a",
+          "x-ms-optionsetmetadataid": "f05f0ad3-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Base Cover",
           "x-ms-optionSetType": "Boolean"
@@ -79,6 +79,55 @@
           "x-ms-dataverse-type": "StringType",
           "x-ms-schema-name": "aur_company",
           "maxLength": 100
+        },
+        "aur_coverage_type": {
+          "type": "string",
+          "title": "Coverage Type",
+          "x-ms-dataverse-attribute": "aur_coverage_type",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "aur_coverage_type",
+          "enum": [
+            "Coverages",
+            "Benefits",
+            "Inclusions",
+            "Exclusions",
+            "Warranties",
+            "Deductibles",
+            "Conditions",
+            "RI Conditions"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "226706ea-d3d1-f111-a05d-002248cbe9fc",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Coverage Types",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "aur_coverage_typename": {
+          "type": "string",
+          "title": "aur_coverage_typename",
+          "x-ms-dataverse-attribute": "aur_coverage_typename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "aur_coverage_typeName",
+          "x-ms-read-only": true
         },
         "aur_coveragesid": {
           "type": "string",
@@ -216,7 +265,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "8bacfc66-b143-f111-bec7-6045bde5fa9e",
+          "x-ms-optionsetmetadataid": "f35f0ad3-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Type",
           "x-ms-optionSetType": "Picklist"
@@ -456,7 +505,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "dd7d6aa0-9318-f111-8342-7ced8da1ecee",
+          "x-ms-optionsetmetadataid": "b25f0ad3-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status",
           "x-ms-optionSetType": "State"
@@ -487,7 +536,7 @@
             null,
             null
           ],
-          "x-ms-optionsetmetadataid": "e77d6aa0-9318-f111-8342-7ced8da1ecee",
+          "x-ms-optionsetmetadataid": "bc5f0ad3-85cb-f111-a05c-6045bd6b6cd2",
           "x-ms-isGlobal": false,
           "x-ms-optionsetdisplayname": "Status Reason",
           "x-ms-optionSetType": "Status"

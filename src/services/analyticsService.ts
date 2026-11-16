@@ -19,7 +19,7 @@ export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot> {
           inquiries.reduce((sum, item) => sum + (item.aur_risk_score ?? 0), 0) /
             inquiries.length,
         )
-  const wonQuotes = quotes.filter((item) => item.aur_quote_statusname === 'QuoteWon').length
+  const wonQuotes = quotes.filter((item) => item.statuscode === 751820001).length
   const inquiryTrend = countByType(inquiries)
   const premiumTrend = aggregateByDate(quotes, (quote) => quote.createdon, (quote) => quote.aur_total_premium ?? 0)
   const productDistribution = Array.from(

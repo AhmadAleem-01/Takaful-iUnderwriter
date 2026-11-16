@@ -6,10 +6,16 @@ import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { PageHeader } from '../../components/layout/PageHeader'
+import { quotationDocumentHtml } from '../../lib/quotationTemplate'
+import { getEmailTemplateFieldTables } from '../../services/emailTemplateFieldsService'
+import { templateFieldLabelMap } from '../../lib/templateFieldBadges'
 
 export function DocumentTemplatePreviewPage() {
   const { templateId = '' } = useParams()
-  const { data, loading, error } = useAsyncData(() => getDocumentTemplatePreview(templateId), [templateId])
+  const { data, loading, error } = useAsyncData(async () => {
+    const [preview, tables] = await Promise.all([getDocumentTemplatePreview(templateId), getEmailTemplateFieldTables()])
+    return { ...preview, fieldLabels: templateFieldLabelMap(tables) }
+  }, [templateId])
 
   if (loading) return <Card>Loading document template preview...</Card>
   if (error || !data) return <Card>{error ?? 'Document template not found.'}</Card>
@@ -38,20 +44,18 @@ export function DocumentTemplatePreviewPage() {
         <Card variant="premium" className="space-y-4">
           <h2 className="text-xl font-semibold">Merge Guidance</h2>
           <p className="text-sm leading-7 text-muted-foreground">
-            Use placeholders like inquiry numbers, client names, quote totals, and product names in this template. This preview route is the admin review surface called for in the brief.
+            Use fields from the template editor, then open a quote and choose Custom Template to preview this document with actual quote data and download the quotation PDF.
           </p>
           <div className="flex flex-wrap gap-2">
-            {['{{Quote.Number}}', '{{Inquiry.Client}}', '{{Product.Name}}', '{{Policy.ExpiryDate}}'].map((token) => (
-              <Badge key={token} variant="review">{token}</Badge>
+            {['Name', 'Total Premium', 'Product', 'Plan'].map((label) => (
+              <Badge key={label} variant="review">{label}</Badge>
             ))}
           </div>
         </Card>
         <Card variant="premium" className="space-y-4">
           <h2 className="text-xl font-semibold">Template Content</h2>
           <div className="rounded-[18px] border border-border-soft bg-surface-soft p-5">
-            <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-foreground">
-              {data.content || 'No template content has been captured yet.'}
-            </pre>
+            <iframe title="Document template preview" sandbox="" className="h-[60vh] w-full bg-white" srcDoc={quotationDocumentHtml(data.content || '<p>No template content has been captured yet.</p>', data.fieldLabels)} />
           </div>
         </Card>
       </div>

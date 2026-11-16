@@ -10,31 +10,6 @@
       "x-ms-dataverse-primary-id": "aur_inquiryid",
       "x-ms-dataverse-primary-name": "aur_name",
       "properties": {
-        "aur_account": {
-          "type": "string",
-          "title": "Account",
-          "x-ms-dataverse-attribute": "aur_account",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_account"
-        },
-        "aur_accountname": {
-          "type": "string",
-          "title": "aur_accountname",
-          "x-ms-dataverse-attribute": "aur_accountname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_accountName",
-          "x-ms-read-only": true,
-          "maxLength": 160
-        },
-        "aur_accountyominame": {
-          "type": "string",
-          "title": "aur_accountyominame",
-          "x-ms-dataverse-attribute": "aur_accountyominame",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_accountYomiName",
-          "x-ms-read-only": true,
-          "maxLength": 160
-        },
         "aur_action_applied": {
           "type": "string",
           "title": "Action Applied",
@@ -104,37 +79,62 @@
           "x-ms-schema-name": "aur_base_premium_Base",
           "x-ms-read-only": true
         },
+        "aur_broker_company": {
+          "type": "string",
+          "title": "Broker Company",
+          "x-ms-dataverse-attribute": "aur_broker_company",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_broker_company"
+        },
+        "aur_broker_companyname": {
+          "type": "string",
+          "title": "aur_broker_companyname",
+          "x-ms-dataverse-attribute": "aur_broker_companyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_broker_companyName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_broker_companyyominame": {
+          "type": "string",
+          "title": "aur_broker_companyyominame",
+          "x-ms-dataverse-attribute": "aur_broker_companyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_broker_companyYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_broker_contact": {
+          "type": "string",
+          "title": "Broker Contact",
+          "x-ms-dataverse-attribute": "aur_broker_contact",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_broker_contact"
+        },
+        "aur_broker_contactname": {
+          "type": "string",
+          "title": "aur_broker_contactname",
+          "x-ms-dataverse-attribute": "aur_broker_contactname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_broker_contactName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_broker_contactyominame": {
+          "type": "string",
+          "title": "aur_broker_contactyominame",
+          "x-ms-dataverse-attribute": "aur_broker_contactyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_broker_contactYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 450
+        },
         "aur_brokerage_pct": {
           "type": "string",
           "title": "Brokerage %",
           "x-ms-dataverse-attribute": "aur_brokerage_pct",
           "x-ms-dataverse-type": "DecimalType",
           "x-ms-schema-name": "aur_brokerage_pct"
-        },
-        "aur_contact": {
-          "type": "string",
-          "title": "Contact",
-          "x-ms-dataverse-attribute": "aur_contact",
-          "x-ms-dataverse-type": "LookupType",
-          "x-ms-schema-name": "aur_contact"
-        },
-        "aur_contactname": {
-          "type": "string",
-          "title": "aur_contactname",
-          "x-ms-dataverse-attribute": "aur_contactname",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_contactName",
-          "x-ms-read-only": true,
-          "maxLength": 160
-        },
-        "aur_contactyominame": {
-          "type": "string",
-          "title": "aur_contactyominame",
-          "x-ms-dataverse-attribute": "aur_contactyominame",
-          "x-ms-dataverse-type": "StringType",
-          "x-ms-schema-name": "aur_contactYomiName",
-          "x-ms-read-only": true,
-          "maxLength": 450
         },
         "aur_cover_type": {
           "type": "string",
@@ -245,6 +245,37 @@
           "x-ms-schema-name": "aur_inquiry_number",
           "maxLength": 4000
         },
+        "aur_inquiry_purpose": {
+          "type": "string",
+          "title": "Inquiry Purpose",
+          "x-ms-dataverse-attribute": "aur_inquiry_purpose",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "aur_inquiry_purpose",
+          "enum": [
+            "For Inward Business",
+            "For Quotation"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "4cfb7723-c2d2-f111-a05d-7ced8dab9a28",
+          "x-ms-isGlobal": true,
+          "x-ms-optionsetdisplayname": "Inquiry Purpose Types",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "aur_inquiry_purposename": {
+          "type": "string",
+          "title": "aur_inquiry_purposename",
+          "x-ms-dataverse-attribute": "aur_inquiry_purposename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "aur_inquiry_purposeName",
+          "x-ms-read-only": true
+        },
         "aur_inquiry_type": {
           "type": "string",
           "title": "Inquiry Type",
@@ -291,6 +322,47 @@
           "x-ms-dataverse-primary-id": true,
           "required": true,
           "x-ms-keyType": "primary"
+        },
+        "aur_insured_company": {
+          "type": "string",
+          "title": "Insured Company",
+          "x-ms-dataverse-attribute": "aur_insured_company",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_insured_company"
+        },
+        "aur_insured_companyname": {
+          "type": "string",
+          "title": "aur_insured_companyname",
+          "x-ms-dataverse-attribute": "aur_insured_companyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_insured_companyName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_insured_companyyominame": {
+          "type": "string",
+          "title": "aur_insured_companyyominame",
+          "x-ms-dataverse-attribute": "aur_insured_companyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_insured_companyYomiName",
+          "x-ms-read-only": true,
+          "maxLength": 160
+        },
+        "aur_line_of_business": {
+          "type": "string",
+          "title": "Line of Business",
+          "x-ms-dataverse-attribute": "aur_line_of_business",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "aur_line_of_business"
+        },
+        "aur_line_of_businessname": {
+          "type": "string",
+          "title": "aur_line_of_businessname",
+          "x-ms-dataverse-attribute": "aur_line_of_businessname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "aur_line_of_businessName",
+          "x-ms-read-only": true,
+          "maxLength": 850
         },
         "aur_name": {
           "type": "string",
@@ -827,13 +899,34 @@
           "x-ms-schema-name": "statuscode",
           "enum": [
             "Active",
-            "Inactive"
+            "Inactive",
+            "Inquiry Created",
+            "Product Match",
+            "Determined Inquiry",
+            "AI Processing",
+            "More Information Required",
+            "Awaiting Review",
+            "Quote Sent to Customer"
           ],
           "x-ms-enum-values": [
             1,
-            2
+            2,
+            751820001,
+            751820002,
+            751820003,
+            751820004,
+            751820005,
+            751820006,
+            751820007
           ],
           "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
             null,
             null
           ],

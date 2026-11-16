@@ -10,6 +10,11 @@ export const Aur_inquiriesaur_cover_type = {
   5: 'HullOnly'
 } as const;
 export type Aur_inquiriesaur_cover_type = keyof typeof Aur_inquiriesaur_cover_type;
+export const Aur_inquiriesaur_inquiry_purpose = {
+  1: 'ForInwardBusiness',
+  2: 'ForQuotation'
+} as const;
+export type Aur_inquiriesaur_inquiry_purpose = keyof typeof Aur_inquiriesaur_inquiry_purpose;
 export const Aur_inquiriesaur_inquiry_type = {
   1: 'New',
   2: 'Renewal',
@@ -54,19 +59,26 @@ export const Aur_inquiriesstatecode = {
 export type Aur_inquiriesstatecode = keyof typeof Aur_inquiriesstatecode;
 export const Aur_inquiriesstatuscode = {
   1: 'Active',
-  2: 'Inactive'
+  2: 'Inactive',
+  751820001: 'InquiryCreated',
+  751820002: 'ProductMatch',
+  751820003: 'DeterminedInquiry',
+  751820004: 'AIProcessing',
+  751820005: 'MoreInformationRequired',
+  751820006: 'AwaitingReview',
+  751820007: 'QuoteSenttoCustomer'
 } as const;
 export type Aur_inquiriesstatuscode = keyof typeof Aur_inquiriesstatuscode;
 
 export interface Aur_inquiriesBase {
-  "aur_account@odata.bind"?: string;
   aur_action_applied?: boolean;
   aur_additional_premium_pct?: number;
   aur_ai_evaluation_json_response?: string;
   aur_ai_generated_summary?: string;
   aur_base_premium?: number;
+  "aur_broker_company@odata.bind"?: string;
+  "aur_broker_contact@odata.bind"?: string;
   aur_brokerage_pct?: number;
-  "aur_contact@odata.bind"?: string;
   aur_cover_type?: Aur_inquiriesaur_cover_type;
   aur_customer_information?: string;
   aur_declared_value?: number;
@@ -74,8 +86,11 @@ export interface Aur_inquiriesBase {
   aur_fees?: number;
   aur_gross_premium?: number;
   aur_inquiry_number?: string;
+  aur_inquiry_purpose?: Aur_inquiriesaur_inquiry_purpose;
   aur_inquiry_type?: Aur_inquiriesaur_inquiry_type;
   aur_inquiryid: string;
+  "aur_insured_company@odata.bind"?: string;
+  "aur_line_of_business@odata.bind"?: string;
   aur_name: string;
   aur_no_of_items?: string;
   aur_payment_term?: Aur_inquiriesaur_payment_term;
@@ -105,19 +120,21 @@ export interface Aur_inquiriesBase {
 }
 
 export interface Aur_inquiries extends Aur_inquiriesBase {
-  aur_accountname?: string;
-  aur_accountyominame?: string;
   aur_action_appliedname?: string;
   aur_base_premium_base?: number;
-  aur_contactname?: string;
-  aur_contactyominame?: string;
-  aur_cover_typename?: string;
   aur_broker_companyname?: string;
-  aur_insured_companyname?: string;
+  aur_broker_companyyominame?: string;
+  aur_broker_contactname?: string;
+  aur_broker_contactyominame?: string;
+  aur_cover_typename?: string;
   aur_declared_value_base?: number;
   aur_fees_base?: number;
   aur_gross_premium_base?: number;
+  aur_inquiry_purposename?: string;
   aur_inquiry_typename?: string;
+  aur_insured_companyname?: string;
+  aur_insured_companyyominame?: string;
+  aur_line_of_businessname?: string;
   aur_payment_termname?: string;
   aur_planname?: string;
   aur_productname?: string;
@@ -143,13 +160,14 @@ export interface Aur_inquiries extends Aur_inquiriesBase {
   statuscodename?: string;
   transactioncurrencyidname?: string;
   versionnumber?: number;
+  aur_broker_company?: object;
   _aur_broker_company_value?: string;
+  aur_broker_contact?: object;
+  _aur_broker_contact_value?: string;
+  aur_insured_company?: object;
   _aur_insured_company_value?: string;
+  aur_line_of_business?: object;
   _aur_line_of_business_value?: string;
-  aur_account?: object;
-  _aur_account_value?: string;
-  aur_contact?: object;
-  _aur_contact_value?: string;
   aur_plan?: object;
   _aur_plan_value?: string;
   aur_product?: object;

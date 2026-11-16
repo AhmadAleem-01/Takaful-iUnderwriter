@@ -16,6 +16,7 @@ import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import type { SelectOption } from '../../components/ui/Select'
 import { formatCurrency, formatDate } from '../../lib/formatters'
+import { parseAiSummary } from '../../lib/aiResponsePresentation'
 import { inquiryProductKind } from '../../lib/healthInquiry'
 import { HEALTH_INQUIRY_FILTERS, matchesHealthInquiryFilter } from '../../lib/healthInquiryFilters'
 
@@ -245,7 +246,7 @@ export function InquiriesPage() {
                 {row.original.name}
               </Link>
             </div>
-            <p className="line-clamp-2 max-w-[340px] text-[12px] text-muted-foreground">{row.original.summary}</p>
+            <p className="line-clamp-2 max-w-[340px] text-[12px] text-muted-foreground">{parseAiSummary(row.original.summary).summary}</p>
           </div>
         ),
       },

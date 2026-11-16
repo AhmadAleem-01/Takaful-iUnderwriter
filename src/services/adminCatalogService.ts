@@ -19,6 +19,8 @@ import {
   SystemusersService,
 } from '../generated'
 import { Accountsaur_account_type } from '../generated/models/AccountsModel'
+import { getProductRuleIds } from './productRuleAssociations'
+import { emailTemplateCategory, emailTemplateDescription } from './emailTemplatesService'
 import { Businessunitsaur_businessunittype } from '../generated/models/BusinessunitsModel'
 import {
   Aur_business_rulesesaur_categories,
@@ -316,6 +318,7 @@ export async function getAdminCatalog(entity: AdminEntityKey): Promise<AdminCata
       id: rule.aur_business_rulesid,
       name: rule.aur_name,
       description: rule.aur_propertiesname ?? 'No linked property rule yet.',
+      propertyRuleName: rule.aur_propertiesname ?? '',
       status: rule.statuscodename ?? 'Active',
       context: rule.aur_categoriesname ?? resolveRuleCategory(rule.aur_categories),
       detail: 'Rule library',
@@ -412,10 +415,10 @@ export async function getAdminCatalog(entity: AdminEntityKey): Promise<AdminCata
     records = (result.data ?? []).map((template) => ({
       id: template.templateid,
       name: template.title,
-      description: template.subject ?? '',
+      description: template.subjectsafehtml ?? template.subject ?? '',
       status: template.componentstate === 0 ? 'Published' : 'Unpublished',
-      context: template.templatetypecodename ?? 'Email template',
-      detail: template.description ?? 'Communication template',
+      context: emailTemplateCategory(template) ?? 'Email template',
+      detail: emailTemplateDescription(template) || 'Communication template',
     }))
   }
 
@@ -578,10 +581,10 @@ export async function getAdminRecord(entity: AdminEntityKey, id: string): Promis
     return {
       id: record.templateid,
       name: record.title,
-      description: record.description ?? '',
-      subject: record.subject ?? '',
-      body: record.body ?? '',
-      category: record.templatetypecodename ?? '',
+      description: emailTemplateDescription(record),
+      subject: record.subjectsafehtml ?? record.subject ?? '',
+      body: record.safehtml ?? record.body ?? '',
+      category: emailTemplateCategory(record) ?? '',
       isActive: record.componentstate === 0,
     }
   }
@@ -617,10 +620,11 @@ export async function deleteAdminRecord(entity: AdminEntityKey, id: string) {
 }
 
 export async function getProductWorkspace(productId?: string): Promise<ProductWorkspace> {
-  const [productsResult, plansDataset, rulesDataset] = await Promise.all([
+  const [productsResult, plansDataset, rulesDataset, associatedRuleIds] = await Promise.all([
     Aur_productsesService.getAll(),
     getAdminCatalog('plans'),
     getAdminCatalog('business-rules'),
+    productId ? getProductRuleIds(productId) : Promise.resolve([]),
   ])
 
   const products = productsResult.data ?? []
@@ -631,7 +635,7 @@ export async function getProductWorkspace(productId?: string): Promise<ProductWo
     summary,
     availablePlans: plansDataset.records.filter((plan) => !productId || plan.productId === productId),
     availableRules: rulesDataset.records,
-    associatedRuleIds: [],
+    associatedRuleIds,
     relationshipNotice: undefined,
   }
 }
@@ -833,12 +837,14 @@ function buildPayload(entity: AdminEntityKey, payload: AdminFormPayload) {
   if (entity === 'email-templates') {
     return {
       title: payload.name,
-      subject: payload.subject,
-      body: payload.body,
+      subjectsafehtml: payload.subject,
+      safehtml: payload.body,
       description: payload.description,
       languagecode: 1033,
       ispersonal: false,
-      templatetypecode: findOptionKey(Templatestemplatetypecode, payload.category) ?? 1084,
+      templatetypecode: payload.category === 'Global' || payload.category === 'User'
+        ? 'systemuser'
+        : findOptionKey(Templatestemplatetypecode, payload.category) ?? 1084,
     }
   }
   if (entity === 'document-templates') {

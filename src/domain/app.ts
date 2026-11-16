@@ -60,6 +60,7 @@ export type AdminEntityKey =
   | 'document-templates'
 
 export interface AdminCatalogItem {
+  propertyRuleName?: string
   id: string
   name: string
   description: string
@@ -143,6 +144,16 @@ export interface InquirySummary {
 }
 
 export interface InquiryDetail extends InquirySummary {
+  parentProductId?: string
+  parentProductName?: string
+  inquiryPurposeValue?: number
+  inquiryPurpose?: string
+  brokerContactId?: string
+  brokerContactName?: string
+  brokerCompanyId?: string
+  brokerCompanyName?: string
+  insuredCompanyId?: string
+  insuredCompanyName?: string
   riskDescription: string
   paymentTerm: string
   territorialScope: string
@@ -154,6 +165,7 @@ export interface InquiryDetail extends InquirySummary {
   vehicleValue?: string
   customerData?: string
   aiEvaluationJsonResponse?: string
+  documentsUrl?: string
   tpa?: string
   tpaNetworkValue?: number | null
   tpaNetworkLabel?: string
@@ -243,12 +255,6 @@ export interface QuoteSummary {
 
 export interface QuoteDetail extends QuoteSummary {
   loadingPremium: number
-  benefitsName: string
-  coverageName: string
-  deductibleName: string
-  exclusionName: string
-  inclusionName: string
-  warrantyName: string
   inquiry?: InquirySummary
   responses: QuoteResponse[]
   emailTemplates: EmailTemplateSummary[]

@@ -31,6 +31,10 @@ export function Select({
   className,
   contentClassName,
   children,
+  id,
+  title,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
 }: SelectProps) {
   const derivedOptions =
     options ??
@@ -52,14 +56,21 @@ export function Select({
       disabled={disabled}
     >
       <SelectPrimitive.Trigger
+        id={id}
+        title={title}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
         className={cn(
-          'form-field-surface flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-sm text-foreground shadow-sm outline-none ring-offset-white transition placeholder:text-[#94A3B8] focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-[#94A3B8] dark:border-white/10 dark:text-[#F1F5F9]',
+          'form-field-surface flex h-12 w-full min-w-0 items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-foreground shadow-sm outline-none ring-offset-white transition placeholder:text-[#94A3B8] focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-[#94A3B8] dark:border-white/10 dark:text-[#F1F5F9]',
           className,
         )}
       >
-        <SelectPrimitive.Value placeholder={placeholder} />
+        {/* Radix Value strips className/style; size its actual parent instead. */}
+        <span className="min-w-0 flex-1 truncate text-left [&>span]:block">
+          <SelectPrimitive.Value placeholder={placeholder} />
+        </span>
         <SelectPrimitive.Icon asChild>
-          <ChevronDown className="h-4 w-4 opacity-50" />
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
@@ -83,7 +94,9 @@ export function Select({
                 <SelectPrimitive.ItemIndicator>
                   <Check className="h-4 w-4 text-primary" />
                 </SelectPrimitive.ItemIndicator>
-                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                <span className="min-w-0 flex-1 truncate [&>span]:block">
+                  <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                </span>
               </SelectPrimitive.Item>
             ))}
           </SelectPrimitive.Viewport>

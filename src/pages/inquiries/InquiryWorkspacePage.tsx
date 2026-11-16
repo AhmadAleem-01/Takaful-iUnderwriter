@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { ClipboardList, Car, UserRound, HeartPulse } from 'lucide-react'
+import { ClipboardList, Car, UserRound, HeartPulse, Layers3 } from 'lucide-react'
 import { InquirySection, InquiryInformationSection, InquiryAiPanel, InquiryDecisionRail, InquiryEmailReader, InquiryHeaderMetric } from '../../components/inquiries/InquiryWorkspacePanels'
 import { HealthInquirySections, HealthPremiumFields } from '../../components/inquiries/HealthInquirySections'
 import { HealthAiEvaluation } from '../../components/inquiries/HealthAiEvaluation'
+import { InquiryEvidenceButton } from '../../components/inquiries/InquiryEvidence'
+import { inquiryEvidence } from '../../lib/inquiryEvidence'
 import { HealthInquiryStepper } from '../../components/inquiries/HealthInquiryStepper'
+import { InquiryCoverages } from '../../components/inquiries/InquiryCoverages'
+import { CreateQuoteDialog } from '../../components/inquiries/CreateQuoteDialog'
+import { QuoteStatusBadge } from '../../components/quotes/QuoteStatusBadge'
 import { InquiryDuplicateWarning } from '../../components/inquiries/InquiryDuplicateWarning'
+import { InquiryDecisionFields, type InquiryDecisionField } from '../../components/inquiries/InquiryDecisionFields'
+import { getInquiryAiDecisionSuggestions } from '../../services/aiDecisionResponsesService'
 import { healthAnswer, inquiryProductKind, parseHealthCustomerData, tpaNetworkPremiumAdjustment } from '../../lib/healthInquiry'
 import { evaluationNumber, evaluationObject, parseHealthAiEvaluation } from '../../lib/healthAiEvaluation'
 import { ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
@@ -41,14 +48,18 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
-import { getAiResponseFilters, filterAiResponses } from '../../lib/aiResponsePresentation'
+import { getAiResponseFilters, filterAiResponses, parseAiSummary } from '../../lib/aiResponsePresentation'
 import { vehicleValueAverage } from '../../lib/inquiryUnderwriting'
-import { parsePlanDetails } from '../../lib/planDetails'
 import { formatAmount, formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
 import { AmountInput } from '../../components/ui/AmountInput'
 import { parseMotorCustomerData, motorDriverFields, motorVehicleFields, motorAnswer } from '../../lib/motorInquiry'
 
 interface InquiryFormState {
+  parentProductId: string
+  inquiryPurpose: string
+  brokerContactId: string
+  brokerCompanyId: string
+  insuredCompanyId: string
   name: string
   productId: string
   inquiryType: string
@@ -82,6 +93,10 @@ interface EmailComposerState {
 }
 
 const emptyEditorOptions = {
+  parentProducts: [] as Array<{ id: string; name: string }>,
+  brokerContacts: [] as Array<{ id: string; name: string }>,
+  companies: [] as Array<{ id: string; name: string }>,
+  inquiryPurposes: [] as Array<{ value: number; label: string }>,
   products: [] as Array<{ id: string; name: string }>,
   plans: [] as Array<{ id: string; name: string; productId: string }>,
   brokers: [] as Array<{ id: string; name: string }>,
@@ -117,6 +132,7 @@ export function InquiryWorkspacePage() {
   const [activeTab, setActiveTab] = useState('details')
   const [aiFilter, setAiFilter] = useState('All')
   const [quoteView, setQuoteView] = useState<'card' | 'table'>('table')
+  const [isCreateQuoteOpen, setIsCreateQuoteOpen] = useState(false)
   const [isCopyQuotesOpen, setIsCopyQuotesOpen] = useState(false)
   const [selectedWonQuoteIds, setSelectedWonQuoteIds] = useState<string[]>([])
   const [copyQuotesBusy, setCopyQuotesBusy] = useState(false)
@@ -144,6 +160,10 @@ export function InquiryWorkspacePage() {
   const optionsLoad = useAsyncData(async () => getInquiryEditorOptions(), [])
   const sharePointSiteLoad = useAsyncData(getSharePointSiteUrl, [])
   const supplementaryLoad = useAsyncData(async () => getInquiryDetailSupplementary(id), [id, supplementaryRefreshKey])
+  const [decisionRefreshKey, setDecisionRefreshKey] = useState(0)
+  const decisionsLoad = useAsyncData(() => getInquiryAiDecisionSuggestions(id), [id, supplementaryRefreshKey, decisionRefreshKey])
+  const decisionSuggestions = decisionsLoad.data?.inquiryId === id.replace(/[{}]/g, '').toLowerCase() && !decisionsLoad.loading && !decisionsLoad.error
+    ? decisionsLoad.data.suggestions : []
   const aiResponsesLoad = useAsyncData(async () => ({
     inquiryId: id.replace(/[{}]/g, '').toLowerCase(),
     records: await getInquiryAiExtractedResponses(id),
@@ -189,6 +209,7 @@ export function InquiryWorkspacePage() {
     setEmailSearch('')
     setAiFilter('All')
     setIsCopyQuotesOpen(false)
+    setIsCreateQuoteOpen(false)
     setSelectedWonQuoteIds([])
     setCopyQuotesError(null)
     setQuoteDetailDrafts({})
@@ -318,6 +339,12 @@ export function InquiryWorkspacePage() {
   }, [isNotificationMenuOpen])
 
   const detailSource = inquiryState ?? coreLoad.data
+  const showQuotesTab = (isEditing && form ? Number(form.inquiryPurpose) : detailSource?.inquiryPurposeValue) === 2
+
+  useEffect(() => {
+    if (!showQuotesTab && activeTab === 'quotes') setActiveTab('details')
+  }, [showQuotesTab, activeTab])
+
   const quoteDetails = useMemo(() => detailSource?.quoteDetails ?? [], [detailSource?.quoteDetails])
   const emailTimeline = inquiryEmailLoad.data ?? []
 
@@ -386,7 +413,7 @@ export function InquiryWorkspacePage() {
     () =>
       (productWonQuotesLoad.data ?? []).filter(
         (quote) =>
-          quote.quoteStatusValue === 751820000 ||
+          quote.quoteStatusValue === 751820001 ||
           quote.status.trim().toLowerCase() === 'quote won' ||
           quote.status.replace(/\s+/g, '').trim().toLowerCase() === 'quotewon',
       ),
@@ -511,21 +538,16 @@ export function InquiryWorkspacePage() {
     }
   }
 
-  async function handleCreateQuote() {
-    if (!form) return
+  async function handleCreateQuote(planId: string) {
     try {
       setPendingAction('quote')
       setActionError(null)
       setActionSuccess(null)
-      await createQuoteFromInquiry(inquiryRecordId, {
-        productId: form.productId || undefined,
-        planId: form.planId || undefined,
-        premiumToBeCharged: Number(form.premiumToBeCharged) || 0,
-      })
+      await createQuoteFromInquiry(inquiryRecordId, planId)
       setActionSuccess('Quote created and linked to this inquiry.')
       triggerWorkspaceRefresh()
     } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : 'Unable to create quote from inquiry.')
+      throw cause instanceof Error ? cause : new Error('Unable to create quote from inquiry.')
     } finally {
       setPendingAction(null)
     }
@@ -580,6 +602,11 @@ export function InquiryWorkspacePage() {
       setSaveError(null)
       setActionSuccess(null)
       await saveInquiryDetail(inquiryRecordId, {
+        parentProductId: form.parentProductId || null,
+        inquiryPurpose: form.inquiryPurpose ? Number(form.inquiryPurpose) : null,
+        brokerContactId: form.brokerContactId || null,
+        brokerCompanyId: form.brokerCompanyId || null,
+        insuredCompanyId: form.insuredCompanyId || null,
         name: form.name,
         productId: form.productId || undefined,
         inquiryType: form.inquiryType ? Number(form.inquiryType) : undefined,
@@ -609,6 +636,16 @@ export function InquiryWorkspacePage() {
         current
           ? {
               ...current,
+              parentProductId: form.parentProductId || undefined,
+              parentProductName: form.parentProductId ? findOptionName(options.parentProducts, form.parentProductId, current.parentProductName ?? '') : '',
+              inquiryPurposeValue: form.inquiryPurpose ? Number(form.inquiryPurpose) : undefined,
+              inquiryPurpose: form.inquiryPurpose ? findOptionLabel(options.inquiryPurposes, form.inquiryPurpose, '') : '',
+              brokerContactId: form.brokerContactId || undefined,
+              brokerContactName: form.brokerContactId ? findOptionName(options.brokerContacts, form.brokerContactId, current.brokerContactName ?? '') : '',
+              brokerCompanyId: form.brokerCompanyId || undefined,
+              brokerCompanyName: form.brokerCompanyId ? findOptionName(options.brokers, form.brokerCompanyId, current.brokerCompanyName ?? '') : '',
+              insuredCompanyId: form.insuredCompanyId || undefined,
+              insuredCompanyName: form.insuredCompanyId ? findOptionName(options.companies, form.insuredCompanyId, current.insuredCompanyName ?? '') : '',
               name: form.name,
               productId: form.productId || undefined,
               productName: findOptionName(options.products, form.productId, current.productName),
@@ -619,8 +656,11 @@ export function InquiryWorkspacePage() {
               planId: form.planId || undefined,
               planName: findOptionName(options.plans.map((item) => ({ id: item.id, name: item.name })), form.planId, current.planName),
               planDetails: form.planDetails,
-              brokerId: form.brokerId || undefined,
-              brokerName: findOptionName(options.brokers, form.brokerId, current.brokerName),
+              brokerId: form.brokerCompanyId || undefined,
+              brokerName: form.brokerCompanyId ? findOptionName(options.brokers, form.brokerCompanyId, current.brokerName) : 'No broker linked',
+              accountId: form.insuredCompanyId || undefined,
+              accountName: form.insuredCompanyId ? findOptionName(options.companies, form.insuredCompanyId, current.accountName) : 'No account linked',
+              contactName: form.brokerContactId ? findOptionName(options.brokerContacts, form.brokerContactId, current.contactName) : 'No contact linked',
               coverType: findOptionLabel(options.coverTypes, form.coverType, current.coverType),
               riskScore: Number(form.riskScore) || 0,
               riskDescription: form.riskDescription,
@@ -1343,91 +1383,50 @@ export function InquiryWorkspacePage() {
         </div>}
       </section>
 
-      <Tabs value={activeTab === 'product-info' && !isMotorInsurance && !isHealthInsurance ? 'details' : activeTab} onValueChange={setActiveTab}>
+      <Tabs value={(activeTab === 'quotes' && !showQuotesTab) || (activeTab === 'product-info' && !isMotorInsurance && !isHealthInsurance) ? 'details' : activeTab} onValueChange={setActiveTab}>
         <TabsList className="overflow-x-auto md:flex-wrap xl:flex-nowrap">
           <TabsTrigger value="details" icon={LayoutGrid}>Details</TabsTrigger>
+          <TabsTrigger value="coverages" icon={Layers3}>Coverages</TabsTrigger>
           {isMotorInsurance || isHealthInsurance ? <TabsTrigger value="product-info" icon={isMotorInsurance ? Car : HeartPulse}>{isMotorInsurance ? 'Driver & Vehicle' : 'Health Information'}</TabsTrigger> : null}
           <TabsTrigger value="email" icon={Mail}>Email</TabsTrigger>
           <TabsTrigger value="actions" icon={ShieldAlert}>Actions</TabsTrigger>
-          <TabsTrigger value="quotes" icon={FileText}>Quotes</TabsTrigger>
+          {showQuotesTab ? <TabsTrigger value="quotes" icon={FileText}>Quotes</TabsTrigger> : null}
           <TabsTrigger value="ri-capacity" icon={Calculator}>RI Capacity Checks</TabsTrigger>
           <TabsTrigger value="documents" icon={FolderOpen}>Documents</TabsTrigger>
           <TabsTrigger value="history" icon={History}>History</TabsTrigger>
         </TabsList>
+        <TabsContent value="coverages" className="mt-4">
+          <InquiryCoverages key={inquiryRecordId} inquiryId={inquiryRecordId} productId={inquiry.productId} />
+        </TabsContent>
         <TabsContent value="details" className="mt-4">
           {!form ? null : (
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(260px,3fr)]">
               <div key={inquiry.id} className="min-w-0 space-y-3 [&_.form-field-surface]:text-[13px] [&_.form-field-surface_p]:text-[13px] [&_input]:text-[13px] [&_textarea]:text-[13px] [&_[role=combobox]]:text-[13px]">
                   <DetailsSection title="Inquiry Details" icon={ClipboardList} defaultOpen>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <Field label="Name">
-                        {isEditing ? (
-                          <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-                        ) : (
-                          <ReadOnlyValue value={form.name} />
-                        )}
-                      </Field>
-                      <Field label="Product">
-                        {isEditing ? (
-                          <SelectField value={form.productId} onChange={(value) => setForm({ ...form, productId: value })} options={options.products} />
-                        ) : (
-                          <ReadOnlyValue value={inquiry.productName} />
-                        )}
-                      </Field>
-                      <Field label="Inquiry Type">
-                        {isEditing ? (
-                          <SelectField value={form.inquiryType} onChange={(value) => setForm({ ...form, inquiryType: value })} options={options.inquiryTypes} />
-                        ) : (
-                          <ReadOnlyValue value={findOptionLabel(options.inquiryTypes, form.inquiryType, inquiry.inquiryType)} />
-                        )}
-                      </Field>
-                      <Field label="Inquiry Status">
-                        {isEditing ? (
-                          <SelectField value={form.inquiryStatus} onChange={(value) => setForm({ ...form, inquiryStatus: value })} options={options.inquiryStatuses} />
-                        ) : (
-                          <ReadOnlyValue value={findOptionLabel(options.inquiryStatuses, form.inquiryStatus, inquiry.status)} />
-                        )}
-                      </Field>
-                      <Field label="Plan">
-                        {isEditing ? (
-                          <SelectField value={form.planId} onChange={(value) => setForm({ ...form, planId: value })} options={options.plans.map((item) => ({ id: item.id, name: item.name }))} />
-                        ) : (
-                          <ReadOnlyValue value={inquiry.planName} />
-                        )}
-                      </Field>
-                      {isMotorInsurance ? (
-                        <>
-                          <Field label="Broker">
-                            {isEditing ? (
-                              <SelectField value={form.brokerId} onChange={(value) => setForm({ ...form, brokerId: value })} options={options.brokers} />
-                            ) : (
-                              <ReadOnlyValue value={inquiry.brokerName} />
-                            )}
-                          </Field>
-                          <Field label="Broker Agent">
-                            <ReadOnlyValue value={form.brokerAgentName} />
-                          </Field>
-                        </>
-                      ) : (
-                        <Field label="Insured Member">
-                          <ReadOnlyValue value={form.brokerAgentName === 'No broker agent linked' || form.brokerAgentName === 'No contact linked' ? 'No insured member linked' : form.brokerAgentName} />
-                        </Field>
-                      )}
-                      <div className="md:col-span-2">
-                        <Field label="Plan Details">
-                          {isEditing ? (
-                            <textarea
-                              className="form-field-surface min-h-[118px] w-full rounded-[16px] border border-border-soft px-4 py-3 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-                              value={form.planDetails}
-                              onChange={(event) => setForm({ ...form, planDetails: event.target.value })}
-                              placeholder="Enter plan details"
-                            />
-                          ) : (
-                            <PlanDetailsPreview value={form.planDetails} />
-                          )}
-                        </Field>
-                      </div>
-                    </div>
+                    {decisionsLoad.loading ? <p role="status" className="mb-3 text-xs text-muted-foreground">Loading AI suggestions...</p> : null}
+                    {decisionsLoad.error ? <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-xs text-destructive"><span>AI suggestions could not be loaded. {decisionsLoad.error}</span><Button type="button" variant="ghost" size="sm" onClick={() => setDecisionRefreshKey((value) => value + 1)}>Retry</Button></div> : null}
+                    <InquiryDecisionFields suggestions={decisionSuggestions} editing={isEditing} disabled={saveBusy} fields={([
+                      { label: 'Name', key: 'name', readValue: form.name },
+                      { label: 'Inquiry Type', decisionStyle: 'tooltip', key: 'inquiryType', readValue: findOptionLabel(options.inquiryTypes, form.inquiryType, inquiry.inquiryType), options: options.inquiryTypes.map((item) => ({ value: String(item.value), label: item.label })) },
+                      { label: 'Inquiry Purpose', decisionStyle: 'tooltip', key: 'inquiryPurpose', readValue: findOptionLabel(options.inquiryPurposes, form.inquiryPurpose, inquiry.inquiryPurpose || 'Not specified'), options: options.inquiryPurposes.map((item) => ({ value: String(item.value), label: item.label })) },
+                      { label: 'Insured Company', key: 'insuredCompanyId', readValue: inquiry.insuredCompanyName || 'No insured company linked', options: options.companies.map((item) => ({ value: item.id, label: item.name })) },
+                      { label: 'Line of Business', key: 'parentProductId', readValue: inquiry.parentProductName || findOptionName(options.parentProducts, form.parentProductId, 'No parent product linked'), options: options.parentProducts.map((item) => ({ value: item.id, label: item.name })) },
+                      { label: 'Product', decisionCategory: 1, decisionStyle: 'card', key: 'productId', readValue: inquiry.productName, options: options.products.map((item) => ({ value: item.id, label: item.name })) },
+                      { label: 'Broker Contact', key: 'brokerContactId', readValue: inquiry.brokerContactName || 'No broker contact linked', options: options.brokerContacts.map((item) => ({ value: item.id, label: item.name })) },
+                      { label: 'Broker Company', key: 'brokerCompanyId', readValue: inquiry.brokerCompanyName || 'No broker company linked', options: options.brokers.map((item) => ({ value: item.id, label: item.name })) },
+                    ] as Array<{ label: string; key: keyof InquiryFormState; readValue: string; options?: Array<{ value: string; label: string }> } & Pick<InquiryDecisionField, 'decisionCategory' | 'decisionStyle'>>).map((field) => ({
+                      label: field.label,
+                      decisionCategory: field.decisionCategory,
+                      decisionStyle: field.decisionStyle,
+                      currentValue: form[field.key],
+                      options: field.options,
+                      onApply: field.options ? (value: string) => { setIsEditing(true); setSaveError(null); setForm((current) => current ? { ...current, [field.key]: value } : current) } : undefined,
+                      content: isEditing
+                        ? field.options
+                          ? <Select value={form[field.key] || '__none__'} onValueChange={(value) => setForm({ ...form, [field.key]: value === '__none__' ? '' : value })} options={[{ value: '__none__', label: 'Select' }, ...field.options]} />
+                          : <Input value={form[field.key]} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />
+                        : <ReadOnlyValue value={field.readValue} />,
+                    }))} />
                   </DetailsSection>
                   {!isHealthInsurance ? (
                   <InquirySection title="Risk & Capacity" icon={ShieldAlert}>
@@ -1513,9 +1512,11 @@ export function InquiryWorkspacePage() {
                     value={inquiry.aiEvaluationJsonResponse}
                     loading={isHydratingSupplementary}
                     onReevaluate={() => setIsAiReevaluateOpen(true)}
-                    renderEvidence={(evidence) => <EvidenceTooltip evidence={evidence} compact />}
+                    renderEvidence={(rule) => <InquiryEvidenceButton inquiry={inquiry} references={inquiryEvidence(rule)} ruleName={typeof rule.ruleName === 'string' ? rule.ruleName : undefined} siteUrl={sharePointSiteLoad.data ?? undefined} />}
                   /> : <InquiryAiPanel
                     key={inquiry.id}
+                    inquiry={inquiry}
+                    sharePointSiteUrl={sharePointSiteLoad.data ?? undefined}
                     records={visibleQuoteDetails}
                     allRecords={inquiry.quoteDetails}
                     summary={inquiry.aiSummary || inquiry.summary}
@@ -1862,7 +1863,7 @@ export function InquiryWorkspacePage() {
             )}
           </Card>
         </TabsContent>
-        <TabsContent value="quotes" className="mt-4">
+        {showQuotesTab ? <TabsContent value="quotes" className="mt-4">
           <Card className="space-y-5">
             <div className="flex flex-col gap-4 border-b border-border-soft pb-5 md:flex-row md:items-start md:justify-between">
               <div>
@@ -1874,7 +1875,7 @@ export function InquiryWorkspacePage() {
                   type="button"
                   variant="primary"
                   disabled={pendingAction === 'quote'}
-                  onClick={() => void handleCreateQuote()}
+                  onClick={() => setIsCreateQuoteOpen(true)}
                 >
                   Create Quote
                 </Button>
@@ -1933,12 +1934,12 @@ export function InquiryWorkspacePage() {
                               >
                                 {quote.name}
                               </Link>
-                              <p className="text-[12px] text-muted-foreground line-clamp-2">{quote.aiSummary}</p>
+                              <p className="text-[12px] text-muted-foreground line-clamp-2">{parseAiSummary(quote.aiSummary).summary}</p>
                             </div>
                           </td>
                           <td className="px-4 py-4 text-sm text-muted-foreground">{quote.planName}</td>
                           <td className="px-4 py-4 text-sm font-semibold">{formatCurrency(quote.totalPremium)}</td>
-                          <td className="px-4 py-4"><Badge variant="approved">{quote.status}</Badge></td>
+                          <td className="px-4 py-4"><QuoteStatusBadge status={quote.status} statusCode={quote.quoteStatusValue} /></td>
                           <td className="px-4 py-4 text-sm text-muted-foreground">{formatDate(quote.createdOn)}</td>
                         </tr>
                       ))}
@@ -1952,9 +1953,9 @@ export function InquiryWorkspacePage() {
                   <Card key={quote.id} className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold">{quote.name}</h3>
-                      <Badge variant="approved">{quote.status}</Badge>
+                      <QuoteStatusBadge status={quote.status} statusCode={quote.quoteStatusValue} />
                     </div>
-                    <p className="text-sm text-muted-foreground">{quote.aiSummary}</p>
+                    <p className="text-sm text-muted-foreground">{parseAiSummary(quote.aiSummary).summary}</p>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <MetricCard label="Plan" value={quote.planName} />
                       <MetricCard label="Premium" value={formatCurrency(quote.totalPremium)} />
@@ -1969,7 +1970,7 @@ export function InquiryWorkspacePage() {
               </div>
             )}
           </Card>
-        </TabsContent>
+        </TabsContent> : null}
         <TabsContent value="ri-capacity" className="mt-4">
           <RiCapacityChecksPanel
             checks={inquiry.riCapacityChecks ?? []}
@@ -2074,6 +2075,15 @@ export function InquiryWorkspacePage() {
         </TabsContent>
       </Tabs>
 
+      {isCreateQuoteOpen ? <CreateQuoteDialog
+        key={inquiryRecordId}
+        inquiryName={inquiry.name}
+        productId={inquiry.productId || ''}
+        productName={inquiry.productName}
+        onClose={() => setIsCreateQuoteOpen(false)}
+        onCreate={handleCreateQuote}
+      /> : null}
+
       {isCopyQuotesOpen ? (
         <div className="fixed inset-0 z-50 m-0 mt-0 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-md !mt-0">
           <div
@@ -2159,7 +2169,7 @@ export function InquiryWorkspacePage() {
                             </p>
                             {quote.aiSummary ? (
                               <p className="line-clamp-2 max-w-[620px] text-sm leading-6 text-muted-foreground">
-                                {quote.aiSummary}
+                                {parseAiSummary(quote.aiSummary).summary}
                               </p>
                             ) : null}
                           </div>
@@ -2711,9 +2721,9 @@ function PlanPricingOrderPopover({
 }
 
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
   return (
-    <div className="space-y-2.5">
+    <div className={`space-y-2.5 ${className}`}>
       <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
       {children}
     </div>
@@ -2751,35 +2761,6 @@ function ReadOnlyText({ value }: { value: string }) {
   )
 }
 
-function PlanDetailsPreview({ value }: { value: string }) {
-  const sections = parsePlanDetails(value)
-
-  if (!sections.length) {
-    return <ReadOnlyText value="No plan details captured" />
-  }
-
-  return (
-    <div className="form-field-surface min-h-28 rounded-[16px] border border-border-soft px-4 py-4 text-sm text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
-      <div className="space-y-5">
-        {sections.map((section) => (
-          <div key={section.title} className="space-y-2">
-            <p className="text-xs font-semibold text-primary">
-              {section.title}
-            </p>
-            <div className="space-y-2">
-              {section.items.map((item) => (
-                <p key={item} className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">
-                  {item}
-                </p>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function SelectField({
   value,
   onChange,
@@ -2794,10 +2775,10 @@ function SelectField({
   return (
     <Select
       disabled={disabled}
-      value={value}
-      onValueChange={onChange}
+      value={value || '__none__'}
+      onValueChange={(nextValue) => onChange(nextValue === '__none__' ? '' : nextValue)}
       options={[
-        { value: '', label: 'Select' },
+        { value: '__none__', label: 'Select' },
         ...options.map((option) =>
           'id' in option
             ? { value: option.id, label: option.name }
@@ -2908,150 +2889,6 @@ function findOptionName(
 }
 
 
-function EvidenceTooltip({ evidence, compact = false }: { evidence: string; compact?: boolean }) {
-  const preview = evidence
-    .replace(/Document Name:\s*/gi, '')
-    .replace(/\s+Evidence:\s*/gi, '\n')
-    .trim()
-  const [open, setOpen] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null)
-  const popoverRef = useRef<HTMLDivElement | null>(null)
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
-
-  useEffect(() => {
-    if (!open && !hovered) return
-
-    const updatePosition = () => {
-      if (!triggerRef.current) return
-      const rect = triggerRef.current.getBoundingClientRect()
-      const popoverWidth = 380
-      const viewportPadding = 16
-      const left = Math.min(
-        Math.max(viewportPadding, rect.right - popoverWidth),
-        window.innerWidth - popoverWidth - viewportPadding,
-      )
-
-      setPosition({
-        top: rect.bottom + 12,
-        left,
-      })
-    }
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (
-        popoverRef.current?.contains(target) ||
-        triggerRef.current?.contains(target)
-      ) {
-        return
-      }
-      if (!popoverRef.current?.contains(target)) {
-        setOpen(false)
-      }
-    }
-
-    updatePosition()
-    window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => {
-      window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
-      document.removeEventListener('mousedown', handlePointerDown)
-    }
-  }, [open, hovered])
-
-  return (
-    <div
-      ref={popoverRef}
-      className={`relative inline-flex ${open || hovered ? 'z-[120]' : 'z-[2]'}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        onFocus={() => setHovered(true)}
-        onBlur={() => setHovered(false)}
-        className={`inline-flex items-center justify-center rounded-full border border-border-soft bg-white text-muted-foreground transition hover:border-primary/20 hover:text-primary dark:bg-slate-900 ${
-          compact ? 'h-7 w-7 shrink-0' : 'h-8 w-8'
-        }`}
-      >
-        <FileText className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-      </button>
-      {(open || hovered) && position
-        ? createPortal(
-            <div
-              className="fixed z-[160] w-[380px]"
-              style={{ top: position.top, left: position.left }}
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
-            >
-              <div className="absolute right-5 top-[-10px] h-5 w-5 rotate-45 border-l border-t border-border-soft bg-white shadow-[-6px_-6px_18px_rgba(15,23,42,0.04)] dark:bg-[#102033]" />
-              <div className="overflow-hidden rounded-[24px] border border-border-soft bg-white shadow-[0_26px_55px_rgba(15,23,42,0.18)] dark:bg-[#102033]">
-                <div className="flex items-start justify-between gap-4 border-b border-border-soft bg-white px-4 py-3.5 dark:bg-[#102033]">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-300/15 dark:text-amber-200">
-                      <FileText className="h-4 w-4" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Evidence Preview</p>
-                      <p className="text-xs text-muted-foreground">Extracted from document source</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border-soft bg-white text-muted-foreground transition hover:border-primary/20 hover:text-primary dark:bg-slate-900"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div
-                  className="relative overflow-hidden rounded-b-[24px] bg-[#fbfaf5] px-5 py-5 dark:bg-[#f8f4ea]"
-                  style={{
-                    backgroundImage:
-                      'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.7) 0, rgba(255,255,255,0) 22%), radial-gradient(circle at 80% 0%, rgba(0,0,0,0.02) 0, rgba(0,0,0,0) 24%)',
-                  }}
-                >
-                  <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/10 via-black/5 to-transparent" />
-
-                  <div className="relative text-[13px] leading-6 text-slate-700/40">
-                    <p className="blur-[2.3px]">
-                      This Tenancy Agreement is made by and between the parties stated herein, subject to applicable regulations, submitted schedules, and the related supporting documentation reviewed during underwriting.
-                    </p>
-                  </div>
-
-                  <div className="relative mt-5">
-                    <div className="absolute inset-y-1 left-0 right-0 rounded-[22px] bg-yellow-200/50 blur-xl" />
-                    <div className="absolute inset-y-2 left-2 right-3 rounded-[18px] bg-yellow-100/80" />
-                    <div className="relative px-1.5 font-serif text-[15px] leading-7 text-slate-900">
-                      {preview}
-                    </div>
-                  </div>
-
-                  <div className="relative mt-5 text-[13px] leading-6 text-slate-700/40">
-                    <p className="blur-[2.3px]">
-                      Interpretation of extracted language should be considered alongside the complete submission record, related attachments, endorsements, and the full originating document source.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-    </div>
-  )
-}
-
-
-
-
-
 function ViewToggle({
   value,
   onChange,
@@ -3091,6 +2928,11 @@ function choiceValue(options: Array<{ value: number; label: string }>, label: st
 
 function buildFormState(
   inquiry: {
+    parentProductId?: string
+    inquiryPurposeValue?: number
+    brokerContactId?: string
+    brokerCompanyId?: string
+    insuredCompanyId?: string
     name: string
     productId?: string
     productName: string
@@ -3129,6 +2971,11 @@ function buildFormState(
   },
 ): InquiryFormState {
   return {
+    parentProductId: inquiry.parentProductId ?? '',
+    inquiryPurpose: inquiry.inquiryPurposeValue == null ? '' : String(inquiry.inquiryPurposeValue),
+    brokerContactId: inquiry.brokerContactId ?? '',
+    brokerCompanyId: inquiry.brokerCompanyId ?? '',
+    insuredCompanyId: inquiry.insuredCompanyId ?? '',
     name: inquiry.name,
     productId: inquiry.productId ?? options.products.find((item) => item.name === inquiry.productName)?.id ?? '',
     inquiryType:
@@ -3170,6 +3017,11 @@ function buildInquirySavePayload(
   }>,
 ) {
   return {
+    parentProductId: form.parentProductId || null,
+    inquiryPurpose: form.inquiryPurpose ? Number(form.inquiryPurpose) : null,
+    brokerContactId: form.brokerContactId || null,
+    brokerCompanyId: form.brokerCompanyId || null,
+    insuredCompanyId: form.insuredCompanyId || null,
     name: form.name,
     productId: form.productId || undefined,
     inquiryType: form.inquiryType ? Number(form.inquiryType) : undefined,

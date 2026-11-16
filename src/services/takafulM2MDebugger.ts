@@ -165,15 +165,18 @@ function extractResult(value: unknown, depth = 0): TakafulM2MResult | null {
   if (depth > 4 || value == null) return null
 
   if (typeof value === 'string') {
+    let parsed: unknown
     try {
-      return extractResult(JSON.parse(value), depth + 1)
+      parsed = JSON.parse(value)
     } catch {
       return null
     }
+    return extractResult(parsed, depth + 1)
   }
 
   if (typeof value !== 'object') return null
   const record = value as Record<string, unknown>
+  if (hasApiFailure(record)) throw new Error(formatApiError(record.error ?? record))
   const normalizedEntry = Object.entries(record).find(([key]) => key.toLowerCase() === 'resultjson')
   if (normalizedEntry) {
     const parsed = extractResult(normalizedEntry[1], depth + 1)
@@ -182,6 +185,10 @@ function extractResult(value: unknown, depth = 0): TakafulM2MResult | null {
 
   if (Array.isArray(record.records) && ('operation' in record || 'relatedTable' in record || 'targetRecord' in record || 'targetTable' in record || 'success' in record)) {
     return record as unknown as TakafulM2MResult
+  }
+
+  if (record.success === true && (record.operation === 'Associate' || record.operation === 'Disassociate')) {
+    return { ...record, records: [], count: 0, pageNumber: 1, moreRecords: false } as TakafulM2MResult
   }
 
   for (const [key, nested] of Object.entries(record)) {

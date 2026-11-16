@@ -16,7 +16,7 @@ function Chip({ children, review = false }: { children: ReactNode; review?: bool
   return <span className={cn('inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium', review ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-surface-soft text-muted-foreground')}>{children}</span>
 }
 
-function Rules({ items, evidence }: { items: EvaluationRecord[]; evidence: (value: string) => ReactNode }) {
+function Rules({ items, evidence }: { items: EvaluationRecord[]; evidence: (value: EvaluationRecord) => ReactNode }) {
   return items.length ? <div className="space-y-2">{items.map((rule, i) => {
     const condition = text(rule.ConditionMet, 'Not determined')
     const confidence = Number.parseFloat(text(rule.confidenceScore, ''))
@@ -26,7 +26,7 @@ function Rules({ items, evidence }: { items: EvaluationRecord[]; evidence: (valu
         <div className="flex shrink-0 flex-col items-end gap-2"><Chip>{condition}</Chip>{Number.isFinite(confidence) ? <div className="w-20 space-y-1"><p className="text-right text-[10px] tabular-nums text-muted-foreground">{Math.min(100, Math.max(0, confidence))}% confidence</p><div aria-hidden="true" className="h-1 overflow-hidden rounded-full bg-secondary/10"><div className="h-full rounded-full bg-secondary/70" style={{ width: `${Math.min(100, Math.max(0, confidence))}%` }} /></div></div> : null}</div>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180 motion-reduce:transition-none" />
       </summary>
-      <div className="space-y-3 border-t border-border-soft p-4 text-left"><p className="text-[13px] leading-6">{text(rule.response)}</p>{text(rule.evidence, '') ? <div className="text-left text-xs leading-6 text-muted-foreground [&>div]:ml-1 [&>div]:align-middle">{text(rule.evidence)}{' '}{evidence(text(rule.evidence))}</div> : null}</div>
+      <div className="space-y-3 border-t border-border-soft p-4 text-left"><p className="text-[13px] leading-6">{text(rule.response)}</p><div className="flex items-start justify-between gap-3 text-left text-xs leading-6 text-muted-foreground"><span>{text(rule.evidence, '')}</span>{evidence(rule)}</div></div>
     </details>
   })}</div> : <Empty>No business rule evaluations are available.</Empty>
 }
@@ -46,7 +46,7 @@ function Premium({ data, policy = false, members = [] }: { data: EvaluationRecor
   </div>
 }
 
-export function HealthAiEvaluation({ value, loading, onReevaluate, renderEvidence }: { value?: string; loading?: boolean; onReevaluate: () => void; renderEvidence: (value: string) => ReactNode }) {
+export function HealthAiEvaluation({ value, loading, onReevaluate, renderEvidence }: { value?: string; loading?: boolean; onReevaluate: () => void; renderEvidence: (value: EvaluationRecord) => ReactNode }) {
   const [view, setView] = useState('members')
   const [selected, setSelected] = useState<number | null>(null)
   const [detailTab, setDetailTab] = useState('rules')

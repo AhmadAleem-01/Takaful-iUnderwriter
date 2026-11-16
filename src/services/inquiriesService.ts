@@ -12,6 +12,7 @@ import { Aur_inquiriesService } from '../generated/services/Aur_inquiriesService
 import { Aur_ri_capacity_checksService } from '../generated/services/Aur_ri_capacity_checksService'
 import { ContactsService } from '../generated/services/ContactsService'
 import { TemplatesService } from '../generated/services/TemplatesService'
+import { emailTemplateCategory, emailTemplateDescription } from './emailTemplatesService'
 import { EmailsService } from '../generated/services/EmailsService'
 import { OnDemand_RecalculationofRI_CapacityChecksService } from '../generated/services/OnDemand_RecalculationofRI_CapacityChecksService'
 import { Aur_business_rulesesaur_categories } from '../generated/models/Aur_business_rulesesModel'
@@ -60,7 +61,7 @@ export async function listInquiries(scope?: string): Promise<InquirySummary[]> {
   const accounts = referenceData.accounts ?? []
   const productMap = new Map(products.map((product) => [normalizeDataverseId(product.aur_productsid), product.aur_name]))
   const planMap = new Map(plans.map((plan) => [normalizeDataverseId(plan.aur_planid), plan.aur_name ?? 'Unnamed plan']))
-  const accountLookupIds = [...new Set(records.map((record) => normalizeDataverseId(record._aur_account_value)).filter(Boolean))]
+  const accountLookupIds = [...new Set(records.map((record) => normalizeDataverseId(record._aur_insured_company_value)).filter(Boolean))]
   const linkedAccounts = await Promise.all(
     accountLookupIds.map(async (accountId) => {
       try {
@@ -102,7 +103,7 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
   const [inquiryResult, inquiryChoiceFieldsResult, referenceData] = await Promise.all([
     Aur_inquiriesService.get(id),
     Aur_inquiriesService.get(id, {
-      select: ['aur_inquiry_type', 'aur_inquiry_typename', 'statecode', 'statecodename', 'statuscode', 'statuscodename', 'aur_underwriter_action', 'aur_underwriter_actionname', 'aur_ai_evaluation_json_response'],
+      select: ['aur_inquiry_type', 'aur_inquiry_typename', 'statecode', 'statecodename', 'statuscode', 'statuscodename', 'aur_underwriter_action', 'aur_underwriter_actionname', 'aur_ai_evaluation_json_response', 'aur_customer_information'],
     }).catch(() => ({ data: undefined })),
     getInquiryReferenceData(),
   ])
@@ -122,6 +123,8 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
     inquiryResult.data
       ? {
           ...inquiryResult.data,
+          aur_customer_information:
+            inquiryChoiceFieldsResult.data?.aur_customer_information ?? inquiryResult.data.aur_customer_information,
           aur_ai_evaluation_json_response:
             (inquiryChoiceFieldsResult.data as { aur_ai_evaluation_json_response?: string | null } | undefined)?.aur_ai_evaluation_json_response ??
             (inquiryResult.data as { aur_ai_evaluation_json_response?: string | null }).aur_ai_evaluation_json_response ??
@@ -148,12 +151,19 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
   const inquiry = inquiryRecord ? resolveInquiryRelations(inquiryRecord, productMap, planMap, accountMap) : undefined
   if (!inquiry) throw new Error('Inquiry not found.')
   const inquiryId = normalizeDataverseId(inquiry.aur_inquiryid) || normalizedRouteId
-  const [coreAccount, coreContact] = await Promise.all([
-    inquiry._aur_account_value
-      ? AccountsService.get(inquiry._aur_account_value).then((result) => result.data).catch(() => undefined)
+  const [coreAccount, coreContact, coreBroker, coreParentProduct] = await Promise.all([
+    inquiry._aur_insured_company_value
+      ? AccountsService.get(inquiry._aur_insured_company_value).then((result) => result.data).catch(() => undefined)
       : Promise.resolve(undefined),
-    inquiry._aur_contact_value
-      ? ContactsService.get(inquiry._aur_contact_value).then((result) => result.data).catch(() => undefined)
+    inquiry._aur_broker_contact_value
+      ? ContactsService.get(inquiry._aur_broker_contact_value).then((result) => result.data).catch(() => undefined)
+      : Promise.resolve(undefined),
+    inquiry._aur_broker_company_value
+      ? AccountsService.get(inquiry._aur_broker_company_value).then((result) => result.data).catch(() => undefined)
+      : Promise.resolve(undefined),
+    inquiry._aur_line_of_business_value && !inquiry.aur_line_of_businessname?.trim()
+      ? Aur_productsesService.get(normalizeDataverseId(inquiry._aur_line_of_business_value))
+          .then((result) => result.data).catch(() => undefined)
       : Promise.resolve(undefined),
   ])
 
@@ -169,19 +179,19 @@ export async function getInquiryDetailCore(id: string): Promise<InquiryDetail> {
     statecodename: inquiry.statecodename,
     aur_underwriter_action: inquiry.aur_underwriter_action,
     aur_underwriter_actionname: inquiry.aur_underwriter_actionname,
-    aur_account_lookup: inquiry._aur_account_value,
-    aur_account_name: inquiry.aur_accountname,
+    aur_account_lookup: inquiry._aur_insured_company_value,
+    aur_account_name: inquiry.aur_insured_companyname,
     coreAccountName: coreAccount?.name,
   })
 
   const workspace = mapInquiryDetail(
-    inquiry,
+    { ...inquiry, aur_line_of_businessname: inquiry.aur_line_of_businessname?.trim() || coreParentProduct?.aur_name },
     [],
     [],
     buildWorkflow(inquiry),
     mapRelatedParty(coreAccount),
     mapRelatedParty(coreContact),
-    mapRelatedParty(coreAccount),
+    mapRelatedParty(coreBroker),
   )
 
   return mergeInquiryWorkspace(
@@ -226,7 +236,7 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
   const riCapacityChecks = await listRiCapacityChecksForInquiry(inquiryId)
 
   const quotes = quotesResult
-    .filter((quote) => normalizeDataverseId(quote._aur_quotes_value) === inquiryId)
+    .filter((quote) => normalizeDataverseId(quote._aur_inquiry_value) === inquiryId)
     .map((quote) => resolveQuoteRelations(quote, productMap, planMap))
 
   console.info('[Inquiry Debug] aur_ai_extracted_response paged lookup', {
@@ -326,21 +336,21 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
   const uniqueNotificationMessages = [...new Set(notificationMessages)]
 
   const [account, contact, broker] = await Promise.all([
-    inquiry._aur_account_value
-      ? AccountsService.get(inquiry._aur_account_value).then((result) => result.data).catch(() => undefined)
+    inquiry._aur_insured_company_value
+      ? AccountsService.get(inquiry._aur_insured_company_value).then((result) => result.data).catch(() => undefined)
       : Promise.resolve(undefined),
-    inquiry._aur_contact_value
-      ? ContactsService.get(inquiry._aur_contact_value).then((result) => result.data).catch(() => undefined)
+    inquiry._aur_broker_contact_value
+      ? ContactsService.get(inquiry._aur_broker_contact_value).then((result) => result.data).catch(() => undefined)
       : Promise.resolve(undefined),
-    inquiry._aur_account_value
-      ? AccountsService.get(inquiry._aur_account_value).then((result) => result.data).catch(() => undefined)
+    inquiry._aur_broker_company_value
+      ? AccountsService.get(inquiry._aur_broker_company_value).then((result) => result.data).catch(() => undefined)
       : Promise.resolve(undefined),
   ])
 
   console.info('[Inquiry Debug] broker agent lookup', {
     inquiryId,
-    aurContactLookup: inquiry._aur_contact_value,
-    aurContactFormatted: inquiry.aur_contactname,
+    aurContactLookup: inquiry._aur_broker_contact_value,
+    aurContactFormatted: inquiry.aur_broker_contactname,
     fetchedContactName: contact?.fullname ?? `${contact?.firstname ?? ''} ${contact?.lastname ?? ''}`.trim(),
   })
 
@@ -351,7 +361,7 @@ export async function getInquiryDetailSupplementary(id: string): Promise<Partial
     contactName:
       contact?.fullname?.trim() ||
       `${contact?.firstname ?? ''} ${contact?.lastname ?? ''}`.trim() ||
-      inquiry.aur_contactname ||
+      inquiry.aur_broker_contactname ||
       'No contact linked',
     quotes: quotes.map(mapQuoteSummary),
     quoteDetails,
@@ -476,7 +486,7 @@ export async function createInquiry(payload: {
     ...(payload.statusCode !== undefined ? { statuscode: payload.statusCode as never } : {}),
     ...(payload.productId ? { 'aur_product@odata.bind': `/aur_productses(${payload.productId})` } : {}),
     ...(payload.planId ? { 'aur_plan@odata.bind': `/aur_plans(${payload.planId})` } : {}),
-    ...(payload.brokerId ? { 'aur_account@odata.bind': `/accounts(${payload.brokerId})` } : {}),
+    ...(payload.brokerId ? { 'aur_broker_company@odata.bind': `/accounts(${payload.brokerId})` } : {}),
   } as never)
 
   return result.data?.aur_inquiryid ?? ''
@@ -521,11 +531,11 @@ export async function getConsequenceTemplatePreview(
     id: record.templateid,
     kind,
     name: record.title,
-    subject: record.subject ?? '',
-    description: record.description ?? '',
-    category: record.templatetypecodename ?? 'Email',
+    subject: record.subjectsafehtml ?? record.subject ?? '',
+    description: emailTemplateDescription(record),
+    category: emailTemplateCategory(record) ?? 'Email',
     status: record.componentstate === 0 ? 'Published' : 'Unpublished',
-    content: record.body ?? '',
+    content: record.safehtml ?? record.body ?? '',
   }
 }
 
@@ -577,7 +587,10 @@ export async function getConsequenceLinkedTemplatePreview(
 }
 
 async function getInquiryEditorOptionsUncached() {
-  const referenceData = await getInquiryReferenceData()
+  const [referenceData, contactsResult] = await Promise.all([
+    getInquiryReferenceData(),
+    ContactsService.getAll({ select: ['contactid', 'fullname'], orderBy: ['fullname asc'] }),
+  ])
 
   const brokerAccounts = (referenceData.accounts ?? []).filter((record) => {
     const typeName = record.aur_account_typename?.toLowerCase()
@@ -585,13 +598,17 @@ async function getInquiryEditorOptionsUncached() {
   })
 
   return {
-    products: (referenceData.products ?? []).map((record) => ({ id: record.aur_productsid, name: record.aur_name })),
+    products: (referenceData.products ?? []).filter((record) => Boolean(record._aur_lob_value?.trim())).map((record) => ({ id: record.aur_productsid, name: record.aur_name })),
     plans: (referenceData.plans ?? []).map((record) => ({
       id: record.aur_planid,
       name: record.aur_name ?? 'Unnamed plan',
       productId: record._aur_product_value ?? '',
     })),
     brokers: brokerAccounts.map((record) => ({ id: record.accountid, name: record.name ?? 'Unnamed broker' })),
+    parentProducts: (referenceData.products ?? []).map((record) => ({ id: normalizeDataverseId(record.aur_productsid), name: record.aur_name ?? 'Unnamed product' })).sort((a, b) => a.name.localeCompare(b.name)),
+    brokerContacts: (contactsResult.data ?? []).map((record) => ({ id: record.contactid, name: record.fullname ?? 'Unnamed contact' })),
+    companies: (referenceData.accounts ?? []).map((record) => ({ id: record.accountid, name: record.name ?? 'Unnamed company' })),
+    inquiryPurposes: [{ value: 1, label: 'For Inward Business' }, { value: 2, label: 'For Quotation' }],
     inquiryTypes: INQUIRY_TYPE_OPTIONS,
     inquiryStatuses: INQUIRY_STATUS_OPTIONS,
     coverTypes: [
@@ -618,6 +635,11 @@ export async function saveInquiryDetail(
     inquiryStatus?: number
     planId?: string
     brokerId?: string
+    parentProductId?: string | null
+    brokerContactId?: string | null
+    brokerCompanyId?: string | null
+    insuredCompanyId?: string | null
+    inquiryPurpose?: number | null
     planDetails: string
     coverType?: number
     riskScore: number
@@ -638,11 +660,16 @@ export async function saveInquiryDetail(
   },
 ) {
   const recordId = normalizeDataverseId(id)
+  // Dataverse retains the legacy column name; its lookup now targets aur_products.
   const updatePayload = {
     aur_name: payload.name,
     ...(payload.productId ? { 'aur_product@odata.bind': `/aur_productses(${payload.productId})` } : {}),
     ...(payload.planId ? { 'aur_plan@odata.bind': `/aur_plans(${payload.planId})` } : {}),
-    ...(payload.brokerId ? { 'aur_account@odata.bind': `/accounts(${payload.brokerId})` } : {}),
+    ...(payload.parentProductId !== undefined ? { 'aur_line_of_business@odata.bind': payload.parentProductId ? `/aur_productses(${normalizeDataverseId(payload.parentProductId)})` : null } : {}),
+    ...(payload.brokerContactId !== undefined ? { 'aur_broker_contact@odata.bind': payload.brokerContactId ? `/contacts(${payload.brokerContactId})` : null } : {}),
+    ...(payload.brokerCompanyId !== undefined ? { 'aur_broker_company@odata.bind': payload.brokerCompanyId ? `/accounts(${payload.brokerCompanyId})` : null } : {}),
+    ...(payload.insuredCompanyId !== undefined ? { 'aur_insured_company@odata.bind': payload.insuredCompanyId ? `/accounts(${payload.insuredCompanyId})` : null } : {}),
+    ...(payload.inquiryPurpose !== undefined ? { aur_inquiry_purpose: payload.inquiryPurpose } : {}),
     aur_plan_details: payload.planDetails,
     ...(payload.inquiryType !== undefined ? { aur_inquiry_type: payload.inquiryType as never } : {}),
     ...(payload.inquiryStatus !== undefined ? { statuscode: payload.inquiryStatus as never } : {}),
@@ -679,19 +706,18 @@ function resolveInquiryRelations(
   planMap: Map<string, string>,
   accountMap: Map<string, { name: string; type?: string; typeCode?: number }>,
 ) {
-  const accountLookupId = normalizeDataverseId(inquiry._aur_account_value)
+  const accountLookupId = normalizeDataverseId(inquiry._aur_insured_company_value)
   const productLookupId = normalizeDataverseId(inquiry._aur_product_value)
   const planLookupId = normalizeDataverseId(inquiry._aur_plan_value)
   const account = accountLookupId ? accountMap.get(accountLookupId) : undefined
-  const brokerAccount = accountLookupId ? accountMap.get(accountLookupId) : undefined
-  const inferredBrokerName = inquiry.aur_accountname ?? brokerAccount?.name
+  const inferredBrokerName = inquiry.aur_broker_companyname ?? accountMap.get(normalizeDataverseId(inquiry._aur_broker_company_value))?.name
 
   return {
     ...inquiry,
-    aur_accountname:
-      inquiry.aur_accountname || !inquiry._aur_account_value
-        ? inquiry.aur_accountname
-        : account?.name ?? inquiry.aur_accountname,
+    aur_insured_companyname:
+      inquiry.aur_insured_companyname || !inquiry._aur_insured_company_value
+        ? inquiry.aur_insured_companyname
+        : account?.name ?? inquiry.aur_insured_companyname,
     aur_productname:
       inquiry.aur_productname || !inquiry._aur_product_value
         ? inquiry.aur_productname
@@ -701,6 +727,7 @@ function resolveInquiryRelations(
         ? inquiry.aur_planname
         : planMap.get(planLookupId) ?? inquiry.aur_planname,
     aur_brokername: inferredBrokerName,
+    aur_broker_companyname: inferredBrokerName,
   }
 }
 
@@ -828,11 +855,7 @@ export async function syncInquiryHealthFinalPremium(inquiryId: string, finalPrem
 
 export async function createQuoteFromInquiry(
   inquiryId: string,
-  fallback?: {
-    productId?: string
-    planId?: string
-    premiumToBeCharged?: number
-  },
+  selectedPlanId: string,
 ) {
   const recordId = normalizeDataverseId(inquiryId)
   const inquiryResult = await Aur_inquiriesService.get(recordId)
@@ -841,23 +864,26 @@ export async function createQuoteFromInquiry(
   if (!inquiry) throw new Error('Inquiry not found.')
 
   const referenceCode = inquiry.aur_inquiry_number?.trim() || inquiry.aur_name?.trim() || 'Inquiry'
-  const customerName = inquiry.aur_contactname?.trim() || inquiry.aur_name?.trim() || 'Customer'
-  const totalPremium = inquiry.aur_total_premium_to_be_charged ?? fallback?.premiumToBeCharged ?? 0
+  const customerName = inquiry.aur_broker_contactname?.trim() || inquiry.aur_name?.trim() || 'Customer'
+  const totalPremium = inquiry.aur_total_premium_to_be_charged ?? 0
   const grossPremium = inquiry.aur_gross_premium ?? 0
   const loadingPremium = grossPremium * 0.1
-  const productId = inquiry._aur_product_value ?? fallback?.productId
-  const planId = inquiry._aur_plan_value ?? fallback?.planId
-  const planResult = planId ? await Aur_plansService.get(normalizeDataverseId(planId)) : undefined
-  if (planResult && !planResult.success) throw planResult.error ?? new Error('Unable to load the selected plan for quote creation.')
-  const plan = planResult?.data
-  if (planId && !plan) throw new Error('The selected inquiry plan could not be loaded.')
+  const productId = normalizeDataverseId(inquiry._aur_product_value)
+  const planId = normalizeDataverseId(selectedPlanId)
+  if (!productId) throw new Error('Set a product on this inquiry before creating a quote.')
+  if (!planId) throw new Error('Select a plan before creating a quote.')
+  const planResult = await Aur_plansService.get(planId)
+  if (!planResult.success) throw planResult.error ?? new Error('Unable to load the selected plan for quote creation.')
+  const plan = planResult.data
+  if (!plan) throw new Error('The selected plan could not be loaded.')
+  if (normalizeDataverseId(plan._aur_product_value) !== productId) throw new Error('The selected plan does not belong to the inquiry product.')
   const vat = (plan as (typeof plan & { aur_vat?: number | null }))?.aur_vat ?? 0
 
   const record = {
     aur_name: `${referenceCode} - ${customerName}`,
-    ...(productId ? { 'aur_product@odata.bind': `/aur_productses(${productId})` } : {}),
-    ...(planId ? { 'aur_plan@odata.bind': `/aur_plans(${planId})` } : {}),
-    'aur_quotes@odata.bind': `/aur_inquiries(${recordId})`,
+    'aur_product@odata.bind': `/aur_productses(${productId})`,
+    'aur_plan@odata.bind': `/aur_plans(${planId})`,
+    'aur_inquiry@odata.bind': `/aur_inquiries(${recordId})`,
     aur_total_premium: quoteWholeNumber(totalPremium, 'Total Premium'),
     aur_gross_premium: quoteWholeNumber(grossPremium, 'Gross Premium'),
     aur_loading_premium: quoteWholeNumber(loadingPremium, 'Loading Premium'),
@@ -875,8 +901,11 @@ export async function createQuoteFromInquiry(
   if (!savedQuote.success || !savedQuote.data) {
     throw savedQuote.error ?? new Error('The quote was created but could not be verified. Refresh the quote list before trying again.')
   }
-  if (normalizeDataverseId(savedQuote.data._aur_quotes_value) !== recordId) {
+  if (normalizeDataverseId(savedQuote.data._aur_inquiry_value) !== recordId) {
     throw new Error('The created quote is not linked to this inquiry. Please check its Inquiry lookup before creating another quote.')
+  }
+  if (normalizeDataverseId(savedQuote.data._aur_plan_value) !== planId) {
+    throw new Error('The created quote did not retain the selected plan. Please check the quote before creating another one.')
   }
   await deactivateSiblingQuotes(recordId, [createdId])
   return createdId
@@ -887,7 +916,7 @@ async function listQuotesForInquiry(inquiryId: string) {
   let skipToken: string | undefined
   do {
     const result = await Aur_quotesService.getAll({
-      filter: `_aur_quotes_value eq ${normalizeDataverseId(inquiryId)}`,
+      filter: `_aur_inquiry_value eq ${normalizeDataverseId(inquiryId)}`,
       orderBy: ['createdon desc'],
       ...(skipToken ? { skipToken } : {}),
     })
@@ -904,7 +933,7 @@ export async function listWonQuotesForProduct(productId: string) {
 
   const [quotesResult, referenceData] = await Promise.all([
     Aur_quotesService.getAll({
-      filter: `_aur_product_value eq ${normalizedProductId} and aur_quote_status eq 751820000`,
+      filter: `_aur_product_value eq ${normalizedProductId} and statuscode eq 751820001`,
       orderBy: ['createdon desc'],
     }),
     getInquiryReferenceData(),
@@ -957,25 +986,7 @@ export async function copyQuotesToInquiry(
           ...(quote._aur_plan_value
             ? { 'aur_plan@odata.bind': `/aur_plans(${quote._aur_plan_value})` }
             : {}),
-          ...(quote._aur_coverage_value
-            ? { 'aur_coverage@odata.bind': `/aur_coverageses(${quote._aur_coverage_value})` }
-            : {}),
-          ...(quote._aur_benefits_value
-            ? { 'aur_benefits@odata.bind': `/aur_benefitses(${quote._aur_benefits_value})` }
-            : {}),
-          ...(quote._aur_inclusions_value
-            ? { 'aur_inclusions@odata.bind': `/aur_inclusionses(${quote._aur_inclusions_value})` }
-            : {}),
-          ...(quote._aur_exclusions_value
-            ? { 'aur_exclusions@odata.bind': `/aur_exclusionses(${quote._aur_exclusions_value})` }
-            : {}),
-          ...(quote._aur_deductibles_value
-            ? { 'aur_deductibles@odata.bind': `/aur_deductibleses(${quote._aur_deductibles_value})` }
-            : {}),
-          ...(quote._aur_warranties_value
-            ? { 'aur_warranties@odata.bind': `/aur_warrantieses(${quote._aur_warranties_value})` }
-            : {}),
-          'aur_quotes@odata.bind': `/aur_inquiries(${normalizeDataverseId(inquiryId)})`,
+          'aur_inquiry@odata.bind': `/aur_inquiries(${normalizeDataverseId(inquiryId)})`,
           aur_total_premium: quote.aur_total_premium ?? 0,
           aur_gross_premium: quote.aur_gross_premium ?? 0,
           aur_loading_premium: quote.aur_loading_premium ?? 0,
@@ -1001,7 +1012,7 @@ export async function copyQuotesToInquiry(
 
 async function deactivateSiblingQuotes(inquiryId: string, excludeIds: string[]) {
   const result = await Aur_quotesService.getAll({
-    filter: `_aur_quotes_value eq ${normalizeDataverseId(inquiryId)}`,
+    filter: `_aur_inquiry_value eq ${normalizeDataverseId(inquiryId)}`,
   })
 
   const excluded = new Set(excludeIds.map((id) => normalizeDataverseId(id)))
@@ -1012,7 +1023,8 @@ async function deactivateSiblingQuotes(inquiryId: string, excludeIds: string[]) 
     })
     .map((quote) =>
       Aur_quotesService.update(quote.aur_quoteid, {
-        aur_quote_status: 751820002 as never,
+        statecode: 1,
+        statuscode: 2,
       }),
     )
 
@@ -1475,7 +1487,7 @@ async function getInquiryReferenceData(): Promise<InquiryReferenceData> {
   if (!inquiryReferenceDataPromise) {
     inquiryReferenceDataPromise = Promise.all([
       Aur_productsesService.getAll({
-        select: ['aur_productsid', 'aur_name'],
+        select: ['aur_productsid', 'aur_name', '_aur_lob_value'],
       }),
       Aur_plansService.getAll({
         select: ['aur_planid', 'aur_name', '_aur_product_value'],

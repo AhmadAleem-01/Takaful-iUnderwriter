@@ -21,21 +21,20 @@ import { Card } from '../../components/ui/Card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/Tabs'
 import { Input } from '../../components/ui/Input'
 import { Badge } from '../../components/ui/Badge'
+import { CoverageGroups } from '../../components/ui/CoverageGroups'
 import { DuplicateCriteriaEditor } from '../../components/products/DuplicateCriteriaEditor'
 import { Select } from '../../components/ui/Select'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import {
-  createProductPlan,
-  deleteProductPlan,
   getProductWorkspace,
   removeProductRuleAssociation,
   saveProductWorkspace,
   saveProductRuleAssociations,
   updateProductAutoActionSetting,
-  updateProductPlan,
 } from '../../services/productWorkspaceService'
+import { getProductCoverages } from '../../services/productCoveragesService'
 import { formatCompactNumber } from '../../lib/formatters'
-import { RULE_GROUPS, categorizeRule, type RuleGroup } from '../../lib/productRuleGroups'
+import { groupProductRules, groupLinkedProductRules, type RuleGroup } from '../../lib/productRuleGroups'
 import { parseDuplicateCriteria, type DuplicateCriteria } from '../../lib/inquiryDuplicates'
 import { serializeDuplicateCriteria } from '../../lib/duplicateCriteriaEditor'
 
@@ -57,29 +56,6 @@ interface ProductFormState {
   applyActionAutomatically: boolean
 }
 
-interface PlanDraftState {
-  open: boolean
-  id?: string
-  name: string
-  description: string
-  basePremium: string
-  minimumSumInsured: string
-  maximumSumInsured: string
-  cealing: string
-  floor: string
-}
-
-const emptyPlanDraft: PlanDraftState = {
-  open: false,
-  name: '',
-  description: '',
-  basePremium: '',
-  minimumSumInsured: '',
-  maximumSumInsured: '',
-  cealing: '',
-  floor: '',
-}
-
 export function ProductEditorPage() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -89,9 +65,9 @@ export function ProductEditorPage() {
   const [duplicateDraft, setDuplicateDraft] = useState<DuplicateCriteria | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('details')
-  const [planDraft, setPlanDraft] = useState<PlanDraftState>(emptyPlanDraft)
-  const [planBusyId, setPlanBusyId] = useState<string | null>(null)
+  const [coverageRefreshKey, setCoverageRefreshKey] = useState(0)
   const [ruleSearch, setRuleSearch] = useState('')
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([])
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
@@ -112,6 +88,8 @@ export function ProductEditorPage() {
     Exclusion: false,
     Conditional: false,
   })
+
+  useEffect(() => { setActiveTab('details') }, [id])
 
   const { data, loading, error } = useAsyncData(async () => {
     const workspace = await getProductWorkspace(isCreate ? undefined : id)
@@ -137,48 +115,42 @@ export function ProductEditorPage() {
     return workspace
   }, [id, isCreate, refreshKey])
 
+  const showProductConfiguration = Boolean(data?.summary?.lineOfBusinessId?.trim())
+  const coverageLoad = useAsyncData(
+    () => getProductCoverages(showProductConfiguration && !isCreate ? id : undefined),
+    [id, isCreate, showProductConfiguration, coverageRefreshKey],
+  )
+
   useEffect(() => {
     setSelectedRuleIds(data?.associatedRuleIds ?? [])
   }, [data?.associatedRuleIds])
 
   const linkedStats = useMemo(() => {
-    const planCount = data?.availablePlans.length ?? 0
-    const ruleCount = selectedRuleIds.length
+    const coverageCount = coverageLoad.data?.length ?? 0
+    const ruleCount = data?.associatedRuleIds.length ?? 0
     return [
-      { label: 'Linked Plans', value: formatCompactNumber(planCount), helper: 'Direct child plan records for this product.' },
-      { label: 'Business Rules', value: formatCompactNumber(ruleCount), helper: 'Prepared underwriting rules grouped for association.' },
+      ...(showProductConfiguration ? [
+        { label: 'Linked Coverages', value: formatCompactNumber(coverageCount), helper: 'Coverages linked directly to this product.' },
+        { label: 'Business Rules', value: formatCompactNumber(ruleCount), helper: 'Prepared underwriting rules grouped for association.' },
+      ] : []),
       { label: 'Status', value: form?.status === 'publish' ? 'Live' : 'Draft', helper: 'Current publishing posture for this product.' },
     ]
-  }, [data?.availablePlans.length, form?.status, selectedRuleIds.length])
+  }, [coverageLoad.data?.length, form?.status, data?.associatedRuleIds.length, showProductConfiguration])
 
   const categorizedRules = useMemo(() => {
-    const grouped = new Map<RuleGroup, NonNullable<typeof data>['availableRules']>()
-    for (const group of RULE_GROUPS) grouped.set(group, [])
-
-    for (const rule of data?.availableRules ?? []) {
-      const group = categorizeRule(rule.name, rule.context, rule.description)
-      const bucket = grouped.get(group) ?? []
-      bucket.push(rule)
-      grouped.set(group, bucket)
-    }
-
-    return grouped
+    return groupProductRules(data?.availableRules ?? [])
   }, [data?.availableRules])
 
   const associatedRuleGroups = useMemo(
-    () =>
-      RULE_GROUPS.map((group) => ({
-        label: group,
-        rules: (categorizedRules.get(group) ?? []).filter((rule) => selectedRuleIds.includes(rule.id)),
-      })),
-    [categorizedRules, selectedRuleIds],
+    () => groupLinkedProductRules(data?.availableRules ?? [], data?.associatedRuleIds ?? []),
+    [data?.availableRules, data?.associatedRuleIds],
   )
 
   const filteredRuleGroups = useMemo(() => {
     const query = ruleSearch.trim().toLowerCase()
-    return RULE_GROUPS.map((group) => ({
-      label: group,
-      rules: (categorizedRules.get(group) ?? []).filter((rule) =>
+    return categorizedRules.map((group) => ({
+      label: group.label,
+      rules: group.rules.filter((rule) =>
         !query
           ? true
           : [rule.name, rule.description, rule.context, rule.detail]
@@ -186,24 +158,34 @@ export function ProductEditorPage() {
               .toLowerCase()
               .includes(query),
       ),
-    }))
+    })).filter((group) => group.rules.length > 0)
   }, [categorizedRules, ruleSearch])
 
   const associatedRuleIdSet = useMemo(() => new Set(data?.associatedRuleIds ?? []), [data?.associatedRuleIds])
-  const isParentProduct = !data?.summary?.lineOfBusinessId
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!form) return
+    if (!form.name.trim()) {
+      setActiveTab('details')
+      setSaveError('Product name is required.')
+      return
+    }
     setSaving(true)
     setSaveError(null)
+    setSaveSuccess(null)
     try {
       let duplicateCriteria: string | undefined
-      if (isParentProduct && duplicateDraft) {
-        try { duplicateCriteria = serializeDuplicateCriteria(duplicateDraft) }
-        catch (cause) { setActiveTab('duplicates'); throw cause }
+      if (!showProductConfiguration && duplicateDraft) {
+        try {
+          duplicateCriteria = serializeDuplicateCriteria(duplicateDraft)
+        } catch (cause) {
+          setActiveTab('duplicates')
+          throw cause
+        }
       }
       await saveProductWorkspace({ id: isCreate ? undefined : id, ...form, ...(duplicateCriteria !== undefined ? { duplicateCriteria } : {}) })
+      setSaveSuccess('Product saved successfully.')
       if (isCreate) {
         navigate('/admin/products')
       } else {
@@ -216,63 +198,16 @@ export function ProductEditorPage() {
     }
   }
 
-  async function handlePlanSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (isCreate || !id) {
-      setSaveError('Save the product first before managing linked plans.')
-      return
-    }
-
-    try {
-      setPlanBusyId(planDraft.id ?? 'create')
-      if (planDraft.id) {
-        await updateProductPlan(planDraft.id, {
-          name: planDraft.name,
-          description: planDraft.description,
-          basePremium: planDraft.basePremium,
-          minimumSumInsured: planDraft.minimumSumInsured,
-          maximumSumInsured: planDraft.maximumSumInsured,
-          cealing: planDraft.cealing,
-          floor: planDraft.floor,
-        })
-      } else {
-        await createProductPlan(id, {
-          name: planDraft.name,
-          description: planDraft.description,
-          basePremium: planDraft.basePremium,
-          minimumSumInsured: planDraft.minimumSumInsured,
-          maximumSumInsured: planDraft.maximumSumInsured,
-          cealing: planDraft.cealing,
-          floor: planDraft.floor,
-        })
-      }
-      setPlanDraft(emptyPlanDraft)
-      setRefreshKey((value) => value + 1)
-    } catch (cause) {
-      setSaveError(cause instanceof Error ? cause.message : 'Unable to save plan.')
-    } finally {
-      setPlanBusyId(null)
-    }
-  }
-
-  async function handleDeletePlan(planId: string) {
-    const confirmed = window.confirm('Delete this plan from the product workspace?')
-    if (!confirmed) return
-    try {
-      setPlanBusyId(planId)
-      await deleteProductPlan(planId)
-      setRefreshKey((value) => value + 1)
-    } catch (cause) {
-      setSaveError(cause instanceof Error ? cause.message : 'Unable to delete plan.')
-    } finally {
-      setPlanBusyId(null)
-    }
-  }
-
   function toggleRuleSelection(ruleId: string) {
     setSelectedRuleIds((current) =>
       current.includes(ruleId) ? current.filter((id) => id !== ruleId) : [...current, ruleId],
     )
+  }
+
+  function closeRuleModal() {
+    if (rulesSaving) return
+    setSelectedRuleIds(data?.associatedRuleIds ?? [])
+    setIsRuleModalOpen(false)
   }
 
   async function handleSaveRuleAssociations() {
@@ -351,7 +286,9 @@ export function ProductEditorPage() {
               {isCreate ? 'Create Product' : data?.summary?.name ?? 'Product Editor'}
             </h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              Manage product metadata, direct child plans, and grouped business-rule assignment from one premium product workspace.
+              {showProductConfiguration
+                ? 'Manage product details, coverages, and business rules.'
+                : 'Manage line of business details and duplicate inquiry rules.'}
             </p>
           </div>
         </div>
@@ -435,6 +372,9 @@ export function ProductEditorPage() {
         </div>
       </Card>
 
+      {saveError ? <p role="alert" className="text-sm text-danger">{saveError}</p> : null}
+      {saveSuccess ? <p role="status" className="text-sm text-success">{saveSuccess}</p> : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         {linkedStats.map((stat) => (
           <Card key={stat.label} variant="interactive" className="space-y-3">
@@ -452,13 +392,16 @@ export function ProductEditorPage() {
       ) : !form ? (
         <Card className="text-sm text-muted-foreground">Preparing product editor...</Card>
       ) : (
-        <form id="product-editor-form" className="space-y-6" onSubmit={handleSave}>
+        <form id="product-editor-form" className="space-y-6" onSubmit={handleSave} onChangeCapture={() => setSaveSuccess(null)}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
             <TabsList>
               <TabsTrigger value="details" icon={FileText}>Product Details</TabsTrigger>
-              {isParentProduct && <TabsTrigger value="duplicates" icon={ShieldCheck}>Duplicate Inquiries</TabsTrigger>}
-              <TabsTrigger value="plans" icon={Layers3}>Plans</TabsTrigger>
-              <TabsTrigger value="rules" icon={GitBranch}>Business Rule</TabsTrigger>
+              {showProductConfiguration ? (
+                <>
+                  <TabsTrigger value="coverages" icon={Layers3}>Coverages</TabsTrigger>
+                  <TabsTrigger value="rules" icon={GitBranch}>Business Rule</TabsTrigger>
+                </>
+              ) : <TabsTrigger value="duplicates" icon={ShieldCheck}>Duplicate Inquiries</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="details" className="space-y-6">
@@ -540,11 +483,10 @@ export function ProductEditorPage() {
                   />
                 </Field>
 
-                {saveError ? <p className="text-sm text-danger">{saveError}</p> : null}
               </Card>
             </TabsContent>
 
-            {isParentProduct && <TabsContent value="duplicates" className="space-y-6">
+            {!showProductConfiguration ? <TabsContent value="duplicates" className="space-y-6">
               <DuplicateCriteriaEditor
                 value={duplicateDraft}
                 savedText={data?.metadata?.duplicateCriteria ?? ''}
@@ -552,92 +494,51 @@ export function ProductEditorPage() {
                 rules={(data?.availableRules ?? []).map((rule) => ({ id: rule.id, name: rule.name }))}
                 onChange={setDuplicateDraft}
               />
-            </TabsContent>}
+            </TabsContent> : null}
 
-            <TabsContent value="plans" className="space-y-6">
+            {showProductConfiguration ? <TabsContent value="coverages" className="space-y-6">
               <Card className="space-y-5">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-3">
-                      <h2 className="text-xl font-bold">Plans</h2>
-                      <Badge variant="review">{data?.availablePlans.length ?? 0}</Badge>
+                      <h2 className="text-xl font-bold">Coverages</h2>
+                      <Badge variant="review">{coverageLoad.data?.length ?? 0}</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Plans are direct child records of this product and can be created, edited, and deleted from here.
-                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">Coverages linked to this product.</p>
                   </div>
-                  <Button type="button" variant="secondary" className="bg-white dark:bg-[#1E293B]" onClick={() => setPlanDraft({ ...emptyPlanDraft, open: true })} disabled={isCreate}>
-                    <Plus className="h-4 w-4" />
-                    Add Plan
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="secondary" disabled={isCreate || coverageLoad.loading} onClick={() => setCoverageRefreshKey((value) => value + 1)}>Refresh</Button>
+                    <Button type="button" variant="outline" asChild><Link to="/admin/coverages">Manage Coverages</Link></Button>
+                  </div>
                 </div>
-
-                {(data?.availablePlans.length ?? 0) === 0 ? (
+                {isCreate ? (
+                  <p className="text-sm text-muted-foreground">Save the product before linking coverages.</p>
+                ) : coverageLoad.loading ? (
+                  <p role="status" className="text-sm text-muted-foreground">Loading related coverages...</p>
+                ) : coverageLoad.error ? (
+                  <div role="alert" className="space-y-3 rounded-xl border border-danger/20 bg-danger/5 p-4">
+                    <p className="text-sm text-danger">{coverageLoad.error}</p>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setCoverageRefreshKey((value) => value + 1)}>Try Again</Button>
+                  </div>
+                ) : !coverageLoad.data?.length ? (
                   <Card className="border-dashed border-border bg-surface-soft/70 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Layers3 className="h-6 w-6" />
-                    </div>
-                    <h4 className="mt-4 text-lg font-semibold">No plans yet</h4>
-                    <p className="mt-2 text-sm text-muted-foreground">Create the first plan for this product to start structuring quote options.</p>
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Layers3 className="h-6 w-6" /></div>
+                    <h4 className="mt-4 text-lg font-semibold">No related coverages</h4>
+                    <p className="mt-2 text-sm text-muted-foreground">Coverages with this product selected will appear here.</p>
                   </Card>
                 ) : (
-                  <div className="overflow-hidden rounded-[24px] border border-border-soft">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border-collapse">
-                        <thead className="bg-surface-muted/80">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Name</th>
-                            <th className="px-4 py-3 text-left text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Description</th>
-                            <th className="px-4 py-3 text-right text-[12px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(data?.availablePlans ?? []).map((plan) => (
-                            <tr key={plan.id} className="border-b border-border-soft/80 bg-surface transition duration-150 hover:bg-primary/5">
-                              <td className="px-4 py-4">
-                                <div className="space-y-1">
-                                  <Link
-                                    to={`/admin/plans/${plan.id}/edit${plan.productId ? `?productId=${encodeURIComponent(plan.productId)}` : ''}`}
-                                    className="font-semibold text-primary transition hover:text-primary/80 hover:underline"
-                                  >
-                                    {plan.name}
-                                  </Link>
-                                  <p className="text-[12px] text-muted-foreground">{plan.detail}</p>
-                                </div>
-                              </td>
-                              <td className="px-4 py-4 text-sm text-muted-foreground">{plan.description}</td>
-                              <td className="px-4 py-4">
-                                <div className="flex items-center justify-end gap-2">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-9 w-9 rounded-full border border-border-soft bg-white p-0 text-danger hover:bg-danger/10 hover:text-danger dark:bg-slate-950/50"
-                                    disabled={planBusyId === plan.id}
-                                    onClick={() => void handleDeletePlan(plan.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                  <CoverageGroups records={coverageLoad.data} />
                 )}
-
               </Card>
-            </TabsContent>
+            </TabsContent> : null}
 
-            <TabsContent value="rules" className="space-y-6">
+            {showProductConfiguration ? <TabsContent value="rules" className="space-y-6">
               <Card className="space-y-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-3">
                       <h2 className="text-xl font-bold">Business Rules</h2>
-                      <Badge variant="review">{selectedRuleIds.length}</Badge>
+                      <Badge variant="review">{data?.associatedRuleIds.length ?? 0}</Badge>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Associate reusable underwriting rules to this product in grouped form-builder buckets.
@@ -649,7 +550,6 @@ export function ProductEditorPage() {
                   </Button>
                 </div>
 
-                {saveError ? <p className="text-sm text-danger">{saveError}</p> : null}
 
                 {data?.relationshipNotice ? (
                   <div className="rounded-[18px] border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
@@ -657,7 +557,7 @@ export function ProductEditorPage() {
                   </div>
                 ) : null}
 
-                {selectedRuleIds.length === 0 ? (
+                {associatedRuleGroups.length === 0 ? (
                   <Card className="border-dashed border-border bg-surface-soft/70 text-center">
                     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
                       <GitBranch className="h-6 w-6" />
@@ -731,12 +631,12 @@ export function ProductEditorPage() {
                   </div>
                 )}
               </Card>
-            </TabsContent>
+            </TabsContent> : null}
           </Tabs>
         </form>
       )}
 
-      {isRuleModalOpen ? (
+      {showProductConfiguration && isRuleModalOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
           style={{ marginTop: 0, marginBottom: 0 }}
@@ -751,7 +651,7 @@ export function ProductEditorPage() {
                     Search the live rule library, group by underwriting category, and prepare selected rules for this product.
                   </p>
                 </div>
-                <Button type="button" variant="ghost" size="icon" className="rounded-full border border-border-soft bg-white dark:bg-slate-950/60" onClick={() => setIsRuleModalOpen(false)}>
+                <Button type="button" variant="ghost" size="icon" className="rounded-full border border-border-soft bg-white dark:bg-slate-950/60" disabled={rulesSaving} onClick={closeRuleModal}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -857,10 +757,11 @@ export function ProductEditorPage() {
               </div>
             </div>
 
+            {saveError ? <p role="alert" className="px-6 pb-4 text-sm text-danger">{saveError}</p> : null}
             <div className="flex items-center justify-between gap-4 border-t border-border-soft px-6 py-5">
               <p className="text-sm text-muted-foreground">{selectedRuleIds.length} business rules currently selected.</p>
               <div className="flex items-center gap-3">
-                <Button type="button" variant="secondary" className="bg-white dark:bg-[#1E293B]" onClick={() => setIsRuleModalOpen(false)}>
+                <Button type="button" variant="secondary" className="bg-white dark:bg-[#1E293B]" disabled={rulesSaving} onClick={closeRuleModal}>
                   Cancel
                 </Button>
                 <Button type="button" disabled={rulesSaving || isCreate} onClick={() => void handleSaveRuleAssociations()}>
@@ -872,110 +773,7 @@ export function ProductEditorPage() {
         </div>
       ) : null}
 
-      {planDraft.open ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
-          style={{ marginTop: 0, marginBottom: 0 }}
-        >
-          <Card className="max-h-[90vh] w-full max-w-3xl overflow-hidden p-0">
-            <div className="border-b border-border-soft px-6 py-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Plan workspace</p>
-                  <h3 className="mt-2 text-2xl font-semibold">{planDraft.id ? 'Edit Plan' : 'Create Plan'}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">Maintain plan records directly from the product setup hub.</p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full border border-border-soft bg-white dark:bg-slate-950/60"
-                  onClick={() => setPlanDraft(emptyPlanDraft)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
 
-            <form className="max-h-[calc(90vh-112px)] space-y-5 overflow-y-auto px-6 py-5" onSubmit={handlePlanSubmit}>
-              <Field label="Plan Name">
-                <Input
-                  value={planDraft.name}
-                  onChange={(event) => setPlanDraft((current) => ({ ...current, name: event.target.value }))}
-                  required
-                />
-              </Field>
-              <Field label="Description">
-                <textarea
-                  className="form-field-surface min-h-28 w-full rounded-[16px] border border-border px-3 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-                  value={planDraft.description}
-                  onChange={(event) => setPlanDraft((current) => ({ ...current, description: event.target.value }))}
-                />
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Base Premium">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={planDraft.basePremium}
-                    onChange={(event) => setPlanDraft((current) => ({ ...current, basePremium: event.target.value }))}
-                    placeholder="Enter base premium"
-                  />
-                </Field>
-                <Field label="Minimum Sum Insured">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={planDraft.minimumSumInsured}
-                    onChange={(event) => setPlanDraft((current) => ({ ...current, minimumSumInsured: event.target.value }))}
-                    placeholder="Enter minimum sum insured"
-                  />
-                </Field>
-                <Field label="Maximum Sum Insured">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={planDraft.maximumSumInsured}
-                    onChange={(event) => setPlanDraft((current) => ({ ...current, maximumSumInsured: event.target.value }))}
-                    placeholder="Enter maximum sum insured"
-                  />
-                </Field>
-                <Field label="Ceiling">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={planDraft.cealing}
-                    onChange={(event) => setPlanDraft((current) => ({ ...current, cealing: event.target.value }))}
-                    placeholder="Enter ceiling"
-                  />
-                </Field>
-                <Field label="Floor">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={planDraft.floor}
-                    onChange={(event) => setPlanDraft((current) => ({ ...current, floor: event.target.value }))}
-                    placeholder="Enter floor"
-                  />
-                </Field>
-              </div>
-              <div className="flex justify-end gap-3 border-t border-border-soft pt-4">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="bg-white dark:bg-[#1E293B]"
-                  onClick={() => setPlanDraft(emptyPlanDraft)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={planBusyId === (planDraft.id ?? 'create')}>
-                  {planBusyId === (planDraft.id ?? 'create') ? 'Saving...' : planDraft.id ? 'Save Plan' : 'Create Plan'}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      ) : null}
     </div>
   )
 }

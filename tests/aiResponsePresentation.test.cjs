@@ -27,6 +27,7 @@ function loadPanel(react = React) { return compile('components/inquiries/Inquiry
   '../../lib/inquiryUnderwriting': {},
   '../../lib/cn': { cn: (...values) => values.filter(Boolean).join(' ') },
   '../ui/Select': { Select: () => null },
+  './InquiryEvidence': { InquiryEvidenceButton: () => null, InquiryEvidenceFileNames: () => null },
   '../ui/Button': { Button: ({ children, variant, size, ...props }) => React.createElement('button', props, children) },
 }) }
 const { InquiryAiPanel } = loadPanel()
@@ -53,6 +54,22 @@ test('shows the supplied response preview and confidence without condition label
   assert.equal(html.includes('@odata'), false)
   assert.equal(html.includes('>True<'), false)
   assert.equal(html.includes('<textarea'), false)
+})
+
+test('displays the summary text from stored JSON without exposing empty JSON arrays', () => {
+  const summary = 'The quote slip names ABFA Investments Ltd as owner.'
+  const html = render(example, { summary: JSON.stringify({ summary, facts_used: [], conflicts: [] }) })
+  assert.ok(html.includes(summary))
+  assert.equal(html.includes('facts_used'), false)
+  assert.equal(html.includes('Facts used'), false)
+  assert.equal(html.includes('Conflicts to review'), false)
+  assert.equal(html.includes('&quot;summary&quot;'), false)
+})
+
+test('keeps nonempty facts and conflicts readable and preserves existing plain summaries', () => {
+  const html = render(example, { summary: JSON.stringify({ summary: 'Cover was reviewed.', facts_used: ['Aircraft is undergoing maintenance.', { source_document: 'Quote slip', page: 16 }], conflicts: ['The declared operating area differs.'] }) })
+  for (const text of ['Cover was reviewed.', 'Facts used', 'Aircraft is undergoing maintenance.', 'source document: Quote slip; page: 16', 'Conflicts to review', 'The declared operating area differs.']) assert.ok(html.includes(text), text)
+  assert.ok(render(example, { summary: 'Existing plain summary.' }).includes('Existing plain summary.'))
 })
 
 test('responsive card grid shows every response with its metadata and actions', () => {

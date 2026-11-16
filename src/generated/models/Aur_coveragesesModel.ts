@@ -7,6 +7,17 @@ export const Aur_coveragesesaur_applicable = {
   751820001: 'OptionalCover'
 } as const;
 export type Aur_coveragesesaur_applicable = keyof typeof Aur_coveragesesaur_applicable;
+export const Aur_coveragesesaur_coverage_type = {
+  1: 'Coverages',
+  2: 'Benefits',
+  3: 'Inclusions',
+  4: 'Exclusions',
+  5: 'Warranties',
+  6: 'Deductibles',
+  7: 'Conditions',
+  8: 'RIConditions'
+} as const;
+export type Aur_coveragesesaur_coverage_type = keyof typeof Aur_coveragesesaur_coverage_type;
 export const Aur_coveragesesaur_type = {
   751820000: 'FullCoverage',
   751820001: '_75_Coverage',
@@ -29,6 +40,7 @@ export interface Aur_coveragesesBase {
   aur_applicable?: Aur_coveragesesaur_applicable;
   aur_base_cover?: boolean;
   aur_company?: string;
+  aur_coverage_type?: Aur_coveragesesaur_coverage_type;
   aur_coveragesid: string;
   aur_description?: string;
   aur_label?: string;
@@ -55,6 +67,7 @@ export interface Aur_coveragesesBase {
 export interface Aur_coverageses extends Aur_coveragesesBase {
   aur_applicablename?: string;
   aur_base_covername?: string;
+  aur_coverage_typename?: string;
   aur_planname?: string;
   aur_productname?: string;
   aur_typename?: string;
