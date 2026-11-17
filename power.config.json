@@ -296,6 +296,10 @@
           "entitySetName": "aur_ai_decision_responses",
           "logicalName": "aur_ai_decision_response",
           "isHidden": false
+        },
+        "aur_inquiry_purposes": {
+          "entitySetName": "aur_inquiry_purposes",
+          "logicalName": "aur_inquiry_purpose"
         }
       },
       "environmentVariableName": ""

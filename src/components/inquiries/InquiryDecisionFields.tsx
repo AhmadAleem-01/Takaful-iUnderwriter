@@ -30,7 +30,7 @@ function InquiryDecisionFieldRow({ fields, suggestions, editing, disabled }: {
       const suggestion = field.decisionCategory === undefined ? undefined : suggestions.find((item) => item.category === field.decisionCategory)
       const cardSuggestion = field.decisionStyle === 'card' ? suggestion : undefined
       return <div key={field.label} className={`min-w-0 space-y-2.5 ${index ? 'mt-4 md:mt-0' : ''}`}>
-        <div className="flex min-h-6 items-center gap-1"><p className="text-[11px] font-medium text-muted-foreground">{field.label}</p>{field.decisionStyle === 'tooltip' ? <InquiryAiDecisionTooltip fieldLabel={field.label} /> : null}</div>
+        <div className="flex min-h-6 items-center gap-1"><p className="text-[12px] font-normal text-muted-foreground">{field.label}</p>{field.decisionStyle === 'tooltip' ? <InquiryAiDecisionTooltip fieldLabel={field.label} /> : null}</div>
         <InquiryAiDecisionSuggestion key={cardSuggestion?.id ?? field.label} suggestion={cardSuggestion} fieldLabel={field.label}
           options={field.options} currentValue={field.currentValue} onApply={field.onApply} editing={editing} disabled={disabled} panelHost={panelHost}>
           {field.content}

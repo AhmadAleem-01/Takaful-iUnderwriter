@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 220 43% 98%;
+    --background: 216 38.4615384615% 97.4509803922%;
     --foreground: 222 47% 8%;
     --surface: 0 0% 100%;
     --surface-soft: 216 100% 99%;
@@ -50,11 +50,13 @@
   }
 
   html {
+    font-family: "Poppins", sans-serif;
     scroll-behavior: smooth;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-family: "Poppins", sans-serif;
     font-size: 14px;
     margin: 0;
     min-width: 320px;
@@ -70,6 +72,18 @@
   ::selection {
     background: hsl(var(--primary) / 0.18);
   }
+
+  .sidebar-scrollbar {
+    scrollbar-color: rgb(255 255 255 / 0.22) transparent;
+    scrollbar-width: thin;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar { width: 6px; }
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgb(255 255 255 / 0.22);
+  }
+  .sidebar-scrollbar::-webkit-scrollbar-track { background: transparent; }
 
   .scrollbar-hidden {
     -ms-overflow-style: none;
@@ -156,28 +170,7 @@
 
 .ai-decision-field {
   position: relative;
-  isolation: isolate;
-  border-radius: 0.85rem;
-  padding: 1px;
-  background: linear-gradient(110deg, #a78bfa, #c4b5fd, #60a5fa, #a78bfa);
-  background-size: 300% 100%;
-  animation: ai-decision-glow 6s ease-in-out infinite;
-  box-shadow: 0 0 0 2px rgb(167 139 250 / 0.06), 0 3px 14px rgb(139 92 246 / 0.08);
-  transition: box-shadow 250ms ease;
-}
-
-.ai-decision-field::before {
-  content: '';
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  border-radius: inherit;
-  background: hsl(var(--surface));
-}
-
-.ai-decision-field .form-field-surface { border-color: transparent; border-radius: 0.8rem; }
-.ai-decision-field:hover, .ai-decision[data-open='true'] .ai-decision-field {
-  box-shadow: 0 0 0 3px rgb(167 139 250 / 0.12), 0 4px 18px rgb(139 92 246 / 0.12);
+  min-width: 0;
 }
 .ai-decision-chevron { transition: transform 300ms ease; }
 .ai-decision[data-open='true'] .ai-decision-chevron { transform: rotate(180deg); }
@@ -203,8 +196,8 @@
   .ai-decision-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .ai-decision-product-slot { margin-top: 0; }
 }
-.ai-suggestion-card { background: linear-gradient(135deg, rgb(250 247 255), rgb(247 246 255)); }
-.dark .ai-suggestion-card { background: linear-gradient(135deg, rgb(139 92 246 / 0.08), rgb(96 165 250 / 0.05)); }
+.ai-suggestion-card { background: #EBF8FE; }
+.dark .ai-suggestion-card { background: hsl(var(--surface-soft)); }
 .ai-suggestion-action {
   display: inline-flex;
   align-items: center;
@@ -213,10 +206,10 @@
   border-radius: 0.55rem;
   padding: 0.6rem 0.75rem;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 400;
   transition: background-color 160ms ease, box-shadow 160ms ease;
 }
-.ai-suggestion-action:focus-visible { outline: 2px solid #8b5cf6; outline-offset: 3px; }
+.ai-suggestion-action:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
 .ai-suggestion-detail {
   display: grid;
   grid-template-rows: 0fr;
@@ -226,14 +219,24 @@
   transition: grid-template-rows 300ms ease, margin-top 300ms ease, opacity 250ms ease, visibility 300ms;
 }
 .ai-suggestion-detail[data-open='true'] { grid-template-rows: 1fr; margin-top: 1rem !important; visibility: visible; opacity: 1; }
-@keyframes ai-decision-glow {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .inquiry-panel-body:not([hidden]) { animation: none; }
   .ai-decision-field { animation: none; transition: none; }
   .ai-decision-reveal, .ai-decision-content, .ai-decision-chevron { transition: none; }
   .ai-suggestion-detail, .ai-suggestion-action { transition: none; }
+}
+
+@keyframes notification-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+.notification-countdown { animation: notification-countdown linear forwards; }
+@keyframes notification-enter {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.notification-toast { animation: notification-enter 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .notification-toast { animation: none; }
 }

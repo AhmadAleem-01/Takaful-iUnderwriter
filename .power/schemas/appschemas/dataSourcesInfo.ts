@@ -12,6 +12,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "activitymimeattachments": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "activitymimeattachmentid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "aur_ai_decision_responses": {
     "tableId": "",
     "version": "",
@@ -33,10 +40,199 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "activitymimeattachments": {
+  "aur_benefitses": {
     "tableId": "",
     "version": "",
-    "primaryKey": "activitymimeattachmentid",
+    "primaryKey": "aur_benefitsid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_business_ruleses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_business_rulesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_cession_lines": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_cession_lineid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_cessions": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_cessionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_consequences_results": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_consequences_resultid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_consequenceses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_consequencesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_coverageses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_coveragesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_custom_document_templateses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_custom_document_templatesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_deductibleses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_deductiblesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_email_queueses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_email_queuesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_exclusionses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_exclusionsid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_fac_offers": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_fac_offerid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_fac_placements": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_fac_placementid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_inclusionses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_inclusionsid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_inquiries": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_inquiryid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_inquiry_coverageses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_inquiry_coveragesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_inquiry_purposes": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_inquiry_purposeid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_line_of_businesses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_line_of_businessid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_plan_details_extractions": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_plan_details_extractionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_plan_pricing_orders": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_plan_pricing_orderid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_plans": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_planid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_policies": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_policyid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_policy_bookings": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_policy_bookingid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_policy_conversions": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_policy_conversionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_productses": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_productsid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_quotes": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_quoteid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_reinsurers": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_reinsurerid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "aur_ri_capacity_checks": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "aur_ri_capacity_checkid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -119,255 +315,6 @@ export const dataSourcesInfo = {
       }
     }
   },
-  "aur_benefitses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_benefitsid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_business_ruleses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_business_rulesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "businessunits": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "businessunitid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_cession_lines": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_cession_lineid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_cessions": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_cessionid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_consequenceses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_consequencesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_consequences_results": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_consequences_resultid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "contacts": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "contactid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_coverageses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_coveragesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "transactioncurrencies": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "transactioncurrencyid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_custom_document_templateses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_custom_document_templatesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_deductibleses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_deductiblesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "emails": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "activityid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_email_queueses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_email_queuesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "templates": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "templateid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_exclusionses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_exclusionsid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_fac_offers": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_fac_offerid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_fac_placements": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_fac_placementid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_inclusionses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_inclusionsid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_inquiries": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_inquiryid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_inquiry_coverageses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_inquiry_coveragesid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_line_of_businesses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_line_of_businessid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_plan_details_extractions": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_plan_details_extractionid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_plan_pricing_orders": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_plan_pricing_orderid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_plans": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_planid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_policies": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_policyid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_policy_bookings": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_policy_bookingid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_policy_conversions": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_policy_conversionid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_productses": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_productsid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_quotes": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_quoteid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "aur_reinsurers": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_reinsurerid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
-  "retrieveenvironmentvariablevalue": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "",
-    "dataSourceType": "Dataverse",
-    "apis": {
-      "RetrieveEnvironmentVariableValue": {
-        "path": "/api/data/v9.2/RetrieveEnvironmentVariableValue",
-        "method": "GET",
-        "parameters": [
-          {
-            "name": "DefinitionSchemaName",
-            "in": "query",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "responseInfo": {
-          "200": {
-            "type": "object"
-          }
-        }
-      }
-    }
-  },
-  "aur_ri_capacity_checks": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "aur_ri_capacity_checkid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
   "aur_treaties": {
     "tableId": "",
     "version": "",
@@ -389,17 +336,31 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
-  "systemusers": {
-    "tableId": "",
-    "version": "",
-    "primaryKey": "systemuserid",
-    "dataSourceType": "Dataverse",
-    "apis": {}
-  },
   "aur_warrantieses": {
     "tableId": "",
     "version": "",
     "primaryKey": "aur_warrantiesid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "businessunits": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "businessunitid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "contacts": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "contactid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "emails": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "activityid",
     "dataSourceType": "Dataverse",
     "apis": {}
   },
@@ -559,6 +520,52 @@ export const dataSourcesInfo = {
         }
       }
     }
+  },
+  "retrieveenvironmentvariablevalue": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "",
+    "dataSourceType": "Dataverse",
+    "apis": {
+      "RetrieveEnvironmentVariableValue": {
+        "path": "/api/data/v9.2/RetrieveEnvironmentVariableValue",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "DefinitionSchemaName",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "systemusers": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "systemuserid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "templates": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "templateid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "transactioncurrencies": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "transactioncurrencyid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   },
   "whenquotegenerated_sendemailtocustomer": {
     "tableId": "",

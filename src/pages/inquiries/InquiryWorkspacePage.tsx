@@ -1,22 +1,28 @@
+import { InquiryWorkspaceSkeleton } from '../../components/inquiries/InquiryWorkspaceSkeleton'
+import { ReadOnlyValueCard } from '../../components/inquiries/ReadOnlyValueCard'
+import { NotificationViewport } from '../../components/ui/NotificationToast'
+import { useNotifications } from '../../hooks/useNotifications'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { ClipboardList, Car, UserRound, HeartPulse, Layers3 } from 'lucide-react'
-import { InquirySection, InquiryInformationSection, InquiryAiPanel, InquiryDecisionRail, InquiryEmailReader, InquiryHeaderMetric } from '../../components/inquiries/InquiryWorkspacePanels'
+import { ClipboardList, Car, UserRound, HeartPulse } from 'lucide-react'
+import { InquirySection, InquiryInformationSection, InquiryAiPanel, InquiryDecisionRail, InquiryEmailReader } from '../../components/inquiries/InquiryWorkspacePanels'
 import { HealthInquirySections, HealthPremiumFields } from '../../components/inquiries/HealthInquirySections'
 import { HealthAiEvaluation } from '../../components/inquiries/HealthAiEvaluation'
 import { InquiryEvidenceButton } from '../../components/inquiries/InquiryEvidence'
 import { inquiryEvidence } from '../../lib/inquiryEvidence'
-import { HealthInquiryStepper } from '../../components/inquiries/HealthInquiryStepper'
+import { InquiryWorkspaceHeader } from '../../components/inquiries/InquiryWorkspaceHeader'
+import { InquirySummaryMetrics } from '../../components/inquiries/InquirySummaryMetrics'
+import { InquiryQuickActions, type QuickInquiryDisposition } from '../../components/inquiries/InquiryQuickActions'
 import { InquiryCoverages } from '../../components/inquiries/InquiryCoverages'
 import { CreateQuoteDialog } from '../../components/inquiries/CreateQuoteDialog'
 import { QuoteStatusBadge } from '../../components/quotes/QuoteStatusBadge'
 import { InquiryDuplicateWarning } from '../../components/inquiries/InquiryDuplicateWarning'
 import { InquiryDecisionFields, type InquiryDecisionField } from '../../components/inquiries/InquiryDecisionFields'
 import { getInquiryAiDecisionSuggestions } from '../../services/aiDecisionResponsesService'
-import { healthAnswer, inquiryProductKind, parseHealthCustomerData, tpaNetworkPremiumAdjustment } from '../../lib/healthInquiry'
+import { inquiryProductKind, tpaNetworkPremiumAdjustment } from '../../lib/healthInquiry'
 import { evaluationNumber, evaluationObject, parseHealthAiEvaluation } from '../../lib/healthAiEvaluation'
-import { ArrowLeft, BellRing, Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, History, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, Save, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
+import { Bold, Calculator, CheckCircle2, ChevronRight, ChevronDown, CopyPlus, FileStack, FileText, FolderOpen, GitBranch, Italic, LayoutGrid, List, LoaderCircle, Mail, MailCheck, MailPlus, Rows3, SendHorizontal, ShieldAlert, Sparkles, Underline, X } from 'lucide-react'
 import type { InquiryDetail, InquiryEmailAttachment, RiCapacityCheckSummary } from '../../domain/app'
 import { useAsyncData } from '../../hooks/useAsyncData'
 import { useRole } from '../../hooks/useRole'
@@ -38,19 +44,21 @@ import {
   saveInquiryDetail,
   syncInquiryHealthFinalPremium,
   updateInquiryAiExtractedResponse,
+  updateInquiryDisposition,
 } from '../../services/inquiriesService'
 import type { ConsequenceTemplatePreview } from '../../services/inquiriesService'
 import type { PlanPricingOrderItem } from '../../services/adminCatalogService'
 import { getSharePointSiteUrl } from '../../services/sharePointSiteService'
 import { Card } from '../../components/ui/Card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/Tabs'
+import { TabsContent } from '../../components/ui/Tabs'
+import { InquiryWorkspaceTabs } from '../../components/inquiries/InquiryWorkspaceTabs'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { getAiResponseFilters, filterAiResponses, parseAiSummary } from '../../lib/aiResponsePresentation'
 import { vehicleValueAverage } from '../../lib/inquiryUnderwriting'
-import { formatAmount, formatCurrency, formatDate, formatPercent } from '../../lib/formatters'
+import { formatAmount, formatCurrency, formatDate } from '../../lib/formatters'
 import { AmountInput } from '../../components/ui/AmountInput'
 import { parseMotorCustomerData, motorDriverFields, motorVehicleFields, motorAnswer } from '../../lib/motorInquiry'
 
@@ -96,7 +104,7 @@ const emptyEditorOptions = {
   parentProducts: [] as Array<{ id: string; name: string }>,
   brokerContacts: [] as Array<{ id: string; name: string }>,
   companies: [] as Array<{ id: string; name: string }>,
-  inquiryPurposes: [] as Array<{ value: number; label: string }>,
+  inquiryPurposes: [] as Array<{ value: string; label: string }>,
   products: [] as Array<{ id: string; name: string }>,
   plans: [] as Array<{ id: string; name: string; productId: string }>,
   brokers: [] as Array<{ id: string; name: string }>,
@@ -109,7 +117,6 @@ const emptyEditorOptions = {
 export function InquiryWorkspacePage() {
   const composerEditorRef = useRef<HTMLDivElement | null>(null)
   const composerSectionRef = useRef<HTMLDivElement | null>(null)
-  const notificationMenuRef = useRef<HTMLDivElement | null>(null)
   const { user } = useRole()
   const { id = '' } = useParams()
   const [supplementaryRefreshKey, setSupplementaryRefreshKey] = useState(0)
@@ -120,8 +127,20 @@ export function InquiryWorkspacePage() {
   const policyPremiumSyncs = useRef(new Set<string>())
   const [form, setForm] = useState<InquiryFormState | null>(null)
   const [isEditing, setIsEditing] = useState(false)
+  const saveInFlight = useRef(false)
+  const quickActionInFlight = useRef(false)
   const [saveBusy, setSaveBusy] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const { notifications, notify, dismiss } = useNotifications()
+  useEffect(() => {
+    if (actionSuccess) notify({ variant: 'success', title: 'Action successful', message: actionSuccess })
+  }, [actionSuccess, notify])
+  useEffect(() => {
+    if (actionError) notify({ variant: 'error', title: 'Action unsuccessful', message: actionError })
+  }, [actionError, notify])
+  useEffect(() => {
+    if (saveError) notify({ variant: 'error', title: 'Unable to save inquiry', message: saveError })
+  }, [saveError, notify])
   const [emailSearch, setEmailSearch] = useState('')
   const [isComposerOpen, setIsComposerOpen] = useState(false)
   const [composerEditorVersion, setComposerEditorVersion] = useState(0)
@@ -143,7 +162,6 @@ export function InquiryWorkspacePage() {
     Record<string, { saving?: boolean; success?: string | null; error?: string | null }>
   >({})
   const [isAiReevaluateOpen, setIsAiReevaluateOpen] = useState(false)
-  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [expandedActionGroups, setExpandedActionGroups] = useState<Record<string, boolean>>({})
   const [templatePreview, setTemplatePreview] = useState<ConsequenceTemplatePreview | null>(null)
   const [templatePreviewBusy, setTemplatePreviewBusy] = useState(false)
@@ -215,7 +233,6 @@ export function InquiryWorkspacePage() {
     setQuoteDetailDrafts({})
     setQuoteDetailSaveState({})
     setIsAiReevaluateOpen(false)
-    setIsNotificationMenuOpen(false)
     setExpandedActionGroups({})
     setComposer({
       sender: user.email ?? 'underwriting@insureai.com',
@@ -325,21 +342,9 @@ export function InquiryWorkspacePage() {
     return () => window.clearTimeout(timeoutId)
   }, [isComposerOpen, activeTab, composerEditorVersion])
 
-  useEffect(() => {
-    if (!isNotificationMenuOpen) return
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!notificationMenuRef.current) return
-      if (notificationMenuRef.current.contains(event.target as Node)) return
-      setIsNotificationMenuOpen(false)
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [isNotificationMenuOpen])
 
   const detailSource = inquiryState ?? coreLoad.data
-  const showQuotesTab = (isEditing && form ? Number(form.inquiryPurpose) : detailSource?.inquiryPurposeValue) === 2
+  const showQuotesTab = (isEditing && form ? findOptionLabel((optionsLoad.data ?? emptyEditorOptions).inquiryPurposes, form.inquiryPurpose, '') : detailSource?.inquiryPurpose)?.toLowerCase() === 'for quotation'
 
   useEffect(() => {
     if (!showQuotesTab && activeTab === 'quotes') setActiveTab('details')
@@ -479,10 +484,6 @@ export function InquiryWorkspacePage() {
     ? `${sharePointSiteLoad.data}/${inquiry.sharepointUrl.trim().replace(/^\/+/, '')}`
     : null
   const inquiryRecordId = inquiry.id || id
-  const notifications = inquiry.notificationNotice?.messages.map((message, index) => ({
-    serial: index + 1,
-    message,
-  })) ?? []
   const options = optionsLoad.data ?? emptyEditorOptions
   const isHydratingSupplementary =
     supplementaryLoad.loading &&
@@ -496,46 +497,6 @@ export function InquiryWorkspacePage() {
     const nextForm = buildFormState(inquiry, options)
     nextForm.brokerAgentName = inquiry.contact?.name || inquiry.contactName || 'No broker agent linked'
     setForm(nextForm)
-  }
-
-  async function handleDisposition(
-    disposition: 'Decline' | 'RefertoUnderwriter' | 'EscalatetoHeadofAviation' | 'PropertyorReinsuranceTeam',
-    key: string,
-  ) {
-    if (!form) return
-    try {
-      setPendingAction(key)
-      setActionError(null)
-      setActionSuccess(null)
-      await saveInquiryDetail(inquiryRecordId, buildInquirySavePayload(form, {
-        inquiryStatus: inquiryStatusValueForDisposition(disposition),
-        underwriterActionStatus: disposition === 'Decline' ? 2 : 1,
-      }))
-      const nextStatus = inquiryStatusLabelForDisposition(disposition)
-      setInquiryState((current) =>
-        current
-          ? {
-              ...current,
-              status: nextStatus,
-              inquiryStatusValue: inquiryStatusValueForDisposition(disposition),
-              underwriterActionStatus: disposition === 'Decline' ? 2 : 1,
-            }
-          : current,
-      )
-      setForm((current) =>
-        current
-          ? {
-              ...current,
-              inquiryStatus: String(inquiryStatusValueForDisposition(disposition)),
-              underwriterActionStatus: String(disposition === 'Decline' ? 2 : 1),
-            }
-          : current,
-      )
-    } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : 'Unable to update inquiry disposition.')
-    } finally {
-      setPendingAction(null)
-    }
   }
 
   async function handleCreateQuote(planId: string) {
@@ -595,93 +556,129 @@ export function InquiryWorkspacePage() {
     }
   }
 
-  async function handleSaveDetails() {
-    if (!form) return
+  async function handleSaveDetails(disposition?: QuickInquiryDisposition) {
+    if (!form || saveInFlight.current || (quickActionInFlight.current && !disposition)) return false
+    saveInFlight.current = true
+    const saveForm = disposition ? {
+      ...form,
+      inquiryStatus: String(inquiryStatusValueForDisposition(disposition)),
+      underwriterActionStatus: String(disposition === 'Decline' ? 2 : 1),
+    } : form
     try {
       setSaveBusy(true)
       setSaveError(null)
+      setActionError(null)
       setActionSuccess(null)
       await saveInquiryDetail(inquiryRecordId, {
-        parentProductId: form.parentProductId || null,
-        inquiryPurpose: form.inquiryPurpose ? Number(form.inquiryPurpose) : null,
-        brokerContactId: form.brokerContactId || null,
-        brokerCompanyId: form.brokerCompanyId || null,
-        insuredCompanyId: form.insuredCompanyId || null,
-        name: form.name,
-        productId: form.productId || undefined,
-        inquiryType: form.inquiryType ? Number(form.inquiryType) : undefined,
-        inquiryStatus: form.inquiryStatus ? Number(form.inquiryStatus) : undefined,
-        planId: form.planId || undefined,
-        brokerId: form.brokerId || undefined,
-        planDetails: form.planDetails,
-        coverType: form.coverType ? Number(form.coverType) : undefined,
-        riskScore: Number(form.riskScore) || 0,
-        riskDescription: form.riskDescription,
-        totalSumInsured: Number(form.totalSumInsured) || 0,
-        territorialScope: form.territorialScope,
-        noOfItems: form.noOfItems,
-        basePremium: Number(form.basePremium) || 0,
-        underwriterActionStatus: form.underwriterActionStatus ? Number(form.underwriterActionStatus) : null,
-        underwriterSubAction: form.underwriterSubAction ? Number(form.underwriterSubAction) : null,
-        premiumToBeCharged: Number(form.premiumToBeCharged) || 0,
-        brokerage: Number(form.brokerage) || 0,
-        grossPremium: Number(form.grossPremium) || 0,
-        paymentTerm: form.paymentTerm ? Number(form.paymentTerm) : undefined,
-        fee: Number(form.fee) || 0,
-        totalDeduction: Number(form.totalDeduction) || 0,
-        riskSummary: form.riskDescription,
+        parentProductId: saveForm.parentProductId || null,
+        inquiryPurpose: saveForm.inquiryPurpose || null,
+        brokerContactId: saveForm.brokerContactId || null,
+        brokerCompanyId: saveForm.brokerCompanyId || null,
+        insuredCompanyId: saveForm.insuredCompanyId || null,
+        name: saveForm.name,
+        productId: saveForm.productId || undefined,
+        inquiryType: saveForm.inquiryType ? Number(saveForm.inquiryType) : undefined,
+        inquiryStatus: saveForm.inquiryStatus ? Number(saveForm.inquiryStatus) : undefined,
+        planId: saveForm.planId || undefined,
+        brokerId: saveForm.brokerId || undefined,
+        planDetails: saveForm.planDetails,
+        coverType: saveForm.coverType ? Number(saveForm.coverType) : undefined,
+        riskScore: Number(saveForm.riskScore) || 0,
+        riskDescription: saveForm.riskDescription,
+        totalSumInsured: Number(saveForm.totalSumInsured) || 0,
+        territorialScope: saveForm.territorialScope,
+        noOfItems: saveForm.noOfItems,
+        basePremium: Number(saveForm.basePremium) || 0,
+        underwriterActionStatus: saveForm.underwriterActionStatus ? Number(saveForm.underwriterActionStatus) : null,
+        underwriterSubAction: saveForm.underwriterSubAction ? Number(saveForm.underwriterSubAction) : null,
+        premiumToBeCharged: Number(saveForm.premiumToBeCharged) || 0,
+        brokerage: Number(saveForm.brokerage) || 0,
+        grossPremium: Number(saveForm.grossPremium) || 0,
+        paymentTerm: saveForm.paymentTerm ? Number(saveForm.paymentTerm) : undefined,
+        fee: Number(saveForm.fee) || 0,
+        totalDeduction: Number(saveForm.totalDeduction) || 0,
+        riskSummary: saveForm.riskDescription,
       })
       setIsEditing(false)
       setInquiryState((current) =>
         current
           ? {
               ...current,
-              parentProductId: form.parentProductId || undefined,
-              parentProductName: form.parentProductId ? findOptionName(options.parentProducts, form.parentProductId, current.parentProductName ?? '') : '',
-              inquiryPurposeValue: form.inquiryPurpose ? Number(form.inquiryPurpose) : undefined,
-              inquiryPurpose: form.inquiryPurpose ? findOptionLabel(options.inquiryPurposes, form.inquiryPurpose, '') : '',
-              brokerContactId: form.brokerContactId || undefined,
-              brokerContactName: form.brokerContactId ? findOptionName(options.brokerContacts, form.brokerContactId, current.brokerContactName ?? '') : '',
-              brokerCompanyId: form.brokerCompanyId || undefined,
-              brokerCompanyName: form.brokerCompanyId ? findOptionName(options.brokers, form.brokerCompanyId, current.brokerCompanyName ?? '') : '',
-              insuredCompanyId: form.insuredCompanyId || undefined,
-              insuredCompanyName: form.insuredCompanyId ? findOptionName(options.companies, form.insuredCompanyId, current.insuredCompanyName ?? '') : '',
-              name: form.name,
-              productId: form.productId || undefined,
-              productName: findOptionName(options.products, form.productId, current.productName),
-              inquiryType: findOptionLabel(options.inquiryTypes, form.inquiryType, current.inquiryType),
-              inquiryTypeValue: form.inquiryType ? Number(form.inquiryType) : current.inquiryTypeValue,
-              status: findOptionLabel(options.inquiryStatuses, form.inquiryStatus, current.status),
-              inquiryStatusValue: form.inquiryStatus ? Number(form.inquiryStatus) : current.inquiryStatusValue,
-              planId: form.planId || undefined,
-              planName: findOptionName(options.plans.map((item) => ({ id: item.id, name: item.name })), form.planId, current.planName),
-              planDetails: form.planDetails,
-              brokerId: form.brokerCompanyId || undefined,
-              brokerName: form.brokerCompanyId ? findOptionName(options.brokers, form.brokerCompanyId, current.brokerName) : 'No broker linked',
-              accountId: form.insuredCompanyId || undefined,
-              accountName: form.insuredCompanyId ? findOptionName(options.companies, form.insuredCompanyId, current.accountName) : 'No account linked',
-              contactName: form.brokerContactId ? findOptionName(options.brokerContacts, form.brokerContactId, current.contactName) : 'No contact linked',
-              coverType: findOptionLabel(options.coverTypes, form.coverType, current.coverType),
-              riskScore: Number(form.riskScore) || 0,
-              riskDescription: form.riskDescription,
-              aiSummary: form.riskDescription,
-              totalInsured: Number(form.totalSumInsured) || 0,
-              territorialScope: form.territorialScope,
-              basePremium: Number(form.basePremium) || 0,
-              underwriterActionStatus: form.underwriterActionStatus ? Number(form.underwriterActionStatus) : null,
-              underwriterSubAction: form.underwriterSubAction ? Number(form.underwriterSubAction) : null,
-              totalCharge: Number(form.premiumToBeCharged) || 0,
-              grossPremium: Number(form.grossPremium) || 0,
-              paymentTerm: findOptionLabel(options.paymentTerms, form.paymentTerm, current.paymentTerm),
-              fee: Number(form.fee) || 0,
+              parentProductId: saveForm.parentProductId || undefined,
+              parentProductName: saveForm.parentProductId ? findOptionName(options.parentProducts, saveForm.parentProductId, current.parentProductName ?? '') : '',
+              inquiryPurposeValue: saveForm.inquiryPurpose || undefined,
+              inquiryPurpose: saveForm.inquiryPurpose ? findOptionLabel(options.inquiryPurposes, saveForm.inquiryPurpose, '') : '',
+              brokerContactId: saveForm.brokerContactId || undefined,
+              brokerContactName: saveForm.brokerContactId ? findOptionName(options.brokerContacts, saveForm.brokerContactId, current.brokerContactName ?? '') : '',
+              brokerCompanyId: saveForm.brokerCompanyId || undefined,
+              brokerCompanyName: saveForm.brokerCompanyId ? findOptionName(options.brokers, saveForm.brokerCompanyId, current.brokerCompanyName ?? '') : '',
+              insuredCompanyId: saveForm.insuredCompanyId || undefined,
+              insuredCompanyName: saveForm.insuredCompanyId ? findOptionName(options.companies, saveForm.insuredCompanyId, current.insuredCompanyName ?? '') : '',
+              name: saveForm.name,
+              productId: saveForm.productId || undefined,
+              productName: findOptionName(options.products, saveForm.productId, current.productName),
+              inquiryType: findOptionLabel(options.inquiryTypes, saveForm.inquiryType, current.inquiryType),
+              inquiryTypeValue: saveForm.inquiryType ? Number(saveForm.inquiryType) : current.inquiryTypeValue,
+              status: disposition ? inquiryStatusLabelForDisposition(disposition) : findOptionLabel(options.inquiryStatuses, saveForm.inquiryStatus, current.status),
+              inquiryStatusValue: saveForm.inquiryStatus ? Number(saveForm.inquiryStatus) : current.inquiryStatusValue,
+              planId: saveForm.planId || undefined,
+              planName: findOptionName(options.plans.map((item) => ({ id: item.id, name: item.name })), saveForm.planId, current.planName),
+              planDetails: saveForm.planDetails,
+              brokerId: saveForm.brokerCompanyId || undefined,
+              brokerName: saveForm.brokerCompanyId ? findOptionName(options.brokers, saveForm.brokerCompanyId, current.brokerName) : 'No broker linked',
+              accountId: saveForm.insuredCompanyId || undefined,
+              accountName: saveForm.insuredCompanyId ? findOptionName(options.companies, saveForm.insuredCompanyId, current.accountName) : 'No account linked',
+              contactName: saveForm.brokerContactId ? findOptionName(options.brokerContacts, saveForm.brokerContactId, current.contactName) : 'No contact linked',
+              coverType: findOptionLabel(options.coverTypes, saveForm.coverType, current.coverType),
+              riskScore: Number(saveForm.riskScore) || 0,
+              riskDescription: saveForm.riskDescription,
+              aiSummary: saveForm.riskDescription,
+              totalInsured: Number(saveForm.totalSumInsured) || 0,
+              territorialScope: saveForm.territorialScope,
+              basePremium: Number(saveForm.basePremium) || 0,
+              underwriterActionStatus: saveForm.underwriterActionStatus ? Number(saveForm.underwriterActionStatus) : null,
+              underwriterSubAction: saveForm.underwriterSubAction ? Number(saveForm.underwriterSubAction) : null,
+              totalCharge: Number(saveForm.premiumToBeCharged) || 0,
+              grossPremium: Number(saveForm.grossPremium) || 0,
+              paymentTerm: findOptionLabel(options.paymentTerms, saveForm.paymentTerm, current.paymentTerm),
+              fee: Number(saveForm.fee) || 0,
             }
           : current,
       )
-      setActionSuccess('Inquiry details updated successfully.')
+      setActionSuccess(disposition ? inquiryStatusLabelForDisposition(disposition) + ' applied and inquiry changes saved.' : 'Inquiry details updated successfully.')
+      return true
     } catch (cause) {
       setSaveError(cause instanceof Error ? cause.message : 'Unable to save inquiry details.')
+      return false
     } finally {
+      saveInFlight.current = false
       setSaveBusy(false)
+    }
+  }
+
+  async function handleQuickAction(disposition: QuickInquiryDisposition) {
+    if (quickActionInFlight.current || saveInFlight.current || saveBusy || pendingAction || !form) return
+    quickActionInFlight.current = true
+    setPendingAction('quick:' + disposition)
+    setActionError(null)
+    setActionSuccess(null)
+    setSaveError(null)
+    try {
+      if (isEditing) {
+        await handleSaveDetails(disposition)
+        return
+      }
+      await updateInquiryDisposition(inquiryRecordId, disposition)
+      const statusCode = inquiryStatusValueForDisposition(disposition)
+      const underwritingAction = disposition === 'Decline' ? 2 : 1
+      setInquiryState((current) => current ? { ...current, status: inquiryStatusLabelForDisposition(disposition), inquiryStatusValue: statusCode, underwriterActionStatus: underwritingAction } : current)
+      setForm((current) => current ? { ...current, inquiryStatus: String(statusCode), underwriterActionStatus: String(underwritingAction) } : current)
+      setActionSuccess(inquiryStatusLabelForDisposition(disposition) + ' applied successfully.')
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'Unable to apply the quick action.')
+    } finally {
+      quickActionInFlight.current = false
+      setPendingAction(null)
     }
   }
 
@@ -1153,12 +1150,6 @@ export function InquiryWorkspacePage() {
   const isMotorInsurance = productKind === 'motor'
   const isHealthInsurance = productKind === 'health'
   const DetailsSection = isHealthInsurance ? InquiryInformationSection : InquirySection
-  const healthCustomer = isHealthInsurance ? parseHealthCustomerData(inquiry.customerData) : null
-  const submittedCustomer = isMotorInsurance ? parseMotorCustomerData(inquiry.customerData) : null
-  const submittedVehicle = submittedCustomer ? ['Model year', 'Vehicle make', 'Vehicle model'].map((key) => motorAnswer(submittedCustomer, key)).filter((value) => value !== 'Not provided').join(' ') : ''
-  const submittedEmail = submittedCustomer ? motorAnswer(submittedCustomer, 'Email address', true) : healthCustomer ? healthAnswer(healthCustomer.applicant.email) : inquiry.contact?.email || inquiry.account?.email
-  const submittedPhone = submittedCustomer ? motorAnswer(submittedCustomer, 'Mobile number', true) : healthCustomer ? healthAnswer(healthCustomer.applicant.mobile) : ''
-
   const premiumFields = form ? (
                     <div className="grid gap-4 md:grid-cols-2">
                       {!isHealthInsurance ? <Field label="Base Premium Percentage">
@@ -1230,171 +1221,15 @@ export function InquiryWorkspacePage() {
   ) : null
 
   return (
-    <div className="space-y-6">
-      <Button asChild variant="ghost" size="sm">
-        <Link to="/inquiries">
-          <ArrowLeft className="h-4 w-4" />
-          Back to inquiries
-        </Link>
-      </Button>
+    <div className="min-w-0 space-y-6 lg:pr-[72px]">
+      <InquiryWorkspaceHeader inquiry={inquiry} />
+      <InquirySummaryMetrics inquiry={inquiry} />
+
+      <NotificationViewport notifications={notifications} onDismiss={dismiss} />
 
       <InquiryDuplicateWarning key={inquiryRecordId} inquiryId={inquiryRecordId} refreshKey={supplementaryRefreshKey} />
 
-      <section className="rounded-2xl border border-border-soft bg-surface px-5 py-5 sm:px-6">
-        <div className="flex flex-col justify-between gap-5 lg:flex-row">
-          <div className="min-w-0 space-y-3">
-            <div className="flex flex-wrap gap-2"><Badge variant="new">{inquiry.inquiryNumber}</Badge><Badge variant="neutral">{inquiry.inquiryType}</Badge><Badge variant="pending">{inquiry.status}</Badge></div>
-            <div><h1 className="break-words text-[23px] font-semibold tracking-tight">{inquiry.name}</h1><p className="mt-1 text-sm text-muted-foreground">{inquiry.productName} · {inquiry.planName}</p></div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>Received {formatDate(inquiry.createdOn)}</span>{submittedEmail && submittedEmail !== 'Not provided' ? <span>{submittedEmail}</span> : null}{submittedPhone && submittedPhone !== 'Not provided' ? <span>{submittedPhone}</span> : null}</div>
-          </div>
-          <div className="lg:max-w-[56%]">
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end [&_button]:rounded-lg">
-              {isEditing ? (
-                <>
-                  <Button type="button" variant="secondary" size="sm" disabled={saveBusy} onClick={resetForm}>
-                    Cancel
-                  </Button>
-                  <Button type="button" size="sm" disabled={saveBusy} onClick={() => void handleSaveDetails()}>
-                    <Save className="h-4 w-4" />
-                    {saveBusy ? 'Saving...' : 'Save Inquiry'}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  className="bg-white hover:bg-surface dark:bg-surface dark:hover:bg-surface-soft"
-                  onClick={() => setIsEditing(true)}
-                >
-                  Edit Inquiry
-                </Button>
-              )}
-              <Button
-                variant="secondary"
-                size="sm"
-                className="bg-white hover:bg-surface dark:bg-surface dark:hover:bg-surface-soft"
-                disabled={pendingAction === 'refer'}
-                onClick={() => void handleDisposition('RefertoUnderwriter', 'refer')}
-              >
-                Refer
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white hover:bg-surface dark:bg-surface dark:hover:bg-surface-soft"
-                disabled={pendingAction === 'escalate'}
-                onClick={() => void handleDisposition('EscalatetoHeadofAviation', 'escalate')}
-              >
-                Escalate
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white hover:bg-surface dark:bg-surface dark:hover:bg-surface-soft"
-                disabled={pendingAction === 'decline'}
-                onClick={() => void handleDisposition('Decline', 'decline')}
-              >
-                Decline
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="bg-white hover:bg-surface dark:bg-surface dark:hover:bg-surface-soft"
-                disabled={!wonQuotes.length}
-                onClick={openCopyQuotesModal}
-              >
-                <CopyPlus className="h-4 w-4" />
-                Copy Quotes
-              </Button>
-              {notifications.length ? (
-                <div ref={notificationMenuRef} className="relative">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="relative gap-2 rounded-full border border-primary/12 bg-white text-foreground hover:border-primary/20 hover:bg-primary/[0.04] dark:border-white/10 dark:bg-surface dark:text-slate-100 dark:hover:bg-surface-soft"
-                    onClick={() => setIsNotificationMenuOpen((current) => !current)}
-                  >
-                    <BellRing className="h-4 w-4 text-primary" />
-                    Notifications
-                    <span className="inline-flex min-w-[1.4rem] items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-bold text-white shadow-soft">
-                      {notifications.length}
-                    </span>
-                  </Button>
-                  {isNotificationMenuOpen ? (
-                    <div className="absolute right-0 top-[calc(100%+0.7rem)] z-50 w-[360px] overflow-hidden rounded-[24px] border border-border-soft bg-white shadow-[0_22px_48px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-[#1E293B]">
-                      <div className="border-b border-border-soft bg-[linear-gradient(180deg,rgba(245,248,252,0.95)_0%,rgba(255,255,255,0.92)_100%)] px-4 py-4 dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.92)_0%,rgba(30,41,59,0.82)_100%)]">
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
-                            <BellRing className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">Notifications</p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              {notifications.length} active workflow item{notifications.length === 1 ? '' : 's'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="max-h-[282px] overflow-y-auto bg-[linear-gradient(180deg,rgba(248,250,252,0.9)_0%,rgba(255,255,255,0.96)_100%)] p-3 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.8)_0%,rgba(15,23,42,0.56)_100%)]">
-                        {notifications.map((notification) => {
-                          return (
-                            <div
-                              key={notification.serial}
-                              className="mb-3 rounded-2xl border border-border-soft bg-white/95 p-4 shadow-[0_10px_24px_rgba(15,23,42,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/15 hover:shadow-[0_14px_30px_rgba(37,99,235,0.12)] dark:border-white/10 dark:bg-white/5"
-                            >
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
-                                    {notification.serial}
-                                  </span>
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    <span className="inline-flex rounded-full border border-primary/12 bg-primary/[0.06] px-2.5 py-1 text-[11px] font-semibold text-primary dark:border-primary/20 dark:bg-primary/15 dark:text-slate-100">
-                                      Workflow notice
-                                    </span>
-                                  </div>
-                                </div>
-                                <p className="text-sm font-medium leading-6 text-foreground">
-                                  {notification.message}
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-
-            {actionError ? <p role="alert" className="mt-2 text-sm text-danger">{actionError}</p> : null}
-            {saveError ? <p role="alert" className="mt-2 text-sm text-danger">{saveError}</p> : null}
-            {actionSuccess ? <p role="status" className="mt-2 text-sm text-success">{actionSuccess}</p> : null}
-          </div>
-        </div>
-        {isHealthInsurance ? <HealthInquiryStepper key={inquiry.id} status={inquiry.inquiryStatusValue} statusLabel={inquiry.status} /> : <div className="mt-5 grid divide-y divide-border-soft overflow-hidden rounded-xl border border-border-soft bg-surface-soft/50 sm:grid-cols-2 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
-          <InquiryHeaderMetric label={isMotorInsurance && submittedVehicle ? 'Vehicle' : 'Selected Plan'} value={isMotorInsurance && submittedVehicle ? submittedVehicle : inquiry.planName} detail={inquiry.coverType} />
-          <InquiryHeaderMetric label="Sum Insured" value={formatCurrency(inquiry.totalInsured)} detail={isMotorInsurance && vehicleValueAverage(inquiry.vehicleValue) ? 'Vehicle Value: ' + formatAmount(vehicleValueAverage(inquiry.vehicleValue)) : undefined} />
-          <InquiryHeaderMetric label="Premium to be Charged" value={formatCurrency(inquiry.totalCharge)} detail={isHealthInsurance ? inquiry.paymentTerm : inquiry.paymentTerm + ' · ' + formatAmount(inquiry.basePremium, 0) + '% Base Rate'} />
-          <InquiryHeaderMetric label="Risk Score" value={String(inquiry.riskScore) + ' / 100'} detail="Current inquiry assessment" />
-          <InquiryHeaderMetric label="Completeness" value={formatPercent(inquiry.readiness[0]?.value ?? 0)} detail="Submission readiness" />
-        </div>}
-      </section>
-
-      <Tabs value={(activeTab === 'quotes' && !showQuotesTab) || (activeTab === 'product-info' && !isMotorInsurance && !isHealthInsurance) ? 'details' : activeTab} onValueChange={setActiveTab}>
-        <TabsList className="overflow-x-auto md:flex-wrap xl:flex-nowrap">
-          <TabsTrigger value="details" icon={LayoutGrid}>Details</TabsTrigger>
-          <TabsTrigger value="coverages" icon={Layers3}>Coverages</TabsTrigger>
-          {isMotorInsurance || isHealthInsurance ? <TabsTrigger value="product-info" icon={isMotorInsurance ? Car : HeartPulse}>{isMotorInsurance ? 'Driver & Vehicle' : 'Health Information'}</TabsTrigger> : null}
-          <TabsTrigger value="email" icon={Mail}>Email</TabsTrigger>
-          <TabsTrigger value="actions" icon={ShieldAlert}>Actions</TabsTrigger>
-          {showQuotesTab ? <TabsTrigger value="quotes" icon={FileText}>Quotes</TabsTrigger> : null}
-          <TabsTrigger value="ri-capacity" icon={Calculator}>RI Capacity Checks</TabsTrigger>
-          <TabsTrigger value="documents" icon={FolderOpen}>Documents</TabsTrigger>
-          <TabsTrigger value="history" icon={History}>History</TabsTrigger>
-        </TabsList>
+      <InquiryWorkspaceTabs isMotorInsurance={isMotorInsurance} isHealthInsurance={isHealthInsurance} showQuotes={showQuotesTab} value={(activeTab === 'quotes' && !showQuotesTab) || (activeTab === 'product-info' && !isMotorInsurance && !isHealthInsurance) ? 'details' : activeTab} onValueChange={setActiveTab}>
         <TabsContent value="coverages" className="mt-4">
           <InquiryCoverages key={inquiryRecordId} inquiryId={inquiryRecordId} productId={inquiry.productId} />
         </TabsContent>
@@ -1402,6 +1237,30 @@ export function InquiryWorkspacePage() {
           {!form ? null : (
             <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(260px,3fr)]">
               <div key={inquiry.id} className="min-w-0 space-y-3 [&_.form-field-surface]:text-[13px] [&_.form-field-surface_p]:text-[13px] [&_input]:text-[13px] [&_textarea]:text-[13px] [&_[role=combobox]]:text-[13px]">
+                  {isHealthInsurance ? <HealthAiEvaluation
+                    key={inquiry.id}
+                    value={inquiry.aiEvaluationJsonResponse}
+                    loading={isHydratingSupplementary}
+                    onReevaluate={() => setIsAiReevaluateOpen(true)}
+                    renderEvidence={(rule) => <InquiryEvidenceButton inquiry={inquiry} references={inquiryEvidence(rule)} ruleName={typeof rule.ruleName === 'string' ? rule.ruleName : undefined} siteUrl={sharePointSiteLoad.data ?? undefined} />}
+                  /> : <InquiryAiPanel
+                    key={inquiry.id}
+                    inquiry={inquiry}
+                    sharePointSiteUrl={sharePointSiteLoad.data ?? undefined}
+                    records={visibleQuoteDetails}
+                    allRecords={inquiry.quoteDetails}
+                    summary={inquiry.aiSummary || inquiry.summary}
+                    loading={aiResponsesLoad.loading}
+                    error={aiResponsesLoad.error}
+                    onRetry={() => setSupplementaryRefreshKey((value) => value + 1)}
+                    category={activeAiFilter} categories={aiResultFilters} onCategory={setAiFilter}
+                    drafts={quoteDetailDrafts} saveStates={quoteDetailSaveState}
+                    onDraft={handleQuoteDetailDraftChange}
+                    onSave={(recordId) => void handleSaveQuoteDetailResponse(recordId)}
+                    onReevaluate={() => setIsAiReevaluateOpen(true)}
+                    onRequestDraft={handleMakeDraft} showRequestDraft={missingQuoteDetails.length > 0}
+                  />}
+
                   <DetailsSection title="Inquiry Details" icon={ClipboardList} defaultOpen>
                     {decisionsLoad.loading ? <p role="status" className="mb-3 text-xs text-muted-foreground">Loading AI suggestions...</p> : null}
                     {decisionsLoad.error ? <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 text-xs text-destructive"><span>AI suggestions could not be loaded. {decisionsLoad.error}</span><Button type="button" variant="ghost" size="sm" onClick={() => setDecisionRefreshKey((value) => value + 1)}>Retry</Button></div> : null}
@@ -1455,7 +1314,7 @@ export function InquiryWorkspacePage() {
                             )}
                             <Button
                               type="button"
-                              className="h-[46px] shrink-0 rounded-[16px] bg-[linear-gradient(135deg,#286CFF,#4F98FF)] px-5 shadow-[0_16px_30px_rgba(40,108,255,0.22)] transition hover:-translate-y-0.5"
+                              className="h-10 shrink-0 rounded-xl border border-primary bg-primary px-4 text-[12px] font-medium shadow-none hover:bg-primary-dark"
                               disabled={riCapacityBusy}
                               onClick={() => void handleRiCapacityCheck()}
                             >
@@ -1507,37 +1366,15 @@ export function InquiryWorkspacePage() {
                     {premiumFields}
                   </InquirySection>
                   ) : null}
-                  {isHealthInsurance ? <HealthAiEvaluation
-                    key={inquiry.id}
-                    value={inquiry.aiEvaluationJsonResponse}
-                    loading={isHydratingSupplementary}
-                    onReevaluate={() => setIsAiReevaluateOpen(true)}
-                    renderEvidence={(rule) => <InquiryEvidenceButton inquiry={inquiry} references={inquiryEvidence(rule)} ruleName={typeof rule.ruleName === 'string' ? rule.ruleName : undefined} siteUrl={sharePointSiteLoad.data ?? undefined} />}
-                  /> : <InquiryAiPanel
-                    key={inquiry.id}
-                    inquiry={inquiry}
-                    sharePointSiteUrl={sharePointSiteLoad.data ?? undefined}
-                    records={visibleQuoteDetails}
-                    allRecords={inquiry.quoteDetails}
-                    summary={inquiry.aiSummary || inquiry.summary}
-                    loading={aiResponsesLoad.loading}
-                    error={aiResponsesLoad.error}
-                    onRetry={() => setSupplementaryRefreshKey((value) => value + 1)}
-                    category={activeAiFilter} categories={aiResultFilters} onCategory={setAiFilter}
-                    drafts={quoteDetailDrafts} saveStates={quoteDetailSaveState}
-                    onDraft={handleQuoteDetailDraftChange}
-                    onSave={(recordId) => void handleSaveQuoteDetailResponse(recordId)}
-                    onReevaluate={() => setIsAiReevaluateOpen(true)}
-                    onRequestDraft={handleMakeDraft} showRequestDraft={missingQuoteDetails.length > 0}
-                  />}
-              </div>
-              <InquiryDecisionRail inquiry={inquiry} hideCompleteness={isHealthInsurance || isMotorInsurance}
+             </div>
+              <InquiryDecisionRail inquiry={inquiry}
+                beforeActionContent={<InquiryQuickActions editing={isEditing} busy={saveBusy || pendingAction !== null || !form} pendingAction={pendingAction} saving={saveBusy} onEdit={() => setIsEditing(true)} onSave={() => void handleSaveDetails()} onCancel={resetForm} onAction={(disposition) => void handleQuickAction(disposition)} />}
                 afterActionContent={isHealthInsurance ? (
                   <InquiryInformationSection title="TPA" icon={HeartPulse}>
                     <dl className="grid grid-cols-2 items-start gap-4">
-                      <div className="min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">TPA</dt><dd className="form-field-surface whitespace-pre-wrap break-words rounded-2xl border border-border-soft px-4 py-3 text-[13px] leading-6">{inquiry.tpa || 'Not provided'}</dd></div>
-                      <div className="min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">Network Premium Adjustment</dt><dd className="form-field-surface rounded-2xl border border-border-soft px-4 py-3 text-[13px] font-semibold">{tpaNetworkPremiumAdjustment(inquiry.tpaNetworkLabel)}</dd></div>
-                      <div className="col-span-2 min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">TPA Network</dt><dd className="form-field-surface break-words rounded-2xl border border-border-soft px-4 py-3 text-[13px]">{inquiry.tpaNetworkLabel || (inquiry.tpaNetworkValue != null ? 'Network label unavailable' : 'Not provided')}</dd></div>
+                      <div className="min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">TPA</dt><ReadOnlyValueCard as="dd" value={inquiry.tpa || 'Not provided'} /></div>
+                      <div className="min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">Network Premium Adjustment</dt><ReadOnlyValueCard as="dd" value={tpaNetworkPremiumAdjustment(inquiry.tpaNetworkLabel)} /></div>
+                      <div className="col-span-2 min-w-0"><dt className="mb-2 text-[11px] font-medium text-muted-foreground">TPA Network</dt><ReadOnlyValueCard as="dd" value={inquiry.tpaNetworkLabel || (inquiry.tpaNetworkValue != null ? 'Network label unavailable' : 'Not provided')} /></div>
                     </dl>
                   </InquiryInformationSection>
                 ) : undefined}
@@ -1548,10 +1385,10 @@ export function InquiryWorkspacePage() {
                   </InquiryInformationSection>
                 ) : undefined}
                 action={form.underwriterActionStatus} subAction={form.underwriterSubAction}
-                editing={isEditing} busy={saveBusy}
+                editing={isEditing} busy={saveBusy || Boolean(pendingAction?.startsWith('quick:'))}
                 onAction={(value) => setForm({ ...form, underwriterActionStatus: value, underwriterSubAction: '' })}
                 onSubAction={(value) => setForm({ ...form, underwriterSubAction: value })}
-                onEdit={() => setIsEditing(true)} onSave={() => void handleSaveDetails()} />
+                />
             </div>
           )}
         </TabsContent>
@@ -2073,7 +1910,7 @@ export function InquiryWorkspacePage() {
             </Card>
           </div>
         </TabsContent>
-      </Tabs>
+      </InquiryWorkspaceTabs>
 
       {isCreateQuoteOpen ? <CreateQuoteDialog
         key={inquiryRecordId}
@@ -2514,92 +2351,6 @@ function riCapacityOutcomeTone(outcome: string): 'approved' | 'pending' | 'rejec
   return 'info'
 }
 
-function InquiryWorkspaceSkeleton() {
-  return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-9 w-36 rounded-full bg-surface-soft" />
-      <section className="rounded-[28px] border border-border-soft bg-surface px-6 py-6 shadow-soft">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <div className="h-7 w-24 rounded-full bg-surface-soft" />
-              <div className="h-7 w-28 rounded-full bg-surface-soft" />
-              <div className="h-7 w-24 rounded-full bg-surface-soft" />
-            </div>
-            <div className="space-y-3">
-              <div className="h-4 w-40 rounded-full bg-surface-soft" />
-              <div className="h-10 w-[420px] max-w-full rounded-2xl bg-surface-soft" />
-              <div className="h-4 w-72 rounded-full bg-surface-soft" />
-            </div>
-          </div>
-          <div className="space-y-4 lg:min-w-[320px]">
-            <div className="rounded-[22px] border border-border-soft bg-surface-soft p-5">
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-3">
-                  <div className="h-4 w-36 rounded-full bg-surface-muted" />
-                  <div className="h-10 w-24 rounded-2xl bg-surface-muted" />
-                  <div className="h-4 w-52 rounded-full bg-surface-muted" />
-                </div>
-                <div className="h-16 w-16 rounded-full bg-surface-muted" />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 lg:justify-end">
-              <div className="h-10 w-28 rounded-full bg-surface-soft" />
-              <div className="h-10 w-24 rounded-full bg-surface-soft" />
-              <div className="h-10 w-28 rounded-full bg-surface-soft" />
-              <div className="h-10 w-32 rounded-full bg-surface-soft" />
-            </div>
-          </div>
-        </div>
-      </section>
-      <div className="h-12 w-full max-w-[760px] rounded-full bg-surface-soft" />
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="space-y-6">
-          <div className="rounded-[24px] border border-border-soft bg-surface p-6">
-            <div className="h-5 w-32 rounded-full bg-surface-soft" />
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="h-3 w-24 rounded-full bg-surface-soft" />
-                  <div className="h-11 rounded-xl bg-surface-soft" />
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="rounded-[24px] border border-border-soft bg-surface p-6">
-            <div className="h-5 w-24 rounded-full bg-surface-soft" />
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="h-3 w-20 rounded-full bg-surface-soft" />
-                  <div className="h-11 rounded-xl bg-surface-soft" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="rounded-[24px] border border-border-soft bg-surface p-6">
-          <div className="h-5 w-48 rounded-full bg-surface-soft" />
-          <div className="mt-5 space-y-4">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="rounded-[22px] border border-border-soft bg-surface-soft p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="h-4 w-24 rounded-full bg-surface-muted" />
-                    <div className="h-5 w-48 rounded-full bg-surface-muted" />
-                    <div className="h-4 w-44 rounded-full bg-surface-muted" />
-                  </div>
-                  <div className="h-9 w-9 rounded-full bg-surface-muted" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function PlanPricingOrderPopover({
   items,
   loading,
@@ -2724,7 +2475,7 @@ function PlanPricingOrderPopover({
 function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
   return (
     <div className={`space-y-2.5 ${className}`}>
-      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
+      <p className="text-[12px] font-normal text-muted-foreground">{label}</p>
       {children}
     </div>
   )
@@ -2746,19 +2497,11 @@ function MotorInformationSection({ title, data, driver = false, expanded = false
 }
 
 function ReadOnlyValue({ value }: { value: string }) {
-  return (
-    <div className="form-field-surface min-h-[46px] rounded-[16px] border border-border-soft px-4 py-3 text-sm font-medium text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
-      {value || 'Not provided'}
-    </div>
-  )
+  return <ReadOnlyValueCard value={value} />
 }
 
 function ReadOnlyText({ value }: { value: string }) {
-  return (
-    <div className="form-field-surface min-h-28 whitespace-pre-wrap rounded-[16px] border border-border-soft px-4 py-3 text-sm leading-7 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
-      {value || 'Not provided'}
-    </div>
-  )
+  return <ReadOnlyValueCard value={value} multiline />
 }
 
 function SelectField({
@@ -2873,7 +2616,7 @@ function isConsequenceApplied(value?: number) {
 }
 
 function findOptionLabel(
-  options: Array<{ value: number; label: string }>,
+  options: Array<{ value: number | string; label: string }>,
   value: string,
   fallback: string,
 ) {
@@ -2929,7 +2672,7 @@ function choiceValue(options: Array<{ value: number; label: string }>, label: st
 function buildFormState(
   inquiry: {
     parentProductId?: string
-    inquiryPurposeValue?: number
+    inquiryPurposeValue?: string
     brokerContactId?: string
     brokerCompanyId?: string
     insuredCompanyId?: string
@@ -3007,50 +2750,6 @@ function buildFormState(
     totalDeduction: '0',
   }
 }
-
-function buildInquirySavePayload(
-  form: InquiryFormState,
-  overrides?: Partial<{
-    inquiryStatus: number
-    riskScore: number
-    underwriterActionStatus: number
-  }>,
-) {
-  return {
-    parentProductId: form.parentProductId || null,
-    inquiryPurpose: form.inquiryPurpose ? Number(form.inquiryPurpose) : null,
-    brokerContactId: form.brokerContactId || null,
-    brokerCompanyId: form.brokerCompanyId || null,
-    insuredCompanyId: form.insuredCompanyId || null,
-    name: form.name,
-    productId: form.productId || undefined,
-    inquiryType: form.inquiryType ? Number(form.inquiryType) : undefined,
-    inquiryStatus:
-      overrides?.inquiryStatus ??
-      (form.inquiryStatus ? Number(form.inquiryStatus) : undefined),
-    planId: form.planId || undefined,
-    brokerId: form.brokerId || undefined,
-    planDetails: form.planDetails,
-    coverType: form.coverType ? Number(form.coverType) : undefined,
-    riskScore: overrides?.riskScore ?? (Number(form.riskScore) || 0),
-    riskDescription: form.riskDescription,
-    totalSumInsured: Number(form.totalSumInsured) || 0,
-    territorialScope: form.territorialScope,
-    noOfItems: form.noOfItems,
-    basePremium: Number(form.basePremium) || 0,
-    underwriterActionStatus:
-      overrides?.underwriterActionStatus ??
-      (form.underwriterActionStatus ? Number(form.underwriterActionStatus) : null),
-    underwriterSubAction: form.underwriterSubAction ? Number(form.underwriterSubAction) : null,
-    premiumToBeCharged: Number(form.premiumToBeCharged) || 0,
-    brokerage: Number(form.brokerage) || 0,
-    grossPremium: Number(form.grossPremium) || 0,
-    paymentTerm: form.paymentTerm ? Number(form.paymentTerm) : undefined,
-    fee: Number(form.fee) || 0,
-    totalDeduction: Number(form.totalDeduction) || 0,
-  }
-}
-
 
 function getPrimaryEmailText(value: string) {
   const html = getPrimaryEmailHtml(value)

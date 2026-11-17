@@ -1,9 +1,12 @@
+import { ReadOnlyValueCard } from './ReadOnlyValueCard'
+import { InquiryAiSection, InquiryAiStatus } from './InquiryAiSection'
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { ChevronDown, ChevronLeft, ChevronRight, Copy, Download, ExternalLink, FileText, LoaderCircle, Mail, Paperclip, Pencil, RefreshCw, Save, Search, ShieldCheck, Sparkles, X, type LucideIcon } from 'lucide-react'
 import type { InquiryDetail, InquiryEmailAttachment, InquiryEmailSummary, QuoteResponse } from '../../domain/app'
 import { aiConditionResult, aiConfidence, isNoEvidenceFound, parseAiSummary, searchAiResponses } from '../../lib/aiResponsePresentation'
-import { formatDate, formatPercent } from '../../lib/formatters'
+import { formatDate } from '../../lib/formatters'
+import { InquiryCompletenessCard } from './InquiryCompletenessCard'
 import { getUnderwriterSubActions, underwriterActions } from '../../lib/inquiryUnderwriting'
 import { Button } from '../ui/Button'
 import { Select } from '../ui/Select'
@@ -18,7 +21,7 @@ export function InquirySection({ title, icon: Icon, defaultOpen = false, tone = 
   return (
     <section className="overflow-visible rounded-2xl border border-border bg-surface">
       <button type="button" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)} className={cn('flex w-full items-center gap-3 bg-white px-5 py-4 text-left outline-none transition hover:bg-surface-soft focus-visible:ring-2 focus-visible:ring-primary/30 dark:bg-surface', open ? 'rounded-t-[23px]' : 'rounded-[23px]')}>
-        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tone === 'ai' ? 'bg-secondary/10 text-secondary' : 'bg-primary/8 text-primary')}><Icon className="h-4 w-4" /></span>
+        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tone === 'ai' ? 'bg-primary/10 text-primary' : 'bg-primary/8 text-primary')}><Icon className="h-4 w-4" /></span>
         <h2 className="flex-1 text-sm font-semibold text-foreground">{title}</h2>
         <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform motion-reduce:transition-none', open && 'rotate-180')} />
       </button>
@@ -40,30 +43,23 @@ export function InquiryInformationSection({ title, icon: Icon, children }: { tit
   )
 }
 
-export function InquiryDecisionRail({ inquiry, hideCompleteness = false, premiumContent, afterActionContent, action, subAction, editing, busy, onAction, onSubAction, onEdit, onSave }: {
-  inquiry: InquiryDetail; hideCompleteness?: boolean; premiumContent?: ReactNode; afterActionContent?: ReactNode; action: string; subAction: string; editing: boolean; busy: boolean;
-  onAction: (value: string) => void; onSubAction: (value: string) => void; onEdit: () => void; onSave: () => void
+export function InquiryDecisionRail({ inquiry, premiumContent, beforeActionContent, afterActionContent, action, subAction, editing, busy, onAction, onSubAction }: {
+  inquiry: InquiryDetail; premiumContent?: ReactNode; beforeActionContent?: ReactNode; afterActionContent?: ReactNode; action: string; subAction: string; editing: boolean; busy: boolean;
+  onAction: (value: string) => void; onSubAction: (value: string) => void
 }) {
-  const completeness = Math.min(100, Math.max(0, inquiry.readiness[0]?.value ?? 0))
-  const selectedAction = underwriterActions.find((option) => String(option.value) === action)?.label
   return (
     <aside aria-label="Underwriting overview" className="space-y-4 [&_.form-field-surface]:text-[13px] [&_[role=combobox]]:text-[13px]">
+      {beforeActionContent}
+      <InquiryCompletenessCard readiness={inquiry.readiness} />
       <section className="rounded-2xl border border-border-soft bg-surface p-5">
         <div className="flex items-center gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-primary/10 bg-surface text-primary"><ShieldCheck className="h-4 w-4" /></span><h2 className="text-sm font-semibold">Underwriting Action</h2></div>
-        <p className="mt-1 text-xs text-muted-foreground">{selectedAction ?? 'Not recorded yet'}</p>
         <div className="mt-5 space-y-4">
-          <label className="block space-y-2"><span className="text-[11px] font-medium">Action Status</span><Select aria-label="Underwriting action status" value={action} disabled={!editing || busy} onValueChange={onAction} options={[{ value: '', label: 'Select a status' }, ...underwriterActions.map((item) => ({ value: String(item.value), label: item.label }))]} /></label>
-          <label className="block space-y-2"><span className="text-[11px] font-medium">Sub Action</span><Select aria-label="Underwriting sub action" value={subAction} disabled={!editing || !action || busy} onValueChange={onSubAction} options={[{ value: '', label: 'Select a reason' }, ...getUnderwriterSubActions(action).map((item) => ({ value: String(item.value), label: item.label }))]} /></label>
-          <Button type="button" className="w-full rounded-lg" disabled={busy} onClick={editing ? onSave : onEdit}>{busy ? 'Saving...' : editing ? 'Save Action' : 'Edit Action'}</Button>
+          <div className="space-y-2"><p className="text-[12px] font-normal text-muted-foreground">Action Status</p>{editing ? <Select aria-label="Underwriting action status" value={action} disabled={busy} onValueChange={onAction} options={[{ value: '', label: 'Select a status' }, ...underwriterActions.map((item) => ({ value: String(item.value), label: item.label }))]} /> : <ReadOnlyValueCard value={underwriterActions.find((item) => String(item.value) === action)?.label} />}</div>
+          <div className="space-y-2"><p className="text-[12px] font-normal text-muted-foreground">Sub Action</p>{editing ? <Select aria-label="Underwriting sub action" value={subAction} disabled={!action || busy} onValueChange={onSubAction} options={[{ value: '', label: 'Select a reason' }, ...getUnderwriterSubActions(action).map((item) => ({ value: String(item.value), label: item.label }))]} /> : <ReadOnlyValueCard value={getUnderwriterSubActions(action).find((item) => String(item.value) === subAction)?.label} />}</div>
         </div>
       </section>
       {afterActionContent}
       {premiumContent}
-      {!hideCompleteness ? <section className="rounded-2xl border border-border-soft bg-surface p-5">
-        <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Completeness</h2><span className="text-sm font-semibold">{formatPercent(completeness)}</span></div>
-        <div role="progressbar" aria-label="Inquiry completeness" aria-valuenow={completeness} aria-valuemin={0} aria-valuemax={100} className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-soft"><div className="h-full rounded-full bg-primary" style={{ width: `${completeness}%` }} /></div>
-        <dl className="mt-4 space-y-3 text-xs">{inquiry.readiness.map((item) => <div key={item.label} className="flex justify-between gap-3"><dt className="text-muted-foreground">{item.label}</dt><dd className="font-medium">{formatPercent(item.value)}</dd></div>)}</dl>
-      </section> : null}
     </aside>
   )
 }
@@ -96,14 +92,10 @@ export function InquiryAiPanel({ inquiry, sharePointSiteUrl, records, allRecords
   const aiSummary = parseAiSummary(summary)
   return (
     <Dialog.Root open={Boolean(selected) && !loading && !error} onOpenChange={(open) => { if (!open) setSelectedId(null) }}>
-    <InquirySection title="AI Extracted Response" icon={Sparkles} tone="ai" defaultOpen>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{allRecords.length} underwriting checks · Editable before underwriting</p>
-        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" className="rounded-lg bg-secondary text-white shadow-none hover:bg-secondary/90 focus-visible:ring-secondary/30" onClick={onReevaluate}><RefreshCw className="h-3.5 w-3.5" />Re-evaluate AI Extraction</Button>{showRequestDraft ? <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={onRequestDraft}>Request a Draft</Button> : null}</div>
-      </div>
-      <div className="mt-5 space-y-4">
-        {summary ? <div className="space-y-3"><div><p className="text-xs font-semibold">AI Summary</p><p className="mt-2 whitespace-pre-wrap text-[13px] leading-6 text-muted-foreground">{aiSummary.summary}</p></div>{aiSummary.factsUsed.length ? <div><p className="text-xs font-medium">Facts used</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-6 text-muted-foreground">{aiSummary.factsUsed.map((fact, index) => <li key={index}>{fact}</li>)}</ul></div> : null}{aiSummary.conflicts.length ? <div className="rounded-xl border border-warning/20 bg-warning/5 p-3"><p className="text-xs font-medium">Conflicts to review</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-6 text-muted-foreground">{aiSummary.conflicts.map((conflict, index) => <li key={index}>{conflict}</li>)}</ul></div> : null}</div> : null}
-        <dl className="grid grid-cols-3 divide-x divide-border-soft rounded-xl border border-border-soft bg-surface-soft/40 py-3">
+    <InquiryAiSection summary={<div className="space-y-3"><div><p className="mt-2 whitespace-pre-wrap text-[12px] leading-6 text-muted-foreground">{aiSummary.summary?.trim() || 'AI summary is not available yet.'}</p></div>{aiSummary.factsUsed.length ? <div><p className="text-xs font-normal">Facts used</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-6 text-muted-foreground">{aiSummary.factsUsed.map((fact, index) => <li key={index}>{fact}</li>)}</ul></div> : null}{aiSummary.conflicts.length ? <InquiryAiStatus variant="warning" title="Conflicts to review"><ul className="mt-1 list-disc space-y-1 pl-4 text-xs leading-6">{aiSummary.conflicts.map((conflict, index) => <li key={index}>{conflict}</li>)}</ul></InquiryAiStatus> : null}</div>} actions={<><Button type="button" size="sm" className="rounded-lg bg-primary text-white font-normal shadow-none hover:bg-primary/90 focus-visible:ring-primary/30" onClick={onReevaluate}><RefreshCw className="h-3.5 w-3.5" />Re-evaluate AI Extraction</Button>{showRequestDraft ? <Button type="button" size="sm" variant="outline" className="rounded-lg font-normal" onClick={onRequestDraft}>Request a Draft</Button> : null}</>}>
+      <p className="text-xs text-muted-foreground">{allRecords.length} underwriting checks / Editable before underwriting</p>
+      <div className="mt-4 space-y-4">
+        <dl className="grid grid-cols-3 divide-x divide-border-soft rounded-xl border border-border bg-white py-3 dark:bg-surface">
           <div className="px-3"><dt className="text-[11px] text-muted-foreground">Checks extracted</dt><dd className="mt-1 text-lg font-semibold">{allRecords.length}</dd></div>
           <div className="px-3"><dt className="text-[11px] text-muted-foreground">Evidence Not Found</dt><dd className="mt-1 text-lg font-semibold">{missingEvidenceCount}</dd></div>
           <div className="px-3"><dt className="text-[11px] text-muted-foreground">Average confidence</dt><dd className="mt-1 text-lg font-semibold">{average == null ? 'Not available' : average + '%'}</dd></div>
@@ -111,10 +103,10 @@ export function InquiryAiPanel({ inquiry, sharePointSiteUrl, records, allRecords
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-y border-border-soft py-3">
         <div className="flex flex-wrap items-center gap-3">
-          <div role="group" aria-label="Response filters"><div className="flex flex-wrap gap-1.5">{categories.map((item) => <button key={item.value} type="button" onClick={() => onCategory(item.value)} aria-pressed={category === item.value} className={cn('rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition', category === item.value ? 'border-secondary bg-secondary text-white' : 'border-secondary/15 text-secondary hover:bg-secondary/5')}>{item.label} <span className="ml-1 opacity-75">{item.count}</span></button>)}</div></div>
+          <div role="group" aria-label="Response filters"><div className="flex flex-wrap gap-1.5">{categories.map((item) => <button key={item.value} type="button" onClick={() => onCategory(item.value)} aria-pressed={category === item.value} className={cn('rounded-lg border px-2.5 py-1.5 text-[11px] font-normal transition', category === item.value ? 'border-primary bg-primary text-white' : 'border-primary/15 text-primary hover:bg-primary/5')}>{item.label} <span className="ml-1 opacity-75">{item.count}</span></button>)}</div></div>
         </div>
       </div>
-      {loading ? <p role="status" className="py-6 text-sm text-muted-foreground">Loading AI responses...</p> : error ? <div role="alert" className="space-y-3 rounded-xl border border-danger/20 bg-danger/5 p-4"><p className="text-sm text-danger">{error}</p>{onRetry ? <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try Again</Button> : null}</div> : !allRecords.length ? <p className="py-6 text-sm text-muted-foreground">No extracted responses linked to this inquiry.</p> : (
+      {loading ? <InquiryAiStatus variant="info" title="Loading AI responses"><p>Underwriting checks are being loaded.</p></InquiryAiStatus> : error ? <InquiryAiStatus variant="error" title="Unable to load AI responses"><p>{error}</p>{onRetry ? <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try Again</Button> : null}</InquiryAiStatus> : !allRecords.length ? <InquiryAiStatus variant="info" title="No extracted responses"><p>No extracted responses linked to this inquiry.</p></InquiryAiStatus> : (
         <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="w-full space-y-2 sm:max-w-sm">
@@ -125,16 +117,16 @@ export function InquiryAiPanel({ inquiry, sharePointSiteUrl, records, allRecords
           </div>
           {visible.length ? <div aria-label="AI response cards" className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {visible.map((item) => <AiResponseRow key={item.id} item={item} evidenceFiles={<InquiryEvidenceFileNames inquiry={inquiry} response={item} />} evidence={<InquiryEvidenceButton inquiry={inquiry} response={item} siteUrl={sharePointSiteUrl} />} draft={drafts[item.id] ?? item.response} saveState={saveStates[item.id]} onView={(button) => { openerRef.current = button; setSelectedId(item.id) }} />)}
-          </div> : <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground"><p className="font-medium text-foreground">No matching items</p><p className="mt-1">Try another search or change the response filter.</p>{search ? <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>Clear search</Button> : null}</div>}
+          </div> : <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground"><p className="font-normal text-foreground">No matching items</p><p className="mt-1">Try another search or change the response filter.</p>{search ? <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setSearch('')}>Clear search</Button> : null}</div>}
         </div>
       )}
 
-    </InquirySection>
+    </InquiryAiSection>
     {selected ? <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-[90] bg-slate-950/50 backdrop-blur-sm" />
       <Dialog.Content onCloseAutoFocus={(event) => { event.preventDefault(); (openerRef.current?.isConnected ? openerRef.current : searchRef.current)?.focus() }} className="fixed left-1/2 top-1/2 z-[91] flex max-h-[90dvh] w-[min(720px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-surface text-foreground shadow-2xl outline-none">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border-soft px-5 py-4">
-          <div className="flex items-center gap-2.5"><span className="rounded-lg bg-secondary/10 p-2 text-secondary"><Sparkles aria-hidden="true" className="h-4 w-4" /></span><Dialog.Title className="text-sm font-semibold">AI response details</Dialog.Title></div>
+          <div className="flex items-center gap-2.5"><span className="rounded-lg bg-primary/10 p-2 text-primary"><Sparkles aria-hidden="true" className="h-4 w-4" /></span><Dialog.Title className="text-sm font-semibold">AI response details</Dialog.Title></div>
           <Dialog.Close asChild><Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" aria-label="Close response details"><X aria-hidden="true" className="h-4 w-4" /></Button></Dialog.Close>
         </header>
         <Dialog.Description className="sr-only">Full underwriting check and AI response. Copy or edit the response, or navigate through the current results.</Dialog.Description>
@@ -157,7 +149,7 @@ export function InquiryAiPanel({ inquiry, sharePointSiteUrl, records, allRecords
 
 function AiConditionBadge({ value }: { value: string }) {
   const result = aiConditionResult(value)
-  return <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-medium', result.tone === 'met' ? 'text-success' : result.tone === 'unmet' ? 'text-warning' : 'text-muted-foreground')}><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />{result.label}</span>
+  return <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap text-[11px] font-normal', result.tone === 'met' ? 'text-success' : result.tone === 'unmet' ? 'text-warning' : 'text-muted-foreground')}><span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />{result.label}</span>
 }
 
 function AiConfidence({ value }: { value?: number }) {
@@ -173,8 +165,8 @@ function AiResponseRow({ item, draft, evidence, evidenceFiles, saveState, onView
     <header className="space-y-1.5">
       <h3 title={title} className="line-clamp-2 break-words text-[13px] font-semibold leading-5">{title}</h3>
       {property || missingEvidence ? <div className="flex flex-wrap gap-1.5">
-        {property ? <span className="rounded-md bg-secondary/10 px-2 py-1 text-[10px] font-medium leading-4 text-secondary">{property}</span> : null}
-        {missingEvidence ? <span className="rounded-md bg-warning/10 px-2 py-1 text-[10px] font-medium leading-4 text-amber-700 dark:text-amber-300">Evidence Not Found</span> : null}
+        {property ? <span className="rounded-md bg-primary/10 px-2 py-1 text-[10px] font-normal leading-4 text-primary">{property}</span> : null}
+        {missingEvidence ? <span className="rounded-md bg-warning/10 px-2 py-1 text-[10px] font-normal leading-4 text-amber-700 dark:text-amber-300">Evidence Not Found</span> : null}
       </div> : null}
     </header>
     <div className="rounded-lg bg-surface-muted/60 px-3 py-2.5"><p className="line-clamp-3 whitespace-pre-wrap break-words text-[13px] leading-5 text-foreground">{draft.trim() ? draft : 'No response provided.'}</p></div>
@@ -195,7 +187,7 @@ function AiResponseContent({ item, draft, saveState, onDraft, onSave }: { item: 
   const [copyStatus, setCopyStatus] = useState('')
   const editorId = useId()
   return <div className="flex flex-1 flex-col gap-4">
-    <div className="flex-1 space-y-2"><p className="text-[11px] font-medium text-muted-foreground">Response</p><div className="form-field-surface rounded-lg border border-border-soft px-4 py-3"><p className="whitespace-pre-wrap break-words text-[13px] leading-6 text-foreground">{draft.trim() ? draft : 'No response provided.'}</p></div></div>
+    <div className="flex-1 space-y-2"><p className="text-[11px] font-normal text-muted-foreground">Response</p><div className="form-field-surface rounded-lg border border-border-soft px-4 py-3"><p className="whitespace-pre-wrap break-words text-[13px] leading-6 text-foreground">{draft.trim() ? draft : 'No response provided.'}</p></div></div>
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-soft pt-4"><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" className="rounded-lg bg-surface text-muted-foreground" disabled={!draft.trim()} onClick={async () => {
       try {
         await navigator.clipboard.writeText(draft)

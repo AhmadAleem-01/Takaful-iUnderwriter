@@ -1,3 +1,4 @@
+import { ReadOnlyValueCard } from './ReadOnlyValueCard'
 import { Calculator, HeartPulse, Mail, MapPin, ShieldCheck, UserRound, UsersRound, Wallet, type LucideIcon } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/Tabs'
 import { InquiryInformationSection, InquirySection } from './InquiryWorkspacePanels'
@@ -13,8 +14,8 @@ function HealthFields({ fields }: { fields: HealthField[] }) {
     <dl className="grid gap-4 md:grid-cols-2">
       {fields.map(([label, value]) => (
         <div key={label} className="min-w-0 space-y-2.5">
-          <dt className="text-[11px] font-medium text-muted-foreground">{label}</dt>
-          <dd className="form-field-surface min-h-[46px] break-words rounded-2xl border border-border-soft px-4 py-3 text-[13px] font-medium text-foreground">{value}</dd>
+          <dt className="text-[12px] font-normal text-muted-foreground">{label}</dt>
+          <ReadOnlyValueCard as="dd" value={value} />
         </div>
       ))}
     </dl>

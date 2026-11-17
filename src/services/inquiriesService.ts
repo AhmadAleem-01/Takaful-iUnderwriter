@@ -1,3 +1,4 @@
+import { getInquiryPurposeOptions } from './inquiryPurposesService'
 import { AccountsService } from '../generated/services/AccountsService'
 import { ActivitymimeattachmentsService } from '../generated/services/ActivitymimeattachmentsService'
 import { Aur_business_rulesesService } from '../generated/services/Aur_business_rulesesService'
@@ -587,9 +588,10 @@ export async function getConsequenceLinkedTemplatePreview(
 }
 
 async function getInquiryEditorOptionsUncached() {
-  const [referenceData, contactsResult] = await Promise.all([
+  const [referenceData, contactsResult, inquiryPurposes] = await Promise.all([
     getInquiryReferenceData(),
     ContactsService.getAll({ select: ['contactid', 'fullname'], orderBy: ['fullname asc'] }),
+    getInquiryPurposeOptions(),
   ])
 
   const brokerAccounts = (referenceData.accounts ?? []).filter((record) => {
@@ -608,7 +610,7 @@ async function getInquiryEditorOptionsUncached() {
     parentProducts: (referenceData.products ?? []).map((record) => ({ id: normalizeDataverseId(record.aur_productsid), name: record.aur_name ?? 'Unnamed product' })).sort((a, b) => a.name.localeCompare(b.name)),
     brokerContacts: (contactsResult.data ?? []).map((record) => ({ id: record.contactid, name: record.fullname ?? 'Unnamed contact' })),
     companies: (referenceData.accounts ?? []).map((record) => ({ id: record.accountid, name: record.name ?? 'Unnamed company' })),
-    inquiryPurposes: [{ value: 1, label: 'For Inward Business' }, { value: 2, label: 'For Quotation' }],
+    inquiryPurposes,
     inquiryTypes: INQUIRY_TYPE_OPTIONS,
     inquiryStatuses: INQUIRY_STATUS_OPTIONS,
     coverTypes: [
@@ -639,7 +641,7 @@ export async function saveInquiryDetail(
     brokerContactId?: string | null
     brokerCompanyId?: string | null
     insuredCompanyId?: string | null
-    inquiryPurpose?: number | null
+    inquiryPurpose?: string | null
     planDetails: string
     coverType?: number
     riskScore: number
@@ -669,7 +671,7 @@ export async function saveInquiryDetail(
     ...(payload.brokerContactId !== undefined ? { 'aur_broker_contact@odata.bind': payload.brokerContactId ? `/contacts(${payload.brokerContactId})` : null } : {}),
     ...(payload.brokerCompanyId !== undefined ? { 'aur_broker_company@odata.bind': payload.brokerCompanyId ? `/accounts(${payload.brokerCompanyId})` : null } : {}),
     ...(payload.insuredCompanyId !== undefined ? { 'aur_insured_company@odata.bind': payload.insuredCompanyId ? `/accounts(${payload.insuredCompanyId})` : null } : {}),
-    ...(payload.inquiryPurpose !== undefined ? { aur_inquiry_purpose: payload.inquiryPurpose } : {}),
+    ...(payload.inquiryPurpose !== undefined ? { 'aur_inquiry_purpose@odata.bind': payload.inquiryPurpose ? `/aur_inquiry_purposes(${normalizeDataverseId(payload.inquiryPurpose)})` : null } : {}),
     aur_plan_details: payload.planDetails,
     ...(payload.inquiryType !== undefined ? { aur_inquiry_type: payload.inquiryType as never } : {}),
     ...(payload.inquiryStatus !== undefined ? { statuscode: payload.inquiryStatus as never } : {}),
@@ -697,7 +699,8 @@ export async function saveInquiryDetail(
     updatePayload,
   })
 
-  await Aur_inquiriesService.update(recordId, updatePayload as never)
+  const result = await Aur_inquiriesService.update(recordId, updatePayload as never)
+  if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to save inquiry details.')
 }
 
 function resolveInquiryRelations(
@@ -760,10 +763,11 @@ export async function updateInquiryDisposition(
     PropertyorReinsuranceTeam: 751820014,
   } as const
 
-  await Aur_inquiriesService.update(id, {
+  const result = await Aur_inquiriesService.update(normalizeDataverseId(id), {
     statuscode: inquiryStatusMap[disposition] as never,
     aur_underwriter_action: (disposition === 'Decline' ? 2 : 1) as never,
   })
+  if (!result.success || result.error) throw new Error(result.error?.message || 'Unable to update inquiry disposition.')
 }
 
 export async function applyInquiryConsequenceResult(input: {

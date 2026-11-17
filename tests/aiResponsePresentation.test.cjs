@@ -20,6 +20,11 @@ function compile(file, dependencies = {}) {
 
 const presentation = compile('lib/aiResponsePresentation.ts')
 function loadPanel(react = React) { return compile('components/inquiries/InquiryWorkspacePanels.tsx', {
+  './InquiryAiSection': compile('components/inquiries/InquiryAiSection.tsx', {
+    react, 'react/jsx-runtime': require('react/jsx-runtime'), 'lucide-react': require('lucide-react'),
+  }),
+  './ReadOnlyValueCard': { ReadOnlyValueCard: () => null },
+  './InquiryCompletenessCard': { InquiryCompletenessCard: () => null },
   '@radix-ui/react-dialog': require('@radix-ui/react-dialog'),
   react, 'react/jsx-runtime': require('react/jsx-runtime'), 'lucide-react': require('lucide-react'),
   '../../lib/aiResponsePresentation': presentation,

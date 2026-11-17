@@ -146,7 +146,7 @@ export interface InquirySummary {
 export interface InquiryDetail extends InquirySummary {
   parentProductId?: string
   parentProductName?: string
-  inquiryPurposeValue?: number
+  inquiryPurposeValue?: string
   inquiryPurpose?: string
   brokerContactId?: string
   brokerContactName?: string
@@ -494,7 +494,18 @@ export interface ChartDatum {
   value: number
 }
 
+export interface BrokerInquiryDatum extends ChartDatum {
+  id: string
+}
+
+export interface ReinsuranceBreakdownDatum extends ChartDatum {
+  wonQuotes: number
+  productName?: string
+}
+
 export interface DashboardMetrics {
+  averageInquiryRiskScore: number | null
+  scoredInquiryCount: number
   previewMode: boolean
   greeting: string
   heroDescription: string
@@ -509,9 +520,9 @@ export interface DashboardMetrics {
   inquiryToQuoteConversionRate: number
   quoteToWonConversionRate: number
   brokerEmailTrend: ChartDatum[]
-  wonPremiumByProduct: ChartDatum[]
-  wonPremiumByPlan: ChartDatum[]
-  inquiryByBrokers: ChartDatum[]
+  wonPremiumByProduct: ReinsuranceBreakdownDatum[]
+  wonPremiumByPlan: ReinsuranceBreakdownDatum[]
+  inquiryByBrokers: BrokerInquiryDatum[]
   inquiryKpis: KpiMetric[]
   quoteKpis: KpiMetric[]
   renewalKpis: KpiMetric[]

@@ -138,8 +138,8 @@ export function mapInquiryDetail(
       || record['_aur_line_of_business_value@OData.Community.Display.V1.FormattedValue']
       || record['aur_line_of_business@OData.Community.Display.V1.FormattedValue']
       || '',
-    inquiryPurposeValue: record.aur_inquiry_purpose,
-    inquiryPurpose: record.aur_inquiry_purposename ?? (record.aur_inquiry_purpose === 1 ? 'For Inward Business' : record.aur_inquiry_purpose === 2 ? 'For Quotation' : ''),
+    inquiryPurposeValue: (record as Aur_inquiries & { _aur_inquiry_purpose_value?: string })._aur_inquiry_purpose_value,
+    inquiryPurpose: record.aur_inquiry_purposename ?? (record as unknown as Record<string, string>)['_aur_inquiry_purpose_value@OData.Community.Display.V1.FormattedValue'] ?? '',
     brokerContactId: record._aur_broker_contact_value,
     brokerContactName: record.aur_broker_contactname ?? contact?.name ?? '',
     brokerCompanyId: record._aur_broker_company_value,

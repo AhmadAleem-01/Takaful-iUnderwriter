@@ -1,4 +1,4 @@
-import { AccountsService } from '../generated/services/AccountsService'
+import { ContactsService } from '../generated/services/ContactsService'
 import { TemplatesService } from '../generated/services/TemplatesService'
 import { Aur_custom_document_templatesesService } from '../generated/services/Aur_custom_document_templatesesService'
 import { Aur_plansService } from '../generated/services/Aur_plansService'
@@ -6,7 +6,7 @@ import { Aur_productsesService } from '../generated/services/Aur_productsesServi
 import { Aur_quotesService } from '../generated/services/Aur_quotesService'
 import { Aur_inquiriesService } from '../generated/services/Aur_inquiriesService'
 import { EmailsService } from '../generated/services/EmailsService'
-import type { DashboardMetrics } from '../domain/app'
+import type { BrokerInquiryDatum, DashboardMetrics } from '../domain/app'
 import {
   countByType,
   isRenewal,
@@ -15,7 +15,7 @@ import {
 } from './dataMappers'
 
 function normalizeDataverseId(value?: string | null) {
-  return (value ?? '').replace(/[{}]/g, '').toLowerCase()
+  return (value ?? '').trim().replace(/[{}]/g, '').toLowerCase()
 }
 
 function isPreviewMode() {
@@ -24,7 +24,7 @@ function isPreviewMode() {
 }
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  const [inquiriesResult, quotesResult, emailTemplatesResult, documentTemplatesResult, emailsResult, productsResult, plansResult, accountsResult] =
+  const [inquiriesResult, quotesResult, emailTemplatesResult, documentTemplatesResult, emailsResult, productsResult, plansResult, contactsResult] =
     await Promise.all([
       Aur_inquiriesService.getAll({ orderBy: ['createdon desc'] }),
       Aur_quotesService.getAll({ orderBy: ['createdon desc'] }),
@@ -33,7 +33,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
       EmailsService.getAll({ orderBy: ['createdon desc'] }).catch(() => ({ data: [] })),
       Aur_productsesService.getAll().catch(() => ({ data: [] })),
       Aur_plansService.getAll().catch(() => ({ data: [] })),
-      AccountsService.getAll().catch(() => ({ data: [] })),
+      ContactsService.getAll({ select: ['contactid', 'fullname', 'firstname', 'lastname'] }).catch(() => ({ data: [] })),
     ])
 
   const inquiries = inquiriesResult.data ?? []
@@ -47,8 +47,8 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const planMap = new Map(
     (plansResult.data ?? []).map((item) => [normalizeDataverseId(item.aur_planid), item.aur_name ?? 'Unnamed Plan']),
   )
-  const accountMap = new Map(
-    (accountsResult.data ?? []).map((item) => [normalizeDataverseId(item.accountid), item]),
+  const contactMap = new Map(
+    (contactsResult.data ?? []).map((item) => [normalizeDataverseId(item.contactid), item]),
   )
   const inquiryCatalog = new Map(
     inquiries.map((item) => [
@@ -82,51 +82,50 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     }, new Map<string, number>()),
   )
     .sort((left, right) => right[1] - left[1])
-    .slice(0, 5)
     .map(([label, value]) => ({ label, value }))
 
   const inquiryByBrokers = Array.from(
     inquiries.reduce((map, inquiry) => {
-      const accountId = normalizeDataverseId(inquiry._aur_broker_company_value)
-      const account = accountMap.get(accountId)
-      const isBroker =
-        account?.aur_account_type === 751820000 ||
-        (account?.aur_account_typename ?? '').trim().toLowerCase() === 'broker'
-
-      if (!isBroker) {
-        return map
-      }
-
-      const key = account?.name?.trim() || inquiry.aur_broker_companyname?.trim() || 'Unnamed Broker'
-      map.set(key, (map.get(key) ?? 0) + 1)
+      const id = normalizeDataverseId(inquiry._aur_broker_contact_value)
+      if (!id) return map
+      const contact = contactMap.get(id)
+      const label = contact?.fullname?.trim() ||
+        [contact?.firstname, contact?.lastname].filter(Boolean).join(' ').trim() ||
+        inquiry.aur_broker_contactname?.trim()
+      const group = map.get(id) ?? { id, label: label || 'Unnamed broker contact', value: 0 }
+      if (group.label === 'Unnamed broker contact' && label) group.label = label
+      group.value += 1
+      map.set(id, group)
       return map
-    }, new Map<string, number>()),
-  )
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, 6)
-    .map(([label, value]) => ({ label, value }))
+    }, new Map<string, BrokerInquiryDatum>()).values(),
+  ).sort((left, right) => right.value - left.value || left.label.localeCompare(right.label) || left.id.localeCompare(right.id))
 
   const wonPremiumByProduct = Array.from(
     wonQuotes.reduce((map, quote) => {
-      const key = resolveProductName(quote.aur_productname, quote._aur_product_value)
-      map.set(key, (map.get(key) ?? 0) + (quote.aur_total_premium ?? 0))
+      const label = resolveProductName(quote.aur_productname, quote._aur_product_value)
+      const group = map.get(label) ?? { value: 0, wonQuotes: 0 }
+      group.value += quote.aur_total_premium ?? 0
+      group.wonQuotes += 1
+      map.set(label, group)
       return map
-    }, new Map<string, number>()),
-  )
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, 6)
-    .map(([label, value]) => ({ label, value: Math.round(value) }))
+    }, new Map<string, { value: number; wonQuotes: number }>()),
+    ([label, group]) => ({ label, value: Math.round(group.value), wonQuotes: group.wonQuotes }),
+  ).sort((left, right) => right.value - left.value)
 
+  const planRecords = new Map((plansResult.data ?? []).map((plan) => [normalizeDataverseId(plan.aur_planid), plan]))
   const wonPremiumByPlan = Array.from(
     wonQuotes.reduce((map, quote) => {
-      const key = resolvePlanName(quote.aur_planname, quote._aur_plan_value)
-      map.set(key, (map.get(key) ?? 0) + (quote.aur_total_premium ?? 0))
+      const label = resolvePlanName(quote.aur_planname, quote._aur_plan_value)
+      const group = map.get(label) ?? { value: 0, wonQuotes: 0, products: new Set<string>() }
+      const plan = planRecords.get(normalizeDataverseId(quote._aur_plan_value))
+      group.value += quote.aur_total_premium ?? 0
+      group.wonQuotes += 1
+      group.products.add(resolveProductName(quote.aur_productname, quote._aur_product_value || plan?._aur_product_value))
+      map.set(label, group)
       return map
-    }, new Map<string, number>()),
-  )
-    .sort((left, right) => right[1] - left[1])
-    .slice(0, 6)
-    .map(([label, value]) => ({ label, value: Math.round(value) }))
+    }, new Map<string, { value: number; wonQuotes: number; products: Set<string> }>()),
+    ([label, group]) => ({ label, value: Math.round(group.value), wonQuotes: group.wonQuotes, productName: [...group.products].sort().join(', ') }),
+  ).sort((left, right) => right.value - left.value)
 
   const brokerEmailTrend = Array.from(
     brokerEmails.reduce((map, email) => {
@@ -167,7 +166,12 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     .slice(0, 5)
     .map(([label, value]) => ({ label, value }))
 
+  const riskScores = inquiries.map((inquiry) => inquiry.aur_risk_score)
+    .filter((score): score is number => typeof score === 'number' && Number.isFinite(score))
+
   return {
+    averageInquiryRiskScore: riskScores.length > 0 ? Math.round(riskScores.reduce((sum, score) => sum + score, 0) / riskScores.length) : null,
+    scoredInquiryCount: riskScores.length,
     previewMode: isPreviewMode(),
     greeting: 'Welcome back',
     heroDescription:

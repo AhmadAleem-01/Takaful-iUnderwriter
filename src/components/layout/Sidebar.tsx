@@ -15,7 +15,7 @@ const GROUP_ORDER = [
 ]
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const { hasAccess, user } = useRole()
+  const { hasAccess } = useRole()
   const location = useLocation()
   const [logoFailed, setLogoFailed] = useState(false)
   const groupEntries = useMemo(() => {
@@ -52,9 +52,9 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   }, [groupEntries, location.pathname, location.search])
 
   return (
-    <aside className={cn('hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:flex-col lg:border-r lg:border-[#19324C] lg:bg-[#071827] lg:text-white transition-[width] duration-300 motion-reduce:transition-none', collapsed ? 'lg:w-[80px]' : 'lg:w-[280px]')}>
-      <button type="button" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className={cn('border-b border-white/10 py-5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', collapsed ? 'px-[18px]' : 'px-3')}>
-        <div className={cn('flex items-center justify-center rounded-[12px]', collapsed ? 'h-11 w-11 p-2' : 'h-14 w-full py-1')}>
+    <aside className={cn('hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:flex-col lg:border-r lg:border-white/10 lg:bg-[#194F90] dark:lg:bg-[#071827] lg:text-white transition-[width] duration-300 motion-reduce:transition-none', collapsed ? 'lg:w-[80px]' : 'lg:w-[280px]')}>
+      <button type="button" onClick={onToggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} className={cn('shrink-0 py-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80', collapsed ? 'px-5' : 'px-3')}>
+        <div className={cn('flex items-center justify-center rounded-[12px]', collapsed ? 'h-10 w-10 p-1.5' : 'h-12 w-full py-1')}>
           {logoFailed ? <span className="text-sm font-bold text-white">{collapsed ? 'T' : 'Takaful'}</span> : <img
             src="/takaful-logo.png"
             alt="Abu Dhabi National Takaful"
@@ -64,8 +64,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         </div>
       </button>
 
-      <nav aria-label="Main navigation" className={cn('scrollbar-hidden flex-1 overflow-y-auto py-4', collapsed ? 'px-3' : 'px-4')}>
-        <div className="space-y-4">
+      <nav aria-label="Main navigation" className={cn('sidebar-scrollbar min-h-0 flex-1 overflow-y-auto pb-6 pt-1', collapsed ? 'px-3' : 'px-4')}>
+        <div className="space-y-3">
           {groupEntries.map(([group, routes]) => {
             const isExpanded = expandedGroups[group] ?? false
             const activeCount = routes.filter((route) => isRouteActive(location.pathname, location.search, route.path)).length
@@ -74,9 +74,9 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                 <button
                   type="button"
                   className={cn(
-                    'group flex w-full items-center justify-between gap-3 rounded-[12px] px-2 py-1.5 text-left transition duration-200',
+                    'group flex w-full items-center justify-between gap-3 rounded-[12px] px-2 py-1.5 text-left outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-white/80 motion-reduce:transition-none',
                     collapsed && 'hidden',
-                    isExpanded ? 'text-slate-200' : 'text-slate-500 hover:text-slate-300',
+                    isExpanded ? 'text-[#B8CFEA] dark:text-[#94A3B8]' : 'text-[#B8CFEA] hover:text-white dark:text-[#94A3B8] dark:hover:text-white',
                   )}
                   onClick={() => setExpandedGroups((current) => ({ ...current, [group]: !isExpanded }))}
                   aria-expanded={isExpanded}
@@ -84,8 +84,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                   <span className="flex min-w-0 items-center gap-2.5">
                     <span
                       className={cn(
-                        'block truncate text-[10px] font-bold uppercase tracking-[0.18em] transition',
-                        activeCount || isExpanded ? 'text-slate-300' : 'text-slate-500',
+                        'block truncate text-[12px] font-medium uppercase tracking-normal transition',
+                        'text-[#B8CFEA] dark:text-[#94A3B8]',
                       )}
                     >
                       {group}
@@ -94,15 +94,15 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                   <span className="flex items-center gap-2">
                     <span
                       className={cn(
-                        'rounded-full px-2 py-0.5 text-[10px] font-bold transition',
+                        'rounded-[5px] px-1.5 py-0.5 text-[10px] font-medium transition',
                         activeCount
-                          ? 'bg-primary/15 text-primary-light'
-                          : 'bg-white/[0.045] text-slate-500',
+                          ? 'bg-white/15 text-white'
+                          : 'bg-white/10 text-[#C2D6F0] dark:text-[#B8C7DB]',
                       )}
                     >
                       {routes.length}
                     </span>
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg text-slate-500 transition group-hover:bg-white/5 group-hover:text-slate-300">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg text-[#B8CFEA] transition group-hover:bg-white/10 group-hover:text-white dark:text-[#94A3B8] dark:group-hover:text-white">
                       <ChevronDown className={cn('h-3.5 w-3.5 transition duration-200', isExpanded && 'rotate-180')} />
                     </span>
                   </span>
@@ -110,7 +110,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
                 <div
                   className={cn(
-                    'grid transition-all duration-300 ease-out',
+                    'grid transition-all duration-300 ease-out motion-reduce:transition-none',
                     collapsed || isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                   )}
                 >
@@ -125,23 +125,23 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                             title={collapsed ? route.label : undefined}
                             aria-label={collapsed ? route.label : undefined}
                             className={cn(
-                              'group relative flex h-10 items-center gap-3 rounded-[14px] border px-2.5 text-[13px] font-semibold transition duration-200',
+                              'group relative flex h-[40px] items-center gap-3 rounded-[9px] border px-3 text-[12px] font-medium outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#194F90] dark:focus-visible:ring-offset-[#071827] motion-reduce:transition-none',
                               active
-                                ? 'border-primary/30 bg-primary text-white shadow-[0_10px_24px_rgba(40,108,255,0.22)]'
-                                : 'border-transparent text-slate-400 hover:bg-white/[0.06] hover:text-white',
+                                ? 'border-white bg-white text-[#1855A0] dark:border-[#286CFF] dark:bg-[#286CFF] dark:text-white'
+                                : 'border-transparent text-[#C2D6F0] hover:bg-white/10 hover:text-white dark:text-[#B8C7DB] dark:hover:text-white',
                               route.disabled && 'opacity-55',
                               collapsed && 'justify-center px-0',
                             )}
                           >
                             <span
                               className={cn(
-                                'flex h-7 w-7 shrink-0 items-center justify-center rounded-[11px] transition duration-200',
+                                'flex h-6 w-6 shrink-0 items-center justify-center transition duration-200',
                                 active
-                                  ? 'bg-white/16 text-white'
-                                  : 'bg-white/[0.045] text-slate-400 group-hover:bg-white/10 group-hover:text-white',
+                                  ? 'text-[#1855A0] dark:text-white'
+                                  : 'text-[#C2D6F0] group-hover:text-white dark:text-[#B8C7DB] dark:group-hover:text-white',
                               )}
                             >
-                              <route.icon className="h-[15px] w-[15px] text-current" />
+                              <route.icon className="h-[19px] w-[19px] text-current" />
                             </span>
                             <span className={cn('min-w-0 truncate', collapsed && 'hidden')}>{route.label}</span>
                           </NavLink>
@@ -156,19 +156,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         </div>
       </nav>
 
-      <div className={cn('border-t border-white/10 py-4', collapsed ? 'px-3' : 'px-4')}>
-        <div title={collapsed ? `${user.name} - ${user.roleLabel}` : undefined} className={cn('rounded-[16px] border border-white/10 bg-white/[0.055]', collapsed ? 'p-1.5' : 'p-3')}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-primary text-sm font-bold text-white">
-              {user.initials}
-            </div>
-            <div className={cn('min-w-0', collapsed && 'hidden')}>
-              <p className="truncate text-[13px] font-bold">{user.name}</p>
-              <p className="truncate text-[12px] text-slate-400">{user.roleLabel}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+
     </aside>
   )
 }
